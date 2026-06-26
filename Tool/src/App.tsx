@@ -343,56 +343,74 @@ export default function App() {
     setTimeout(() => setShowExportSuccess(false), 3000)
   }
 
+  const parsePackJson = (raw: string): AmmoPackDefinition => {
+    const cleaned = raw
+      .replace(/\/\/.*$/gm, '')
+      .replace(/\/\*[\s\S]*?\*\//g, '')
+      .replace(/,\s*([\]}])/g, '$1')
+    const parsed = JSON.parse(cleaned)
+    const ammo = (parsed.ammo ?? []).map((a: AmmoDefinition & { trader?: Partial<TraderEntry> }) => {
+      const normalized: AmmoDefinition = { ...createDefaultAmmo(), ...a }
+      // Backward compatibility: old single "trader" field -> new "traders" array
+      if (a.trader && !Array.isArray(a.traders)) {
+        normalized.traders = [a.trader as TraderEntry]
+      }
+      // Backward compatibility: missing ammoBox / loot fields
+      if (!a.ammoBox) normalized.ammoBox = createDefaultAmmo().ammoBox
+      if (!a.loot) normalized.loot = createDefaultAmmo().loot
+      // Backward compatibility: missing lootItem option
+      if (normalized.loot && (a.loot as typeof a.loot & { lootItem?: LootItem })?.lootItem === undefined) {
+        normalized.loot.lootItem = 'ammo'
+      }
+      // Backward compatibility: missing ammoBox sellToTraders / traderPriceRoubles
+      if (normalized.ammoBox && (a.ammoBox as typeof a.ammoBox & { sellToTraders?: boolean })?.sellToTraders === undefined) {
+        normalized.ammoBox.sellToTraders = false
+        normalized.ammoBox.traderPriceRoubles = 0
+      }
+      return normalized
+    })
+    return {
+      ...createDefaultPack(),
+      ...parsed,
+      ammo,
+    }
+  }
+
   const importPack = () => {
     const input = document.createElement('input')
     input.type = 'file'
-    input.accept = '.json'
-    input.onchange = (e) => {
+    input.accept = '.json,.zip'
+    input.onchange = async (e) => {
       const file = (e.target as HTMLInputElement).files?.[0]
       if (!file) return
-      const reader = new FileReader()
-      reader.onload = (ev) => {
-        try {
-          const raw = String(ev.target?.result ?? '')
-            .replace(/\/\/.*$/gm, '')
-            .replace(/\/\*[\s\S]*?\*\//g, '')
-            .replace(/,\s*([\]}])/g, '$1')
-          const parsed = JSON.parse(raw)
-          const ammo = (parsed.ammo ?? []).map((a: AmmoDefinition & { trader?: Partial<TraderEntry> }) => {
-            const normalized: AmmoDefinition = { ...createDefaultAmmo(), ...a }
-            // Backward compatibility: old single "trader" field -> new "traders" array
-            if (a.trader && !Array.isArray(a.traders)) {
-              normalized.traders = [a.trader as TraderEntry]
-            }
-            // Backward compatibility: missing ammoBox / loot fields
-            if (!a.ammoBox) normalized.ammoBox = createDefaultAmmo().ammoBox
-            if (!a.loot) normalized.loot = createDefaultAmmo().loot
-            // Backward compatibility: missing lootItem option
-            if (normalized.loot && (a.loot as typeof a.loot & { lootItem?: LootItem })?.lootItem === undefined) {
-              normalized.loot.lootItem = 'ammo'
-            }
-            // Backward compatibility: missing ammoBox sellToTraders / traderPriceRoubles
-            if (normalized.ammoBox && (a.ammoBox as typeof a.ammoBox & { sellToTraders?: boolean })?.sellToTraders === undefined) {
-              normalized.ammoBox.sellToTraders = false
-              normalized.ammoBox.traderPriceRoubles = 0
-            }
-            return normalized
-          })
-          const merged: AmmoPackDefinition = {
-            ...createDefaultPack(),
-            ...parsed,
-            ammo,
+
+      try {
+        let raw = ''
+
+        if (file.name.toLowerCase().endsWith('.zip')) {
+          const zip = await JSZip.loadAsync(file)
+          const jsonFiles = Object.values(zip.files).filter(
+            f => f.name.toLowerCase().endsWith('.json') && !f.dir
+          )
+          const packFile = jsonFiles.find(f => /AmmoGen[\\/]ammo[\\/].+\.json$/i.test(f.name)) || jsonFiles[0]
+          if (!packFile) {
+            alert('No JSON file found in the selected ZIP.')
+            return
           }
-          setPack(merged)
-          setActiveIndex(0)
-          setErrors([])
-          setActiveTab('identity')
-        } catch (err) {
-          alert('Failed to parse JSON file. Check the file format.')
-          console.error(err)
+          raw = await packFile.async('text')
+        } else {
+          raw = await file.text()
         }
+
+        const merged = parsePackJson(raw)
+        setPack(merged)
+        setActiveIndex(0)
+        setErrors([])
+        setActiveTab('identity')
+      } catch (err) {
+        alert('Failed to import pack. Check the file format.')
+        console.error(err)
       }
-      reader.readAsText(file)
     }
     input.click()
   }
