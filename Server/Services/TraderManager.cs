@@ -135,12 +135,13 @@ public static class TraderManager
             return;
         }
 
-        MongoId boxAssortId = new MongoId(box.Id);
+        MongoId boxTemplateId = new MongoId(box.Id);
+        MongoId boxAssortId = new MongoId();
 
         var boxItem = new Item
         {
             Id = boxAssortId,
-            Template = new MongoId(box.Id),
+            Template = boxTemplateId,
             ParentId = "hideout",
             SlotId = "hideout",
             Upd = new Upd

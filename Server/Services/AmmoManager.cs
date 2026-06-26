@@ -165,17 +165,26 @@ public static class AmmoManager
             var items = databaseService.GetItems();
             if (items.TryGetValue(box.Id, out var boxItem) && boxItem.Properties != null)
             {
-                dynamic props = boxItem.Properties;
-                if (props.StackSlots != null)
+                if (boxItem.Properties.StackSlots is not null)
                 {
-                    foreach (var slot in props.StackSlots)
+                    foreach (var slot in boxItem.Properties.StackSlots)
                     {
-                        slot._max_count = box.Count;
-                        if (slot._props?.filters != null)
+                        if (slot is null)
                         {
-                            foreach (var filter in slot._props.filters)
+                            continue;
+                        }
+
+                        slot.MaxCount = box.Count;
+                        if (slot.Properties?.Filters is not null)
+                        {
+                            foreach (var filter in slot.Properties.Filters)
                             {
-                                filter.Filter = new List<object> { def.Id };
+                                if (filter is null)
+                                {
+                                    continue;
+                                }
+
+                                filter.Filter = new HashSet<MongoId> { new MongoId(def.Id) };
                             }
                         }
                     }
