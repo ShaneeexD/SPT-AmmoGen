@@ -1,0 +1,49 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <RootNamespace>AmmoGen</RootNamespace>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <OutputType>Library</OutputType>
+    <Version>1.0.0</Version>
+    <OutputPath>bin\$(Configuration)\$(ProjectName)\$(AssemblyName)\</OutputPath>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
+    <AssemblyName>AmmoGen.Server</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="SPTarkov.Common" Version="4.0.13" />
+    <PackageReference Include="SPTarkov.DI" Version="4.0.13" />
+    <PackageReference Include="SPTarkov.Server.Core" Version="4.0.13" />
+  </ItemGroup>
+
+  <!-- Exclude old template files that are not part of this mod -->
+  <ItemGroup>
+    <Compile Remove="Plugin.cs" />
+    <Compile Remove="Patches\**" />
+  </ItemGroup>
+
+  <!-- Copy config and package manifest to output -->
+  <ItemGroup>
+    <None Include="config\**\*.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="package.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <!-- Auto-deploy to SPT mods folder after build -->
+  <Target Name="DeployToSPT" AfterTargets="Build">
+    <PropertyGroup>
+      <SPTModDir>C:\SPT\SPT\user\mods\AmmoGen</SPTModDir>
+    </PropertyGroup>
+    <MakeDir Directories="$(SPTModDir)" />
+    <MakeDir Directories="$(SPTModDir)\config" />
+    <Copy SourceFiles="$(OutputPath)$(AssemblyName).dll" DestinationFolder="$(SPTModDir)" OverwriteReadOnlyFiles="true" />
+    <Copy SourceFiles="$(OutputPath)package.json" DestinationFolder="$(SPTModDir)" OverwriteReadOnlyFiles="true" />
+    <Copy SourceFiles="$(OutputPath)$(AssemblyName).pdb" DestinationFolder="$(SPTModDir)" OverwriteReadOnlyFiles="true" Condition="Exists('$(OutputPath)$(AssemblyName).pdb')" />
+    <ItemGroup>
+      <ConfigFiles Include="$(ProjectDir)config\**\*.json" />
+    </ItemGroup>
+    <Copy SourceFiles="@(ConfigFiles)" DestinationFiles="@(ConfigFiles->'$(SPTModDir)\config\%(Filename)%(Extension)')" OverwriteReadOnlyFiles="true" />
+    <Message Text="[AmmoGen] Deployed to $(SPTModDir)" Importance="high" />
+  </Target>
+</Project>

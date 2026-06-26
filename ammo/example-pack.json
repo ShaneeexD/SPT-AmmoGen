@@ -1,0 +1,53 @@
+{
+  "enabled": true,
+  "name": "AmmoGen Example Pack",
+  "ammo": [
+    {
+      "id": "010000000000000000000001",
+      "enabled": true,
+      "baseTpl": "59e655cb86f77411dc52a77b",
+      "name": "Example Custom Ammo",
+      "shortName": "ExAmmo",
+      "description": "An example custom ammo created with AmmoGen. Cloned from .366 TKM EKO.",
+      "handbookParentId": "5b47574386f77428ca22b33b",
+      "stats": {
+        "damage": 110,
+        "penetration": 45,
+        "armorDamage": 55,
+        "initialSpeed": 850,
+        "ammoAccr": 2,
+        "ammoRec": -5,
+        "stackMaxSize": 30
+      },
+      "economy": {
+        "handbookPriceRoubles": 1200,
+        "fleaPriceRoubles": 1400,
+        "rarityPvE": "Rare"
+      },
+      "traders": [
+        {
+          "enabled": true,
+          "traderId": "54cb50c76803fa8b248b4571",
+          "loyaltyLevel": 2,
+          "priceRoubles": 900,
+          "stockCount": 200,
+          "buyRestrictionMax": 200
+        }
+      ],
+      "crafting": {
+        "enabled": true,
+        "workbenchLevel": 2,
+        "craftTimeSeconds": 10800,
+        "outputCount": 100,
+        "requirements": [
+          { "tpl": "59e655cb86f77411dc52a77b", "count": 60 },
+          { "tpl": "590c5a7286f7747884343aea", "count": 2 }
+        ]
+      },
+      "filters": {
+        "patchMagazines": [],
+        "patchWeapons": []
+      }
+    }
+  ]
+}

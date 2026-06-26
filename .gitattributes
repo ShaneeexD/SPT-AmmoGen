@@ -1,0 +1,32 @@
+# Auto detect text files and normalize line endings to LF
+* text=auto eol=lf
+
+# Windows/.NET files typically use CRLF
+*.cs text eol=crlf
+*.csproj text eol=crlf
+*.sln text eol=crlf
+*.resx text eol=crlf
+*.settings text eol=crlf
+*.config text eol=crlf
+*.asax text eol=crlf
+*.ashx text eol=crlf
+*.asmx text eol=crlf
+*.svc text eol=crlf
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# Binary files
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.webp binary
+*.svg binary
+*.dll binary
+*.pdb binary
+*.exe binary
+*.zip binary
+*.7z binary
+*.rar binary
+*.gz binary

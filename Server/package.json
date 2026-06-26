@@ -1,0 +1,9 @@
+{
+  "name": "ammogen",
+  "version": "1.0.0",
+  "description": "Framework for adding custom ammo packs to SPTarkov",
+  "author": "Serenity",
+  "license": "MIT",
+  "main": "AmmoGen.Server.dll",
+  "sptVersion": "4.0.13"
+}
