@@ -18,11 +18,11 @@ A server-side framework for SPTarkov that lets anyone, including non-programmers
 
 ### For Creators (Making an Ammo Pack)
 
-1. Open the **AmmoGen Tool** (`cd Tool && npm install && npm run dev`).
+1. Open the [AmmoGen Tool](https://ammogen-tool.netlify.app).
 2. Pick a base ammo template, set stats, name/description, and configure traders, crafting, ammo boxes, and loot.
 3. Click **Export** to download a ready-to-use ZIP.
 4. Extract the ZIP and drag the `SPT/` folder into your SPT install directory to test.
-5. Publish your pack — users need **AmmoGen** installed as a dependency.
+5. Publish your pack - users need **AmmoGen** installed as a dependency.
 
 > **Tip**: Always test on a new developer profile so you can verify trader purchases, crafting, and loot without affecting your main save.
 
@@ -179,14 +179,6 @@ Find item template IDs at: https://db.sp-tarkov.com/search
 | BTR | `656f0f98d80a697f855d34b1` |
 | Arena | `6617beeaa9cfa777ca915b7c` |
 | Storyteller | `6864e812f9fe664cb8b8e152` |
-
----
-
-## Building from Source
-
-1. Open `SPT-Mod-Template.sln` in Visual Studio / Rider.
-2. Build the solution.
-3. The post-build target copies the DLL, `package.json`, and `config/` to `C:\SPT\SPT\user\mods\AmmoGen`.
 
 ---
 
