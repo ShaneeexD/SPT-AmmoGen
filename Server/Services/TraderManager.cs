@@ -158,7 +158,7 @@ public static class TraderManager
         {
             Id = new MongoId().ToString(),
             Template = new MongoId(def.Id),
-            ParentId = boxAssortId,
+            ParentId = boxAssortId.ToString(),
             SlotId = "cartridges",
             Upd = new Upd
             {
