@@ -148,7 +148,7 @@ A pack is a single JSON file containing one or more custom ammo definitions.
       },
       "loot": {
         "enabled": true,
-        "containerIds": ["578f8782245977355405de3a"],
+        "containerIds": ["578f8782245977354405a1e3"],
         "rarity": "Rare",
         "lootItem": "ammo"
       }
@@ -175,7 +175,7 @@ Find item template IDs at: https://db.sp-tarkov.com/search
 | `crafting` | Optional workbench recipe with item requirements. |
 | `filters` | Optional magazine / weapon IDs to patch so the ammo fits. |
 | `ammoBox` | Optional custom ammo box containing this ammo. Can override trader, loyalty level, stock, and buy restriction. |
-| `loot` | Optional loot table injection for containers. |
+| `loot` | Optional loot table injection for containers. `containerIds` are 24-char container item IDs; the tool provides a dropdown of all SPT loot containers. |
 
 ### Infinite Stock & Ammo Box Overrides
 

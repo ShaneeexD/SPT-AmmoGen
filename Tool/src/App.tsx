@@ -43,6 +43,7 @@ import { ITEMS, getItemName } from './generated_items'
 import { getAmmoStats } from './generated_ammo_stats'
 import { getAmmoCompatibility } from './generated_ammo_compatibility'
 import { AMMO_BOX_TEMPLATES, getAmmoBoxTemplate } from './generated_ammo_box_templates'
+import { LOOT_CONTAINERS, getLootContainer } from './generated_loot_containers'
 import JSZip from 'jszip'
 import { saveAs } from 'file-saver'
 
@@ -1401,6 +1402,19 @@ function LootTab({ ammo, onChange }: { ammo: AmmoDefinition; onChange: (u: Parti
   const updateLoot = (updates: Partial<LootEntry>) => {
     onChange({ loot: { ...ammo.loot, ...updates } })
   }
+  const [manualId, setManualId] = useState('')
+  const [selectedContainer, setSelectedContainer] = useState('')
+
+  const addContainer = (id: string) => {
+    const trimmed = id.trim()
+    if (!trimmed) return
+    if (ammo.loot.containerIds.includes(trimmed)) return
+    updateLoot({ containerIds: [...ammo.loot.containerIds, trimmed] })
+  }
+
+  const removeContainer = (id: string) => {
+    updateLoot({ containerIds: ammo.loot.containerIds.filter(c => c !== id) })
+  }
 
   const lootItemOptions: { value: LootItem; label: string }[] = [
     { value: 'ammo', label: 'Ammo only' },
@@ -1435,18 +1449,82 @@ function LootTab({ ammo, onChange }: { ammo: AmmoDefinition; onChange: (u: Parti
           <Field
             label="Container IDs"
             className="md:col-span-2"
-            tooltip="One container item ID per line. The selected item will be added as a possible loot spawn inside these containers (e.g., weapon crates, ammo boxes, duffle bags)."
+            tooltip="Select containers from the dropdown or type a 24-char ID manually. The selected item will be added as a possible loot spawn inside these containers (e.g., weapon crates, ammo boxes, duffle bags)."
           >
-            <textarea
-              className="input-field min-h-[120px] font-mono text-sm resize-y"
-              value={ammo.loot.containerIds.join('\n')}
-              onChange={e =>
-                updateLoot({
-                  containerIds: e.target.value.split('\n').map(s => s.trim()).filter(Boolean),
-                })
-              }
-              placeholder="One 24-char container ID per line"
-            />
+            <div className="flex flex-col gap-3">
+              <div className="flex gap-2">
+                <select
+                  className="input-field flex-1"
+                  value={selectedContainer}
+                  onChange={e => {
+                    const id = e.target.value
+                    setSelectedContainer(id)
+                    if (id) {
+                      addContainer(id)
+                      setSelectedContainer('')
+                    }
+                  }}
+                >
+                  <option value="">Add a container...</option>
+                  {LOOT_CONTAINERS.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name} — {c.id}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="flex gap-2">
+                <input
+                  className="input-field flex-1 font-mono text-sm"
+                  value={manualId}
+                  onChange={e => setManualId(e.target.value)}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault()
+                      addContainer(manualId)
+                      setManualId('')
+                    }
+                  }}
+                  placeholder="Or enter a container ID manually and press Enter"
+                  maxLength={24}
+                />
+                <button
+                  onClick={() => {
+                    addContainer(manualId)
+                    setManualId('')
+                  }}
+                  className="btn-secondary px-3"
+                  title="Add container"
+                >
+                  <Plus size={18} />
+                </button>
+              </div>
+
+              {ammo.loot.containerIds.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {ammo.loot.containerIds.map((id) => {
+                    const container = getLootContainer(id)
+                    const label = container ? `${container.name} (${id})` : id
+                    return (
+                      <span
+                        key={id}
+                        className="inline-flex items-center gap-1 px-2 py-1 bg-tarkov-surface border border-tarkov-border rounded text-xs font-mono"
+                      >
+                        {label}
+                        <button
+                          onClick={() => removeContainer(id)}
+                          className="text-tarkov-error hover:text-tarkov-error/80"
+                          title="Remove"
+                        >
+                          <X size={14} />
+                        </button>
+                      </span>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
           </Field>
 
           <Field label="Rarity" tooltip="Loot rarity for this ammo in the specified containers.">

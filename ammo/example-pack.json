@@ -77,7 +77,7 @@
       },
       "loot": {
         "enabled": true,
-        "containerIds": ["578f8782245977355405de3a"],
+        "containerIds": ["578f8782245977354405a1e3"],
         "rarity": "Rare",
         "lootItem": "ammo"
       }
