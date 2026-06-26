@@ -334,7 +334,7 @@ export default function App() {
     const zip = new JSZip()
     const json = buildExportJson(pack)
     const packName = pack.name.toLowerCase().replace(/\s+/g, '-')
-    zip.file(`AmmoGen/ammo/${packName}.json`, JSON.stringify(json, null, 2))
+    zip.file(`SPT/user/mods/AmmoGen/ammo/${packName}.json`, JSON.stringify(json, null, 2))
 
     const zipBlob = await zip.generateAsync({ type: 'blob' })
     saveAs(zipBlob, `${packName}.zip`)
