@@ -104,3 +104,7 @@ $RECYCLE.BIN/
 
 # Local Netlify folder
 .netlify
+
+# Other
+.release/
+forge-mod-page.md
