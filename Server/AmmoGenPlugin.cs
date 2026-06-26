@@ -69,6 +69,9 @@ public class AmmoGenPlugin(
             // Add workbench crafting recipes
             CraftingManager.RegisterAll(databaseService, enabledDefinitions, logger);
 
+            // Inject ammo into container loot tables
+            LootInjector.InjectAll(databaseService, enabledDefinitions, logger);
+
             logger.LogWithColor("[AmmoGen] ====================================", LogTextColor.Cyan);
             logger.LogWithColor($"[AmmoGen] Done! Registered {enabledDefinitions.Count} custom ammo type(s).", LogTextColor.Green);
             logger.LogWithColor("[AmmoGen] ====================================", LogTextColor.Cyan);

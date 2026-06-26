@@ -20,10 +20,14 @@ import {
   Store,
   ExternalLink,
   HelpCircle,
+  Box,
+  MapPin,
 } from 'lucide-react'
 import {
   AmmoDefinition,
   AmmoPackDefinition,
+  AmmoBoxEntry,
+  LootEntry,
   AMMO_TEMPLATES,
   createDefaultAmmo,
   createDefaultPack,
@@ -36,6 +40,10 @@ import {
 } from './types'
 import { ITEMS, getItemName } from './generated_items'
 import { getAmmoStats } from './generated_ammo_stats'
+import { getAmmoCompatibility } from './generated_ammo_compatibility'
+import { AMMO_BOX_TEMPLATES, getAmmoBoxTemplate } from './generated_ammo_box_templates'
+import JSZip from 'jszip'
+import { saveAs } from 'file-saver'
 
 function SearchableSelect({
   value,
@@ -223,6 +231,20 @@ function validatePack(pack: AmmoPackDefinition): ValidationError[] {
     ammo.filters.patchWeapons.forEach((id, j) => {
       if (!hex24.test(id)) errors.push({ field: `${prefix}.filters.patchWeapons[${j}]`, message: 'Weapon ID must be 24 hex chars' })
     })
+
+    if (ammo.ammoBox.enabled) {
+      if (!hex24.test(ammo.ammoBox.id)) errors.push({ field: `${prefix}.ammoBox.id`, message: 'Ammo box ID must be 24 hex chars' })
+      if (!hex24.test(ammo.ammoBox.baseTpl)) errors.push({ field: `${prefix}.ammoBox.baseTpl`, message: 'Base ammo box template must be 24 hex chars' })
+      if (ammo.ammoBox.count < 1) errors.push({ field: `${prefix}.ammoBox.count`, message: 'Ammo box count must be >= 1' })
+      if (!ammo.ammoBox.name.trim()) errors.push({ field: `${prefix}.ammoBox.name`, message: 'Ammo box name is required' })
+      if (!ammo.ammoBox.shortName.trim()) errors.push({ field: `${prefix}.ammoBox.shortName`, message: 'Ammo box short name is required' })
+    }
+
+    if (ammo.loot.enabled) {
+      ammo.loot.containerIds.forEach((id, j) => {
+        if (!hex24.test(id)) errors.push({ field: `${prefix}.loot.containerIds[${j}]`, message: 'Container ID must be 24 hex chars' })
+      })
+    }
   })
 
   return errors
@@ -245,11 +267,13 @@ function buildExportJson(pack: AmmoPackDefinition): object {
       traders: ammo.traders,
       crafting: ammo.crafting,
       filters: ammo.filters,
+      ammoBox: ammo.ammoBox,
+      loot: ammo.loot,
     })),
   }
 }
 
-type Tab = 'identity' | 'stats' | 'economy' | 'trader' | 'crafting' | 'filters' | 'preview'
+type Tab = 'identity' | 'stats' | 'economy' | 'trader' | 'crafting' | 'filters' | 'ammobox' | 'loot' | 'preview'
 
 export default function App() {
   const [pack, setPack] = useState<AmmoPackDefinition>(createDefaultPack())
@@ -299,6 +323,51 @@ export default function App() {
     setTimeout(() => setShowExportSuccess(false), 3000)
   }
 
+  const exportModZip = async () => {
+    const validationErrors = validatePack(pack)
+    setErrors(validationErrors)
+    if (validationErrors.length > 0) {
+      setActiveTab('identity')
+      return
+    }
+
+    const zip = new JSZip()
+    const modFolder = zip.folder('AmmoGen')
+    if (!modFolder) return
+
+    const serverFiles = [
+      'AmmoGen.Server.deps.json',
+      'AmmoGen.Server.dll',
+      'AmmoGen.Server.pdb',
+      'package.json',
+      'config/config.json',
+    ]
+
+    try {
+      await Promise.all(
+        serverFiles.map(async (file) => {
+          const response = await fetch(`/AmmoGen/${file}`)
+          if (!response.ok) throw new Error(`Failed to fetch ${file}`)
+          const blob = await response.blob()
+          modFolder.file(file, blob)
+        })
+      )
+    } catch (err) {
+      alert('Failed to package server files. Make sure the server build is in Tool/public/AmmoGen.')
+      console.error(err)
+      return
+    }
+
+    const json = buildExportJson(pack)
+    const packName = pack.name.toLowerCase().replace(/\s+/g, '-')
+    modFolder.file(`ammo/${packName}.json`, JSON.stringify(json, null, 2))
+
+    const zipBlob = await zip.generateAsync({ type: 'blob' })
+    saveAs(zipBlob, `${packName}.zip`)
+    setShowExportSuccess(true)
+    setTimeout(() => setShowExportSuccess(false), 3000)
+  }
+
   const importPack = () => {
     const input = document.createElement('input')
     input.type = 'file'
@@ -320,6 +389,9 @@ export default function App() {
             if (a.trader && !Array.isArray(a.traders)) {
               normalized.traders = [a.trader as TraderEntry]
             }
+            // Backward compatibility: missing ammoBox / loot fields
+            if (!a.ammoBox) normalized.ammoBox = createDefaultAmmo().ammoBox
+            if (!a.loot) normalized.loot = createDefaultAmmo().loot
             return normalized
           })
           const merged: AmmoPackDefinition = {
@@ -350,6 +422,8 @@ export default function App() {
     { id: 'trader', label: 'Trader', icon: <Package size={16} /> },
     { id: 'crafting', label: 'Crafting', icon: <Wrench size={16} /> },
     { id: 'filters', label: 'Filters', icon: <Filter size={16} /> },
+    { id: 'ammobox', label: 'Ammo Box', icon: <Box size={16} /> },
+    { id: 'loot', label: 'Loot', icon: <MapPin size={16} /> },
     { id: 'preview', label: 'JSON Preview', icon: <FileJson size={16} /> },
   ]
 
@@ -384,8 +458,11 @@ export default function App() {
           <button onClick={importPack} className="btn-secondary text-sm flex items-center gap-1.5">
             <Upload size={14} /> Import
           </button>
-          <button onClick={downloadJson} className="btn-primary text-sm flex items-center gap-1.5">
+          <button onClick={downloadJson} className="btn-secondary text-sm flex items-center gap-1.5">
             <Download size={14} /> Export JSON
+          </button>
+          <button onClick={exportModZip} className="btn-primary text-sm flex items-center gap-1.5">
+            <Download size={14} /> Export Mod ZIP
           </button>
         </div>
       </header>
@@ -480,6 +557,8 @@ export default function App() {
             {activeTab === 'trader' && <TraderTab ammo={activeAmmo} onChange={u => updateAmmo(activeIndex, u)} />}
             {activeTab === 'crafting' && <CraftingTab ammo={activeAmmo} onChange={u => updateAmmo(activeIndex, u)} />}
             {activeTab === 'filters' && <FiltersTab ammo={activeAmmo} onChange={u => updateAmmo(activeIndex, u)} />}
+            {activeTab === 'ammobox' && <AmmoBoxTab ammo={activeAmmo} onChange={u => updateAmmo(activeIndex, u)} />}
+            {activeTab === 'loot' && <LootTab ammo={activeAmmo} onChange={u => updateAmmo(activeIndex, u)} />}
             {activeTab === 'preview' && <PreviewTab pack={pack} activeAmmo={activeAmmo} />}
           </>
         )}
@@ -680,6 +759,8 @@ function StatsTab({ ammo, onChange }: { ammo: AmmoDefinition; onChange: (u: Part
     ammoRec: 'Recoil modifier. Positive increases recoil; negative reduces it.',
     stackMaxSize: 'Maximum rounds per inventory slot. 0 inherits the base ammo template default.',
   }
+  const base = getAmmoStats(ammo.baseTpl)
+
   return (
     <Section title="Ammo Stats" icon={<Crosshair size={18} />}>
       <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
@@ -699,6 +780,33 @@ function StatsTab({ ammo, onChange }: { ammo: AmmoDefinition; onChange: (u: Part
           </Field>
         ))}
       </div>
+
+      {base && (
+        <div className="mt-6 p-4 bg-tarkov-bg border border-tarkov-border rounded-lg">
+          <h3 className="text-sm font-semibold text-tarkov-accent mb-3 flex items-center gap-2">
+            <Crosshair size={16} /> Base Ammo Comparison: {base.name}
+          </h3>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+            {(['damage', 'penetration', 'armorDamage', 'initialSpeed', 'ammoAccr', 'ammoRec', 'stackMaxSize'] as const).map((stat) => {
+              const custom = ammo.stats[stat]
+              const original = base[stat === 'damage' ? 'damage' : stat === 'penetration' ? 'penetration' : stat === 'armorDamage' ? 'armorDamage' : stat === 'initialSpeed' ? 'initialSpeed' : stat === 'ammoAccr' ? 'ammoAccr' : stat === 'ammoRec' ? 'ammoRec' : 'stackMaxSize']
+              const diff = custom - original
+              const diffClass = diff > 0 ? 'text-tarkov-success' : diff < 0 ? 'text-tarkov-error' : 'text-tarkov-text-dim'
+              const diffText = diff === 0 ? '=' : diff > 0 ? `+${diff}` : `${diff}`
+              return (
+                <div key={stat} className="flex flex-col bg-tarkov-surface border border-tarkov-border rounded p-2">
+                  <span className="text-tarkov-text-dim text-xs">{statNames[stat]}</span>
+                  <div className="flex items-baseline gap-2">
+                    <span className="font-medium text-tarkov-text">{custom}</span>
+                    <span className="text-xs text-tarkov-text-dim">/ {original}</span>
+                  </div>
+                  <span className={`text-xs font-medium ${diffClass}`}>{diffText}</span>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
     </Section>
   )
 }
@@ -959,13 +1067,39 @@ function CraftingTab({ ammo, onChange }: { ammo: AmmoDefinition; onChange: (u: P
 }
 
 function FiltersTab({ ammo, onChange }: { ammo: AmmoDefinition; onChange: (u: Partial<AmmoDefinition>) => void }) {
+  const compat = getAmmoCompatibility(ammo.baseTpl)
+
+  const autoFill = () => {
+    if (!compat) return
+    onChange({
+      filters: {
+        ...ammo.filters,
+        patchMagazines: [...new Set([...ammo.filters.patchMagazines, ...compat.magazines.map(m => m.id)])],
+        patchWeapons: [...new Set([...ammo.filters.patchWeapons, ...compat.weapons.map(w => w.id)])],
+      },
+    })
+  }
+
   return (
     <Section title="Filter Patching" icon={<Filter size={18} />}>
       <p className="text-sm text-tarkov-text-dim mb-4">
         Optional magazine / weapon IDs whose filters should be patched to accept this ammo. Leave empty if the cloned base already shares filters.
       </p>
+
+      {compat && (
+        <div className="mb-4 p-3 bg-tarkov-bg border border-tarkov-border rounded-lg">
+          <div className="text-sm text-tarkov-text mb-2">
+            Found <span className="text-tarkov-accent font-medium">{compat.magazines.length}</span> compatible magazines and{' '}
+            <span className="text-tarkov-accent font-medium">{compat.weapons.length}</span> compatible weapons for the selected base ammo.
+          </div>
+          <button onClick={autoFill} className="btn-primary text-sm flex items-center gap-1.5">
+            <Filter size={14} /> Auto-fill Compatible Magazines & Weapons
+          </button>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Field label="Patch Magazines">
+        <Field label="Patch Magazines" tooltip="Magazine IDs that will have their cartridge filter patched to accept this ammo.">
           <textarea
             className="input-field min-h-[120px] font-mono text-sm resize-y"
             value={ammo.filters.patchMagazines.join('\n')}
@@ -980,7 +1114,7 @@ function FiltersTab({ ammo, onChange }: { ammo: AmmoDefinition; onChange: (u: Pa
             placeholder="One 24-char ID per line"
           />
         </Field>
-        <Field label="Patch Weapons">
+        <Field label="Patch Weapons" tooltip="Weapon IDs that will have their chamber filter patched to accept this ammo.">
           <textarea
             className="input-field min-h-[120px] font-mono text-sm resize-y"
             value={ammo.filters.patchWeapons.join('\n')}
@@ -1006,6 +1140,175 @@ function PreviewTab({ pack, activeAmmo }: { pack: AmmoPackDefinition; activeAmmo
       <div className="bg-tarkov-bg border border-tarkov-border rounded p-4 font-mono text-xs text-tarkov-text-dim overflow-auto max-h-[70vh]">
         <pre>{JSON.stringify(buildExportJson({ ...pack, ammo: [activeAmmo] }), null, 2)}</pre>
       </div>
+    </Section>
+  )
+}
+
+function AmmoBoxTab({ ammo, onChange }: { ammo: AmmoDefinition; onChange: (u: Partial<AmmoDefinition>) => void }) {
+  const updateBox = (updates: Partial<AmmoBoxEntry>) => {
+    onChange({ ammoBox: { ...ammo.ammoBox, ...updates } })
+  }
+
+  return (
+    <Section title="Ammo Box" icon={<Box size={18} />}>
+      <div className="mb-4">
+        <Toggle
+          checked={ammo.ammoBox.enabled}
+          onChange={v => updateBox({ enabled: v })}
+          label="Generate a lootable ammo box for this ammo"
+        />
+      </div>
+
+      {ammo.ammoBox.enabled && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <Field label="Ammo Box ID" className="md:col-span-2" tooltip="Unique 24-character hex ID for the generated ammo box.">
+            <div className="flex gap-2">
+              <input
+                className="input-field flex-1 font-mono text-sm"
+                value={ammo.ammoBox.id}
+                onChange={e => updateBox({ id: e.target.value })}
+                placeholder="24-char hex string"
+                maxLength={24}
+              />
+              <button onClick={() => updateBox({ id: generateMongoId() })} className="btn-secondary text-xs px-2" title="Generate random ID">
+                <RefreshCw size={14} />
+              </button>
+            </div>
+          </Field>
+
+          <Field label="Base Ammo Box Template" className="md:col-span-2" tooltip="Existing ammo box to clone. Its model and stack slot count will be reused.">
+            <select
+              className="input-field"
+              value={ammo.ammoBox.baseTpl}
+              onChange={e => {
+                const baseTpl = e.target.value
+                const template = getAmmoBoxTemplate(baseTpl)
+                updateBox({
+                  baseTpl,
+                  count: template?.count || ammo.ammoBox.count,
+                })
+              }}
+            >
+              <option value="">Select an ammo box template...</option>
+              {AMMO_BOX_TEMPLATES.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.name} ({t.count} rounds) — {t.id}
+                </option>
+              ))}
+            </select>
+          </Field>
+
+          <Field label="Ammo Box Name" tooltip="In-game name for the generated box.">
+            <input
+              className="input-field"
+              value={ammo.ammoBox.name}
+              onChange={e => updateBox({ name: e.target.value })}
+              placeholder="e.g. Box of Custom 5.45 BP"
+            />
+          </Field>
+
+          <Field label="Short Name" tooltip="Short name shown in tight UI spaces.">
+            <input
+              className="input-field"
+              value={ammo.ammoBox.shortName}
+              onChange={e => updateBox({ shortName: e.target.value })}
+              placeholder="e.g. cBP box"
+            />
+          </Field>
+
+          <Field label="Description" className="md:col-span-2" tooltip="Description shown when examining the box.">
+            <textarea
+              className="input-field min-h-[80px] resize-y"
+              rows={3}
+              value={ammo.ammoBox.description}
+              onChange={e => updateBox({ description: e.target.value })}
+              placeholder="A box containing custom ammo..."
+            />
+          </Field>
+
+          <Field label="Round Count" tooltip="Number of rounds inside the box. Auto-fills from the template but can be overridden.">
+            <input
+              className="input-field"
+              type="number"
+              min={1}
+              value={ammo.ammoBox.count}
+              onChange={e => updateBox({ count: parseInt(e.target.value, 10) || 0 })}
+            />
+          </Field>
+
+          <Field label="Handbook Price (₽)" tooltip="Handbook price for the box itself.">
+            <input
+              className="input-field"
+              type="number"
+              value={ammo.ammoBox.handbookPriceRoubles}
+              onChange={e => updateBox({ handbookPriceRoubles: parseInt(e.target.value, 10) || 0 })}
+            />
+          </Field>
+
+          <Field label="Rarity PvE" tooltip="Loot rarity for the box in PvE.">
+            <select
+              className="input-field"
+              value={ammo.ammoBox.rarityPvE}
+              onChange={e => updateBox({ rarityPvE: e.target.value })}
+            >
+              {RARITY_OPTIONS.map((r) => (
+                <option key={r} value={r}>{r}</option>
+              ))}
+            </select>
+          </Field>
+        </div>
+      )}
+    </Section>
+  )
+}
+
+function LootTab({ ammo, onChange }: { ammo: AmmoDefinition; onChange: (u: Partial<AmmoDefinition>) => void }) {
+  const updateLoot = (updates: Partial<LootEntry>) => {
+    onChange({ loot: { ...ammo.loot, ...updates } })
+  }
+
+  return (
+    <Section title="Loot Table Injection" icon={<MapPin size={18} />}>
+      <div className="mb-4">
+        <Toggle
+          checked={ammo.loot.enabled}
+          onChange={v => updateLoot({ enabled: v })}
+          label="Add this ammo to container loot tables"
+        />
+      </div>
+
+      {ammo.loot.enabled && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <Field
+            label="Container IDs"
+            className="md:col-span-2"
+            tooltip="One container item ID per line. The ammo will be added as a possible loot spawn inside these containers (e.g., weapon crates, ammo boxes, duffle bags)."
+          >
+            <textarea
+              className="input-field min-h-[120px] font-mono text-sm resize-y"
+              value={ammo.loot.containerIds.join('\n')}
+              onChange={e =>
+                updateLoot({
+                  containerIds: e.target.value.split('\n').map(s => s.trim()).filter(Boolean),
+                })
+              }
+              placeholder="One 24-char container ID per line"
+            />
+          </Field>
+
+          <Field label="Rarity" tooltip="Loot rarity for this ammo in the specified containers.">
+            <select
+              className="input-field"
+              value={ammo.loot.rarity}
+              onChange={e => updateLoot({ rarity: e.target.value })}
+            >
+              {RARITY_OPTIONS.map((r) => (
+                <option key={r} value={r}>{r}</option>
+              ))}
+            </select>
+          </Field>
+        </div>
+      )}
     </Section>
   )
 }

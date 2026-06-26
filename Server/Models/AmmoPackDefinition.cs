@@ -56,6 +56,12 @@ public class AmmoDefinition
 
     [JsonPropertyName("filters")]
     public FilterEntry Filters { get; set; } = new();
+
+    [JsonPropertyName("ammoBox")]
+    public AmmoBoxEntry AmmoBox { get; set; } = new();
+
+    [JsonPropertyName("loot")]
+    public LootEntry Loot { get; set; } = new();
 }
 
 public class AmmoStats
@@ -110,4 +116,24 @@ public class FilterEntry
     // Optional weapon template IDs to patch so their chambers accept this ammo.
     [JsonPropertyName("patchWeapons")]
     public List<string> PatchWeapons { get; set; } = [];
+}
+
+public class AmmoBoxEntry
+{
+    [JsonPropertyName("id")] public string Id { get; set; } = string.Empty;
+    [JsonPropertyName("enabled")] public bool Enabled { get; set; }
+    [JsonPropertyName("baseTpl")] public string BaseTpl { get; set; } = string.Empty;
+    [JsonPropertyName("count")] public int Count { get; set; }
+    [JsonPropertyName("name")] public string Name { get; set; } = string.Empty;
+    [JsonPropertyName("shortName")] public string ShortName { get; set; } = string.Empty;
+    [JsonPropertyName("description")] public string Description { get; set; } = string.Empty;
+    [JsonPropertyName("handbookPriceRoubles")] public int HandbookPriceRoubles { get; set; }
+    [JsonPropertyName("rarityPvE")] public string RarityPvE { get; set; } = "Rare";
+}
+
+public class LootEntry
+{
+    [JsonPropertyName("enabled")] public bool Enabled { get; set; }
+    [JsonPropertyName("containerIds")] public List<string> ContainerIds { get; set; } = [];
+    [JsonPropertyName("rarity")] public string Rarity { get; set; } = "Rare";
 }

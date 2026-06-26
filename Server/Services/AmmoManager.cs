@@ -15,6 +15,9 @@ public static class AmmoManager
     // Default parent category for ammo items.
     private const string AmmoCategoryParentId = "5485a8684bdc2da71d8b4567";
 
+    // Parent category for ammo boxes.
+    private const string AmmoBoxParentId = "543be5cb4bdc2deb348b4568";
+
     public static void RegisterAll(
         CustomItemService customItemService,
         DatabaseService databaseService,
@@ -30,6 +33,19 @@ public static class AmmoManager
             catch (Exception ex)
             {
                 logger.LogWithColor($"[AmmoGen] Failed to register ammo '{def.Name}': {ex.Message}", LogTextColor.Red);
+            }
+        }
+
+        foreach (var def in definitions)
+        {
+            if (!def.AmmoBox.Enabled) continue;
+            try
+            {
+                RegisterAmmoBox(def, customItemService, databaseService, logger);
+            }
+            catch (Exception ex)
+            {
+                logger.LogWithColor($"[AmmoGen] Failed to register ammo box for '{def.Name}': {ex.Message}", LogTextColor.Red);
             }
         }
     }
@@ -96,6 +112,81 @@ public static class AmmoManager
             logger.LogWithColor(
                 $"[AmmoGen] CreateItemFromClone reported failure for '{def.Name}': {string.Join(", ", result.Errors ?? [])}",
                 LogTextColor.Yellow);
+        }
+    }
+
+    private static void RegisterAmmoBox(
+        AmmoDefinition def,
+        CustomItemService customItemService,
+        DatabaseService databaseService,
+        ISptLogger<AmmoGenPlugin> logger)
+    {
+        var box = def.AmmoBox;
+        var overrides = new TemplateItemProperties
+        {
+            Name = box.ShortName,
+            ShortName = box.ShortName,
+            Description = box.Description,
+        };
+
+        var details = new NewItemFromCloneDetails
+        {
+            NewId = box.Id,
+            ItemTplToClone = box.BaseTpl,
+            ParentId = AmmoBoxParentId,
+            HandbookPriceRoubles = box.HandbookPriceRoubles,
+            FleaPriceRoubles = 0,
+            OverrideProperties = overrides,
+            Locales = new Dictionary<string, LocaleDetails>
+            {
+                ["en"] = new LocaleDetails
+                {
+                    Name = box.Name,
+                    ShortName = box.ShortName,
+                    Description = box.Description,
+                }
+            },
+        };
+
+        var result = customItemService.CreateItemFromClone(details);
+
+        if (result.Success != true)
+        {
+            logger.LogWithColor(
+                $"[AmmoGen] CreateItemFromClone reported failure for ammo box '{box.Name}': {string.Join(", ", result.Errors ?? [])}",
+                LogTextColor.Yellow);
+            return;
+        }
+
+        logger.LogWithColor($"[AmmoGen] Registered ammo box: {box.Name} ({box.Id})", LogTextColor.Green);
+
+        try
+        {
+            var items = databaseService.GetItems();
+            if (items.TryGetValue(box.Id, out var boxItem) && boxItem.Properties != null)
+            {
+                dynamic props = boxItem.Properties;
+                if (props.StackSlots != null)
+                {
+                    foreach (var slot in props.StackSlots)
+                    {
+                        slot._max_count = box.Count;
+                        if (slot._props?.filters != null)
+                        {
+                            foreach (var filter in slot._props.filters)
+                            {
+                                filter.Filter = new List<object> { def.Id };
+                            }
+                        }
+                    }
+                }
+
+                boxItem.Properties.RarityPvE = box.RarityPvE;
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogWithColor($"[AmmoGen] Created ammo box '{box.Name}' but failed to patch StackSlots: {ex.Message}", LogTextColor.Yellow);
         }
     }
 

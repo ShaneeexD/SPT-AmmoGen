@@ -17,6 +17,8 @@ export interface AmmoDefinition {
   traders: TraderEntry[]
   crafting: CraftingEntry
   filters: FilterEntry
+  ammoBox: AmmoBoxEntry
+  loot: LootEntry
 }
 
 export interface AmmoStats {
@@ -60,6 +62,24 @@ export interface CraftRequirement {
 export interface FilterEntry {
   patchMagazines: string[]
   patchWeapons: string[]
+}
+
+export interface AmmoBoxEntry {
+  id: string
+  enabled: boolean
+  baseTpl: string
+  count: number
+  name: string
+  shortName: string
+  description: string
+  handbookPriceRoubles: number
+  rarityPvE: string
+}
+
+export interface LootEntry {
+  enabled: boolean
+  containerIds: string[]
+  rarity: string
 }
 
 export interface ValidationError {
@@ -130,6 +150,22 @@ export function createDefaultAmmo(): AmmoDefinition {
     filters: {
       patchMagazines: [],
       patchWeapons: [],
+    },
+    ammoBox: {
+      id: generateMongoId(),
+      enabled: false,
+      baseTpl: '',
+      count: 0,
+      name: '',
+      shortName: '',
+      description: '',
+      handbookPriceRoubles: 0,
+      rarityPvE: 'Rare',
+    },
+    loot: {
+      enabled: false,
+      containerIds: [],
+      rarity: 'Rare',
     },
   }
 }
