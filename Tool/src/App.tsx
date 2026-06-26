@@ -15,6 +15,10 @@ import {
   Filter,
   Wrench,
   Upload,
+  Menu,
+  X,
+  Store,
+  ExternalLink,
 } from 'lucide-react'
 import {
   AmmoDefinition,
@@ -107,6 +111,78 @@ function SearchableSelect({
   )
 }
 
+function Sidebar({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const ref = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        onClose()
+      }
+    }
+    if (open) {
+      document.addEventListener('mousedown', handleClick)
+      return () => document.removeEventListener('mousedown', handleClick)
+    }
+  }, [open, onClose])
+
+  const links = [
+    { name: 'AmmoGen Tool', url: 'https://ammogen-tool.netlify.app', icon: <Target size={18} />, active: true },
+    { name: 'TraderGen Tool', url: 'https://tradergen-tool.netlify.app', icon: <Store size={18} />, active: false },
+  ]
+
+  return (
+    <>
+      {/* Backdrop */}
+      {open && (
+        <div className="fixed inset-0 bg-black/50 z-40 transition-opacity" onClick={onClose} />
+      )}
+
+      {/* Drawer */}
+      <div
+        ref={ref}
+        className={`fixed top-0 left-0 h-full w-64 bg-tarkov-surface border-r border-tarkov-border z-50 transform transition-transform duration-200 ${
+          open ? 'translate-x-0' : '-translate-x-full'
+        }`}
+      >
+        <div className="flex items-center justify-between px-4 py-4 border-b border-tarkov-border">
+          <div className="flex items-center gap-2 text-tarkov-accent">
+            <Target size={22} />
+            <span className="font-bold">Serenity Mods</span>
+          </div>
+          <button
+            onClick={onClose}
+            className="p-1 rounded hover:bg-tarkov-border/50 text-tarkov-text-dim hover:text-tarkov-text transition-colors"
+            aria-label="Close menu"
+          >
+            <X size={20} />
+          </button>
+        </div>
+
+        <nav className="p-2 space-y-1">
+          {links.map((link) => (
+            <a
+              key={link.name}
+              href={link.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors ${
+                link.active
+                  ? 'bg-tarkov-accent/20 text-tarkov-accent border border-tarkov-accent/50'
+                  : 'text-tarkov-text hover:bg-tarkov-border/50 hover:text-tarkov-text'
+              }`}
+            >
+              {link.icon}
+              <span className="flex-1">{link.name}</span>
+              <ExternalLink size={14} className="text-tarkov-text-dim" />
+            </a>
+          ))}
+        </nav>
+      </div>
+    </>
+  )
+}
+
 function validatePack(pack: AmmoPackDefinition): ValidationError[] {
   const errors: ValidationError[] = []
   const hex24 = /^[0-9a-fA-F]{24}$/
@@ -179,6 +255,7 @@ export default function App() {
   const [errors, setErrors] = useState<ValidationError[]>([])
   const [activeTab, setActiveTab] = useState<Tab>('identity')
   const [showExportSuccess, setShowExportSuccess] = useState(false)
+  const [sidebarOpen, setSidebarOpen] = useState(false)
 
   const updateAmmo = (index: number, updates: Partial<AmmoDefinition>) => {
     const next = { ...pack, ammo: [...pack.ammo] }
@@ -276,9 +353,19 @@ export default function App() {
 
   return (
     <div className="min-h-screen flex flex-col bg-tarkov-bg text-tarkov-text">
+      {/* Sidebar */}
+      <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+
       {/* Header */}
       <header className="bg-tarkov-surface border-b border-tarkov-border px-6 py-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
+          <button
+            onClick={() => setSidebarOpen(true)}
+            className="p-2 -ml-2 rounded-lg hover:bg-tarkov-border/50 text-tarkov-text-dim hover:text-tarkov-text transition-colors"
+            aria-label="Open menu"
+          >
+            <Menu size={24} />
+          </button>
           <Target className="text-tarkov-accent" size={28} />
           <div>
             <h1 className="text-xl font-bold text-tarkov-accent">AmmoGen Tool</h1>
