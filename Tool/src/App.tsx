@@ -748,7 +748,6 @@ function StatsTab({ ammo, onChange }: { ammo: AmmoDefinition; onChange: (u: Part
             <input
               className="input-field"
               type="number"
-              min={0}
               value={ammo.stats[stat]}
               onChange={e =>
                 onChange({
