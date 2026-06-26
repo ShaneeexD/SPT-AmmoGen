@@ -1091,6 +1091,7 @@ function FiltersTab({ ammo, onChange }: { ammo: AmmoDefinition; onChange: (u: Pa
             }
             placeholder="One 24-char ID per line"
           />
+          <ResolvedNameList ids={ammo.filters.patchMagazines} />
         </Field>
         <Field label="Patch Weapons" tooltip="Weapon IDs that will have their chamber filter patched to accept this ammo.">
           <textarea
@@ -1106,9 +1107,32 @@ function FiltersTab({ ammo, onChange }: { ammo: AmmoDefinition; onChange: (u: Pa
             }
             placeholder="One 24-char ID per line"
           />
+          <ResolvedNameList ids={ammo.filters.patchWeapons} />
         </Field>
       </div>
     </Section>
+  )
+}
+
+function ResolvedNameList({ ids }: { ids: string[] }) {
+  const resolved = useMemo(() => {
+    return ids.map(id => ({ id, name: getItemName(id) || 'Unknown item' }))
+  }, [ids])
+
+  if (ids.length === 0) return null
+
+  return (
+    <div className="mt-2 p-2 bg-tarkov-bg border border-tarkov-border rounded-lg max-h-[160px] overflow-y-auto">
+      <div className="text-xs text-tarkov-text-dim mb-1">Resolved item names:</div>
+      <ul className="text-xs space-y-0.5">
+        {resolved.map((entry, i) => (
+          <li key={i} className="flex gap-2">
+            <span className="font-mono text-tarkov-text-dim truncate max-w-[100px]">{entry.id}</span>
+            <span className="text-tarkov-text truncate">{entry.name}</span>
+          </li>
+        ))}
+      </ul>
+    </div>
   )
 }
 
