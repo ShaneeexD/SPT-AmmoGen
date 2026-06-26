@@ -107,7 +107,7 @@ export const VANILLA_TRADERS = [
   { id: '6864e812f9fe664cb8b8e152', name: 'Storyteller' },
 ]
 
-export { AMMO_TEMPLATES } from './generated_ammo_templates'
+export { AMMO_TEMPLATES, type AmmoTemplate } from './generated_ammo_templates'
 
 export const RARITY_OPTIONS = ['Common', 'Rare', 'SuperRare', 'NotExists']
 

@@ -4590,6 +4590,8 @@ export const ITEMS: ItemEntry[] = [
   { id: '63a39e0f64283b5e9c56b282', name: "Сity key", shortName: "Factory office" },
   { id: '63a71f1a0aa9fb29da61c537', name: "Сity key", shortName: "Factory office" },
   { id: '63a71f3b0aa9fb29da61c539', name: "Сity key", shortName: "Factory office" },
+  { id: '67c6de3ce39861860909e8e5', name: "Marlin MXLR .308 ME lever-action rifle", shortName: "MXLR" },
+  { id: '67c5424826265106dd0697a4', name: "MXLR 5-round magazine", shortName: "MXLR mag" },
 ]
 
 export function getItemName(id: string): string | undefined {

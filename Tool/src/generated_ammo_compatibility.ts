@@ -215,6 +215,8 @@ export const AMMO_COMPATIBILITY: Record<string, AmmoCompatibility> = {
   '67dc212493ce32834b0fa446': { magazines: [{ id: '67d418d0ffb910d21f04720e', name: "M82A1 .50 BMG 10-round magazine" }], weapons: [{ id: '67d0576f29f580ebc10efd08', name: "TheAKGuy AK-50 .50 BMG sniper rifle" }] },
   '67dc255ee3028a8b120efc48': { magazines: [{ id: '67d418d0ffb910d21f04720e', name: "M82A1 .50 BMG 10-round magazine" }], weapons: [{ id: '67d0576f29f580ebc10efd08', name: "TheAKGuy AK-50 .50 BMG sniper rifle" }] },
   '67dc2648ba5b79876906a166': { magazines: [{ id: '67d418d0ffb910d21f04720e', name: "M82A1 .50 BMG 10-round magazine" }], weapons: [{ id: '67d0576f29f580ebc10efd08', name: "TheAKGuy AK-50 .50 BMG sniper rifle" }] },
+  '67c540c3d0538d12ec036c08': { magazines: [{ id: '67c5424826265106dd0697a4', name: "MXLR 5-round magazine" }], weapons: [{ id: '67c6de3ce39861860909e8e5', name: "Marlin MXLR .308 ME lever-action rifle" }] },
+  '67c540cfb032bbdb530201b8': { magazines: [{ id: '67c5424826265106dd0697a4', name: "MXLR 5-round magazine" }], weapons: [{ id: '67c6de3ce39861860909e8e5', name: "Marlin MXLR .308 ME lever-action rifle" }] },
 }
 
 export function getAmmoCompatibility(id: string): AmmoCompatibility | undefined {

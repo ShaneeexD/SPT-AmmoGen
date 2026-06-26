@@ -25,7 +25,7 @@ public record ModMetadata : AbstractModMetadata
     public override string? License { get; init; } = "MIT";
 }
 
-[Injectable(TypePriority = OnLoadOrder.Database + 1)]
+[Injectable(TypePriority = OnLoadOrder.TraderRegistration - 1)]
 public class AmmoGenPlugin(
     ISptLogger<AmmoGenPlugin> logger,
     AmmoLoader ammoLoader,

@@ -222,6 +222,8 @@ export const AMMO_STATS: Record<string, AmmoTemplateStats> = {
   '624c09e49b98e019a3315b66': { name: "Signal flare (Yellow)", shortName: "Signal flare (Yellow)", damage: 40, penetration: 0, armorDamage: 60, initialSpeed: 80, ammoAccr: 0, ammoRec: 0, stackMaxSize: 60 },
   '67654a6759116d347b0bfb86': { name: "V40 shrapnel", shortName: "V40 shrapnel", damage: 25, penetration: 3, armorDamage: 32, initialSpeed: 100, ammoAccr: 0, ammoRec: 0, stackMaxSize: 1 },
   '67ade494d748873e5f0161df': { name: "VOG-30 Shrapnel", shortName: "VOG-30 Shrapnel", damage: 40, penetration: 15, armorDamage: 38, initialSpeed: 90, ammoAccr: 0, ammoRec: 0, stackMaxSize: 1 },
+  '67c540c3d0538d12ec036c08': { name: ".308 ME", shortName: "ME", damage: 80, penetration: 42, armorDamage: 78, initialSpeed: 838, ammoAccr: -2, ammoRec: 3, stackMaxSize: 40 },
+  '67c540cfb032bbdb530201b8': { name: ".308 ME LOKT", shortName: "LOKT", damage: 96, penetration: 24, armorDamage: 55, initialSpeed: 838, ammoAccr: -2, ammoRec: -3, stackMaxSize: 40 },
 }
 
 export function getAmmoStats(id: string): AmmoTemplateStats | undefined {

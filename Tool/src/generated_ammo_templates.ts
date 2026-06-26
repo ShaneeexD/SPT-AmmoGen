@@ -1,4 +1,12 @@
-export const AMMO_TEMPLATES = [
+export interface AmmoTemplate {
+  id: string
+  name: string
+  caliber: string
+  requiresMod?: string
+  requiresModUrl?: string
+}
+
+export const AMMO_TEMPLATES: AmmoTemplate[] = [
   { id: '54527a984bdc2d4e668b4567', name: '5.56x45mm M855', caliber: '5.56x45mm' },
   { id: '560d61e84bdc2da74d8b4571', name: '7.62x54mm R SNB gzh', caliber: '7.62x54mm' },
   { id: '5656d7c34bdc2d9d198b4587', name: '7.62x39mm PS gzh', caliber: '7.62x39mm' },
@@ -157,4 +165,6 @@ export const AMMO_TEMPLATES = [
   { id: '660137d8481cc6907a0c5cda', name: '20/70 TSS Armor Piercing Slug', caliber: '20/70' },
   { id: '660137ef76c1b56143052be8', name: '20/70 Dangerous Game Slug', caliber: '20/70' },
   { id: '6768c25aa7b238f14a08d3f6', name: '7.62x51mm M80A1', caliber: '7.62x51mm' },
+  { id: '67c540c3d0538d12ec036c08', name: '.308 ME', caliber: '.308 ME', requiresMod: 'WTT - Content Backport', requiresModUrl: 'https://forge.sp-tarkov.com/mod/2512/wtt-content-backport' },
+  { id: '67c540cfb032bbdb530201b8', name: '.308 ME LOKT', caliber: '.308 ME', requiresMod: 'WTT - Content Backport', requiresModUrl: 'https://forge.sp-tarkov.com/mod/2512/wtt-content-backport' },
 ]

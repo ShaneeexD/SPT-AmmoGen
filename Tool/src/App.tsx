@@ -537,9 +537,20 @@ export default function App() {
               </button>
             ))}
           </div>
-          <button onClick={addAmmo} className="btn-secondary text-sm flex items-center gap-1.5">
-            <Plus size={14} /> Add Ammo
-          </button>
+          <div className="flex items-center gap-3">
+            <button onClick={addAmmo} className="btn-secondary text-sm flex items-center gap-1.5">
+              <Plus size={14} /> Add Ammo
+            </button>
+            <a
+              href="https://db.sp-tarkov.com/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-xs text-tarkov-text-dim hover:text-tarkov-accent flex items-center gap-1"
+            >
+              <ExternalLink size={12} />
+              Item DB
+            </a>
+          </div>
         </div>
       </div>
 
@@ -691,10 +702,26 @@ function IdentityTab({ pack, setPack, ammo, onChange }: {
               <option value="">Select a base ammo...</option>
               {AMMO_TEMPLATES.map((t) => (
                 <option key={t.id} value={t.id}>
-                  {t.name} ({t.caliber}) — {t.id}
+                  {t.name} ({t.caliber}) — {t.id}{t.requiresMod ? ` [Requires: ${t.requiresMod}]` : ''}
                 </option>
               ))}
             </select>
+            {(() => {
+              const selected = AMMO_TEMPLATES.find(t => t.id === ammo.baseTpl)
+              if (!selected?.requiresMod) return null
+              return (
+                <div className="mt-2 flex items-start gap-2 text-xs text-tarkov-warning bg-tarkov-warning/10 border border-tarkov-warning/30 rounded px-3 py-2">
+                  <AlertCircle size={14} className="shrink-0 mt-0.5" />
+                  <span>
+                    This base ammo requires{' '}
+                    <a href={selected.requiresModUrl} target="_blank" rel="noopener noreferrer" className="underline hover:text-tarkov-accent">
+                      {selected.requiresMod}
+                    </a>
+                    {' '}to be installed.
+                  </span>
+                </div>
+              )
+            })()}
           </Field>
 
           <Field label="Name">
