@@ -1,6 +1,6 @@
-# AmmoGen — Custom Ammo Framework for SPTarkov 4.0.13
+# AmmoGen - Custom Ammo Framework for SPTarkov 4.0.13
 
-A server-side framework for SPTarkov that lets anyone — including non-programmers — create custom ammo, ammo boxes, and loot injections using simple JSON packs. Includes a web-based **AmmoGen Tool** for generating packs visually.
+A server-side framework for SPTarkov that lets anyone, including non-programmers, create custom ammo, ammo boxes, and loot injections using simple JSON packs. Includes a web-based **AmmoGen Tool** for generating packs visually.
 
 **Tool URL**: Run locally with `npm run dev` inside the `Tool/` folder.
 
