@@ -47,6 +47,25 @@
       "filters": {
         "patchMagazines": [],
         "patchWeapons": []
+      },
+      "ammoBox": {
+        "id": "020000000000000000000001",
+        "enabled": true,
+        "baseTpl": "543be5cb4bdc2deb348b4568",
+        "count": 50,
+        "name": "Box of Example Custom Ammo",
+        "shortName": "ExAmmo Box",
+        "description": "A sealed box containing 50 rounds of Example Custom Ammo.",
+        "handbookPriceRoubles": 60000,
+        "rarityPvE": "Rare",
+        "sellToTraders": true,
+        "traderPriceRoubles": 45000
+      },
+      "loot": {
+        "enabled": true,
+        "containerIds": ["578f8782245977355405de3a"],
+        "rarity": "Rare",
+        "lootItem": "ammo"
       }
     }
   ]

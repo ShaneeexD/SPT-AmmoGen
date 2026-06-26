@@ -1,31 +1,35 @@
 # AmmoGen Roadmap
 
-This is a living list of planned features and improvements for the AmmoGen mod and tool.
+A living list of what AmmoGen can do today and what is planned for future updates.
+
+For setup, usage, and JSON examples, see [`README.md`](README.md).
+
+---
 
 ## Implemented
 
-- [x] Ammo pack JSON editor with live preview
-- [x] Clone base ammo template and override stats
-- [x] Trader, crafting, economy, and filter configuration
-- [x] Tooltips on all major fields
-- [x] Auto-fill stats when selecting a base ammo template
-- [x] Searchable item picker for crafting requirements
-- [x] Hamburger sidebar with links to related tools
-- [x] Custom favicon and dark theme
-- [x] Auto-suggest compatible magazines and weapons for filter patching
-- [x] Ammo stats comparison panel (custom vs base)
-- [x] Export full `user/mods/AmmoGen/` folder as a ZIP
-- [x] Optional generated ammo boxes that contain the custom ammo
-- [x] Optional loot table injection into container distributions
-- [x] `stackMaxSize` override
+- **Ammo pack JSON editor** with live preview and validation.
+- **Clone base ammo template** and override stats, stack size, economy, and name.
+- **Vanilla trader integration** with optional ammo box listings.
+- **Workbench crafting** with a searchable item requirement picker.
+- **Filter patching** to make custom ammo fit existing magazines and weapons.
+- **Generated ammo boxes** that contain the custom ammo and can be sold by traders.
+- **Loot table injection** into container distributions (ammo, box, or both).
+- **Auto-fill stats** when selecting a base ammo template.
+- **Ammo stats comparison** panel (custom vs base).
+- **Export / import** packs as JSON or ready-to-install ZIP.
+- **Tooltips** on every major field.
+- **Dark theme** and responsive layout.
+
+---
 
 ## Future Ideas
 
 ### Ammo Variants (Phase 1)
-Support creating tracer, subsonic, armor-piercing, and hollow-point variants from the same base ammo with one click. Each variant could inherit the base stats and apply preset modifiers (e.g. AP: +pen, -dmg). This needs:
-- Variant presets in the data model
-- A "Create Variant" button in the tool
-- Server support for variant-specific visual/sound properties (tracer color, muzzle flash, etc.)
+Support creating tracer, subsonic, armor-piercing, and hollow-point variants from the same base ammo with one click. Each variant would inherit the base stats and apply preset modifiers (e.g. AP: +pen, -dmg). This needs:
+- Variant presets in the data model.
+- A "Create Variant" button in the tool.
+- Server support for variant-specific visual/sound properties (tracer color, muzzle flash, etc.).
 
 ### Weapon / Magazine Compatibility Browser
 Show a read-only list of every magazine and weapon that accepts the selected base ammo, with names and IDs. This would make the auto-suggest feature even more useful and help users decide what to patch manually.
@@ -38,9 +42,6 @@ Save and load partial pack templates (e.g., "balanced 5.45 pack", "high-pen snip
 
 ### Ammo Family Generator
 Create a set of related ammo types from one base template (e.g., FMJ → AP → Tracer) with incremental stat changes and matching names.
-
-### Import from Existing Ammo Pack
-Open another AmmoGen pack to remix or extend it.
 
 ### In-Game Validation / Playtest Helper
 Generate a quick test command or config snippet to give the player a stack of each custom ammo and a compatible weapon for fast in-game verification.

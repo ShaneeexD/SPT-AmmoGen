@@ -1,64 +1,72 @@
-# AmmoGen
+# AmmoGen — Custom Ammo Framework for SPTarkov 4.0.13
 
-A server-side framework for SPTarkov that lets players and mod authors add custom ammo to the game by dropping simple JSON packs into a folder. No bundles, no client plugin, no C# required for users.
+A server-side framework for SPTarkov that lets anyone — including non-programmers — create custom ammo, ammo boxes, and loot injections using simple JSON packs. Includes a web-based **AmmoGen Tool** for generating packs visually.
 
-## What it does
+**Tool URL**: Run locally with `npm run dev` inside the `Tool/` folder.
 
-- Clones an existing ammo template and overrides its stats, name, price, etc.
-- Registers the new ammo in the item database with locales and handbook entries.
-- Adds the ammo to vanilla trader assortments (optional).
-- Adds a hideout workbench crafting recipe (optional).
-- Patches magazine / weapon filters so the ammo can be loaded (optional).
+> **New**: The tool supports exporting a ready-to-install ZIP and importing existing packs (JSON or ZIP) for editing.
 
-## Project Structure
+---
+
+## Quick Start
+
+### For Players (Installing an Ammo Pack)
+
+1. Install the AmmoGen mod by dragging the `SPT/` folder into your SPT install directory.
+2. Place the ammo pack file into `SPT/user/mods/AmmoGen/ammo/` (or a subfolder).
+3. Start the SPT server — the custom ammo appears automatically in traders, crafting, and loot.
+
+### For Creators (Making an Ammo Pack)
+
+1. Open the **AmmoGen Tool** (`cd Tool && npm install && npm run dev`).
+2. Pick a base ammo template, set stats, name/description, and configure traders, crafting, ammo boxes, and loot.
+3. Click **Export** to download a ready-to-use ZIP.
+4. Extract the ZIP and drag the `SPT/` folder into your SPT install directory to test.
+5. Publish your pack — users need **AmmoGen** installed as a dependency.
+
+> **Tip**: Always test on a new developer profile so you can verify trader purchases, crafting, and loot without affecting your main save.
+
+---
+
+## Export Format
+
+The AmmoGen Tool exports a pre-packaged ZIP that drops straight into any SPT install:
 
 ```
-AmmoGen/
-├── Server/                 # SPT server mod
-│   ├── AmmoGen.csproj
-│   ├── AmmoGenPlugin.cs
-│   ├── Models/             # JSON schema models
-│   ├── Services/           # Loading, registration, traders, crafting
-│   ├── Validation/         # Pack validation
-│   ├── config/
-│   │   └── config.json
-│   └── package.json
-├── Tool/                   # Online tool for generating ammo packs
-│   ├── src/
-│   │   ├── App.tsx
-│   │   ├── types.ts
-│   │   └── ...
-│   ├── index.html
-│   ├── package.json
-│   └── vite.config.ts
-├── ammo/                   # User ammo packs go here
-│   └── example-pack.json
-└── SPT-Mod-Template.sln
+SPT/
+└── user/
+    └── mods/
+        └── AmmoGen/
+            └── ammo/
+                └── my-ammo-pack.json
 ```
 
-## Building
+You can also click **Export JSON** to download a single `.json` file and place it manually in `SPT/user/mods/AmmoGen/ammo/`.
 
-1. Open `SPT-Mod-Template.sln` in Visual Studio / Rider (the solution now contains only the Server project).
-2. Build the solution.
-3. The post-build target copies the DLL, `package.json`, and `config/` to `C:\SPT\SPT\user\mods\Serenity-AmmoGen`.
+---
 
-## How Users Create Ammo Packs
+## Features
 
-Users can either write JSON manually or use the `Tool/` web app.
+- **Ammo pack JSON editor** with live preview and validation.
+- **Clone base ammo template** and override stats, stack size, economy, and name.
+- **Vanilla trader integration** with optional ammo box listings.
+- **Workbench crafting** with a searchable item requirement picker.
+- **Filter patching** to make custom ammo fit existing magazines and weapons.
+- **Generated ammo boxes** that contain the custom ammo and can be sold by traders.
+- **Loot table injection** into container distributions (ammo, box, or both).
+- **Auto-fill stats** when selecting a base ammo template.
+- **Ammo stats comparison** panel (custom vs base).
+- **Export / import** packs as JSON or ready-to-install ZIP.
+- **Tooltips** on every major field.
+- **Dark theme** and responsive layout.
 
-### Using the Tool
+See [`roadmap.md`](roadmap.md) for upcoming features and planned improvements.
 
-```bash
-cd Tool
-npm install
-npm run dev
-```
+---
 
-The tool lets you pick a base ammo, set stats, configure one or more vanilla traders, configure a craft, and download the JSON pack.
+## Ammo Pack JSON
 
-### Manual JSON
-
-Place a JSON file in `SPT/user/mods/AmmoGen/ammo/` (or a subfolder). See `ammo/example-pack.json` for a complete example.
+A pack is a single JSON file containing one or more custom ammo definitions.
 
 ```json
 {
@@ -110,27 +118,52 @@ Place a JSON file in `SPT/user/mods/AmmoGen/ammo/` (or a subfolder). See `ammo/e
       "filters": {
         "patchMagazines": [],
         "patchWeapons": []
+      },
+      "ammoBox": {
+        "id": "020000000000000000000001",
+        "enabled": true,
+        "baseTpl": "543be5cb4bdc2deb348b4568",
+        "count": 50,
+        "name": "Box of Custom Ammo",
+        "shortName": "Custom Ammo Box",
+        "description": "A box containing 50 rounds of custom ammo.",
+        "handbookPriceRoubles": 60000,
+        "rarityPvE": "Rare",
+        "sellToTraders": true,
+        "traderPriceRoubles": 45000
+      },
+      "loot": {
+        "enabled": true,
+        "containerIds": ["578f8782245977355405de3a"],
+        "rarity": "Rare",
+        "lootItem": "ammo"
       }
     }
   ]
 }
 ```
 
-## Ammo Pack Fields
+Find item template IDs at: https://db.sp-tarkov.com/search
+
+---
+
+## Field Reference
 
 | Field | Description |
 |-------|-------------|
 | `id` | Unique 24-character hex item ID for the new ammo. |
 | `baseTpl` | Existing ammo template to clone. |
-| `name` / `shortName` / `description` | Locale strings. |
+| `name` / `shortName` / `description` | Locale strings shown in-game. |
 | `handbookParentId` | Optional handbook category. Defaults to the base ammo's category. |
-| `stats` | Damage, penetration, armor damage, initial speed, accuracy, recoil, **stack max size**. |
-| `economy` | Handbook price, flea price, PvE rarity. |
-| `traders` | Array of optional vanilla trader listings. |
-| `crafting` | Optional workbench recipe with searchable item requirements. |
-| `filters` | Optional magazine / weapon IDs to patch. |
+| `stats` | Damage, penetration, armor damage, initial speed, accuracy, recoil, and stack max size. |
+| `economy` | Handbook price, flea price, and PvE rarity. |
+| `traders` | Optional vanilla trader listings. |
+| `crafting` | Optional workbench recipe with item requirements. |
+| `filters` | Optional magazine / weapon IDs to patch so the ammo fits. |
+| `ammoBox` | Optional custom ammo box containing this ammo. |
+| `loot` | Optional loot table injection for containers. |
 
-## Vanilla Trader IDs
+### Vanilla Trader IDs
 
 | Trader | ID |
 |--------|-----|
@@ -147,12 +180,49 @@ Place a JSON file in `SPT/user/mods/AmmoGen/ammo/` (or a subfolder). See `ammo/e
 | Arena | `6617beeaa9cfa777ca915b7c` |
 | Storyteller | `6864e812f9fe664cb8b8e152` |
 
-## Notes
+---
 
-- No bundles are included or required. The cloned ammo uses the base ammo's existing model/texture.
-- The mod is server-only; no client plugin is needed.
-- Packs are validated at load time. Invalid packs are logged and skipped.
+## Building from Source
+
+1. Open `SPT-Mod-Template.sln` in Visual Studio / Rider.
+2. Build the solution.
+3. The post-build target copies the DLL, `package.json`, and `config/` to `C:\SPT\SPT\user\mods\AmmoGen`.
+
+---
+
+## Validation & Error Handling
+
+AmmoGen validates every pack on load and logs clear errors to the server console:
+
+- Missing required fields (`id`, `baseTpl`, `name`, `stats`, etc.)
+- Invalid ID format (must be 24-character hex)
+- Invalid trader IDs
+- Invalid crafting requirement template IDs
+- Invalid ammo box base templates
+
+Invalid packs are **skipped** — other packs still load normally.
+
+---
+
+## Publishing an Ammo Pack
+
+The AmmoGen Tool export ZIP is already structured for distribution. When publishing:
+
+1. **State the dependency**: Your pack requires AmmoGen for SPT 4.0.13.
+2. **Do not include** the AmmoGen DLL or other authors' packs in your ZIP.
+3. **Test** by extracting and running the server before publishing.
+
+---
+
+## Technical Details
+
+- **SPT Version**: 4.0.13
+- **Framework**: .NET 9.0, C#
+- **DI Pattern**: `[Injectable]` + `IOnLoad`
+- **NuGet Packages**: `SPTarkov.Common`, `SPTarkov.DI`, `SPTarkov.Server.Core` (4.0.13)
+- **Tool**: React + TypeScript + Vite + TailwindCSS
+- **No bundles or client plugin required**: cloned ammo uses the base ammo's existing model/texture.
 
 ## License
 
-MIT
+MIT — Use freely for your SPT mods.
