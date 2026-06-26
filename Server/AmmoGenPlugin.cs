@@ -16,7 +16,7 @@ public record ModMetadata : AbstractModMetadata
     public override string Name { get; init; } = "AmmoGen";
     public override string Author { get; init; } = "Serenity";
     public override List<string>? Contributors { get; init; }
-    public override SemanticVersioning.Version Version { get; init; } = new("1.0.0");
+    public override SemanticVersioning.Version Version { get; init; } = new("1.1.0");
     public override SemanticVersioning.Range SptVersion { get; init; } = new("4.0.13");
     public override List<string>? Incompatibilities { get; init; }
     public override Dictionary<string, SemanticVersioning.Range>? ModDependencies { get; init; }
@@ -36,7 +36,7 @@ public class AmmoGenPlugin(
     public Task OnLoad()
     {
         logger.LogWithColor("[AmmoGen] ====================================", LogTextColor.Cyan);
-        logger.LogWithColor("[AmmoGen] AmmoGen Framework v1.0.0 loading...", LogTextColor.Cyan);
+        logger.LogWithColor("[AmmoGen] AmmoGen Framework v1.1.0 loading...", LogTextColor.Cyan);
         logger.LogWithColor("[AmmoGen] ====================================", LogTextColor.Cyan);
 
         try

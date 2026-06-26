@@ -46,14 +46,15 @@ public static class TraderManager
 
                 try
                 {
+                    var box = def.AmmoBox;
                     var boxTraderEntry = new TraderEntry
                     {
                         Enabled = traderEntry.Enabled,
-                        TraderId = traderEntry.TraderId,
-                        LoyaltyLevel = traderEntry.LoyaltyLevel,
-                        PriceRoubles = def.AmmoBox.TraderPriceRoubles,
-                        StockCount = traderEntry.StockCount,
-                        BuyRestrictionMax = traderEntry.BuyRestrictionMax,
+                        TraderId = !string.IsNullOrWhiteSpace(box.TraderId) ? box.TraderId : traderEntry.TraderId,
+                        LoyaltyLevel = box.LoyaltyLevel is > 0 ? box.LoyaltyLevel.Value : traderEntry.LoyaltyLevel,
+                        PriceRoubles = box.TraderPriceRoubles,
+                        StockCount = box.StockCount is >= 0 ? box.StockCount.Value : traderEntry.StockCount,
+                        BuyRestrictionMax = box.BuyRestrictionMax is >= 0 ? box.BuyRestrictionMax.Value : traderEntry.BuyRestrictionMax,
                     };
                     AddBoxToTrader(def, boxTraderEntry, traders, logger);
                 }
@@ -93,7 +94,7 @@ public static class TraderManager
             Upd = new Upd
             {
                 StackObjectsCount = traderEntry.StockCount,
-                UnlimitedCount = false,
+                UnlimitedCount = traderEntry.StockCount == 0,
                 BuyRestrictionMax = traderEntry.BuyRestrictionMax,
                 BuyRestrictionCurrent = 0,
             }
@@ -147,7 +148,7 @@ public static class TraderManager
             Upd = new Upd
             {
                 StackObjectsCount = traderEntry.StockCount,
-                UnlimitedCount = false,
+                UnlimitedCount = traderEntry.StockCount == 0,
                 BuyRestrictionMax = traderEntry.BuyRestrictionMax,
                 BuyRestrictionCurrent = 0,
             }

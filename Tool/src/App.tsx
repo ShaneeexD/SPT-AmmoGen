@@ -358,14 +358,15 @@ export default function App() {
       // Backward compatibility: missing ammoBox / loot fields
       if (!a.ammoBox) normalized.ammoBox = createDefaultAmmo().ammoBox
       if (!a.loot) normalized.loot = createDefaultAmmo().loot
+      // Backward compatibility: missing stats fields (light/heavy bleed delta)
+      normalized.stats = { ...createDefaultAmmo().stats, ...a.stats }
       // Backward compatibility: missing lootItem option
       if (normalized.loot && (a.loot as typeof a.loot & { lootItem?: LootItem })?.lootItem === undefined) {
         normalized.loot.lootItem = 'ammo'
       }
-      // Backward compatibility: missing ammoBox sellToTraders / traderPriceRoubles
-      if (normalized.ammoBox && (a.ammoBox as typeof a.ammoBox & { sellToTraders?: boolean })?.sellToTraders === undefined) {
-        normalized.ammoBox.sellToTraders = false
-        normalized.ammoBox.traderPriceRoubles = 0
+      // Backward compatibility: missing ammoBox sellToTraders / traderPriceRoubles / trader settings
+      if (normalized.ammoBox) {
+        normalized.ammoBox = { ...createDefaultAmmo().ammoBox, ...a.ammoBox }
       }
       return normalized
     })
@@ -692,6 +693,8 @@ function IdentityTab({ pack, setPack, ammo, onChange }: {
                       ammoAccr: base.ammoAccr,
                       ammoRec: base.ammoRec,
                       stackMaxSize: base.stackMaxSize,
+                      lightBleedingDelta: base.lightBleedingDelta,
+                      heavyBleedingDelta: base.heavyBleedingDelta,
                     },
                   })
                 } else {
@@ -778,6 +781,8 @@ function StatsTab({ ammo, onChange }: { ammo: AmmoDefinition; onChange: (u: Part
     ammoAccr: 'Accuracy Modifier',
     ammoRec: 'Recoil Modifier',
     stackMaxSize: 'Stack Max Size',
+    lightBleedingDelta: 'Light Bleed Chance',
+    heavyBleedingDelta: 'Heavy Bleed Chance',
   }
   const statTooltips: Record<string, string> = {
     damage: 'Hit damage dealt to unarmored body parts.',
@@ -787,21 +792,24 @@ function StatsTab({ ammo, onChange }: { ammo: AmmoDefinition; onChange: (u: Part
     ammoAccr: 'Accuracy modifier. Positive improves accuracy; negative reduces it.',
     ammoRec: 'Recoil modifier. Positive increases recoil; negative reduces it.',
     stackMaxSize: 'Maximum rounds per inventory slot. 0 inherits the base ammo template default.',
+    lightBleedingDelta: 'Chance to cause light bleeding on hit (0-1). 0 leaves the base ammo value unchanged.',
+    heavyBleedingDelta: 'Chance to cause heavy bleeding on hit (0-1). 0 leaves the base ammo value unchanged.',
   }
   const base = getAmmoStats(ammo.baseTpl)
 
   return (
     <Section title="Ammo Stats" icon={<Crosshair size={18} />}>
       <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-        {(['damage', 'penetration', 'armorDamage', 'initialSpeed', 'ammoAccr', 'ammoRec', 'stackMaxSize'] as const).map((stat) => (
+        {(['damage', 'penetration', 'armorDamage', 'initialSpeed', 'ammoAccr', 'ammoRec', 'stackMaxSize', 'lightBleedingDelta', 'heavyBleedingDelta'] as const).map((stat) => (
           <Field key={stat} label={statNames[stat]} tooltip={statTooltips[stat]}>
             <input
               className="input-field"
               type="number"
+              step={stat === 'lightBleedingDelta' || stat === 'heavyBleedingDelta' ? 0.01 : 1}
               value={ammo.stats[stat]}
               onChange={e =>
                 onChange({
-                  stats: { ...ammo.stats, [stat]: parseInt(e.target.value, 10) || 0 },
+                  stats: { ...ammo.stats, [stat]: parseFloat(e.target.value) || 0 },
                 })
               }
             />
@@ -815,9 +823,9 @@ function StatsTab({ ammo, onChange }: { ammo: AmmoDefinition; onChange: (u: Part
             <Crosshair size={16} /> Base Ammo Comparison: {base.name}
           </h3>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
-            {(['damage', 'penetration', 'armorDamage', 'initialSpeed', 'ammoAccr', 'ammoRec', 'stackMaxSize'] as const).map((stat) => {
+            {(['damage', 'penetration', 'armorDamage', 'initialSpeed', 'ammoAccr', 'ammoRec', 'stackMaxSize', 'lightBleedingDelta', 'heavyBleedingDelta'] as const).map((stat) => {
               const custom = ammo.stats[stat]
-              const original = base[stat === 'damage' ? 'damage' : stat === 'penetration' ? 'penetration' : stat === 'armorDamage' ? 'armorDamage' : stat === 'initialSpeed' ? 'initialSpeed' : stat === 'ammoAccr' ? 'ammoAccr' : stat === 'ammoRec' ? 'ammoRec' : 'stackMaxSize']
+              const original = base[stat]
               const diff = custom - original
               const diffClass = diff > 0 ? 'text-tarkov-success' : diff < 0 ? 'text-tarkov-error' : 'text-tarkov-text-dim'
               const diffText = diff === 0 ? '=' : diff > 0 ? `+${diff}` : `${diff}`
@@ -951,7 +959,7 @@ function TraderTab({ ammo, onChange }: { ammo: AmmoDefinition; onChange: (u: Par
                     onChange={e => updateTrader(i, { priceRoubles: parseInt(e.target.value, 10) || 0 })}
                   />
                 </Field>
-                <Field label="Stock Count" tooltip="Amount available after each trader restock.">
+                <Field label="Stock Count" tooltip="Amount available after each trader restock. Set to 0 for unlimited stock.">
                   <input
                     className="input-field"
                     type="number"
@@ -959,7 +967,7 @@ function TraderTab({ ammo, onChange }: { ammo: AmmoDefinition; onChange: (u: Par
                     onChange={e => updateTrader(i, { stockCount: parseInt(e.target.value, 10) || 0 })}
                   />
                 </Field>
-                <Field label="Buy Restriction Max" tooltip="Maximum rounds a player can buy per restock cycle.">
+                <Field label="Buy Restriction Max" tooltip="Maximum rounds a player can buy per restock cycle. Set to 0 for no restriction.">
                   <input
                     className="input-field"
                     type="number"
@@ -1313,19 +1321,75 @@ function AmmoBoxTab({ ammo, onChange }: { ammo: AmmoDefinition; onChange: (u: Pa
             <Toggle
               checked={ammo.ammoBox.sellToTraders}
               onChange={v => updateBox({ sellToTraders: v })}
-              label="Sell ammo box to the same traders as this ammo"
+              label="Sell ammo box to traders"
             />
           </div>
 
           {ammo.ammoBox.sellToTraders && (
-            <Field label="Ammo Box Trader Price (₽)" tooltip="Price traders will sell the ammo box for. Loyalty level, stock, and restriction settings are copied from the ammo's trader entries.">
-              <input
-                className="input-field"
-                type="number"
-                value={ammo.ammoBox.traderPriceRoubles}
-                onChange={e => updateBox({ traderPriceRoubles: parseInt(e.target.value, 10) || 0 })}
-              />
-            </Field>
+            <>
+              <Field label="Ammo Box Trader Price (₽)" tooltip="Price traders will sell the ammo box for.">
+                <input
+                  className="input-field"
+                  type="number"
+                  value={ammo.ammoBox.traderPriceRoubles}
+                  onChange={e => updateBox({ traderPriceRoubles: parseInt(e.target.value, 10) || 0 })}
+                />
+              </Field>
+
+              <Field label="Trader Override" tooltip="Leave blank to use the same trader(s) as the ammo. Enter a trader ID to sell the box from a different trader.">
+                <select
+                  className="input-field"
+                  value={ammo.ammoBox.traderId ?? ''}
+                  onChange={e => updateBox({ traderId: e.target.value || undefined })}
+                >
+                  <option value="">Same as ammo</option>
+                  {VANILLA_TRADERS.map((t) => (
+                    <option key={t.id} value={t.id}>{t.name}</option>
+                  ))}
+                </select>
+              </Field>
+
+              <Field label="Loyalty Level Override" tooltip="Leave blank to use the ammo's loyalty level. 1-4.">
+                <input
+                  className="input-field"
+                  type="number"
+                  min={1}
+                  max={4}
+                  value={ammo.ammoBox.loyaltyLevel ?? ''}
+                  placeholder="Same as ammo"
+                  onChange={e => {
+                    const value = e.target.value
+                    updateBox({ loyaltyLevel: value === '' ? undefined : parseInt(value, 10) || 1 })
+                  }}
+                />
+              </Field>
+
+              <Field label="Stock Count Override" tooltip="Leave blank to use the ammo's stock count. Set to 0 for unlimited stock.">
+                <input
+                  className="input-field"
+                  type="number"
+                  value={ammo.ammoBox.stockCount ?? ''}
+                  placeholder="Same as ammo"
+                  onChange={e => {
+                    const value = e.target.value
+                    updateBox({ stockCount: value === '' ? undefined : parseInt(value, 10) || 0 })
+                  }}
+                />
+              </Field>
+
+              <Field label="Buy Restriction Override" tooltip="Leave blank to use the ammo's buy restriction. Set to 0 for no restriction.">
+                <input
+                  className="input-field"
+                  type="number"
+                  value={ammo.ammoBox.buyRestrictionMax ?? ''}
+                  placeholder="Same as ammo"
+                  onChange={e => {
+                    const value = e.target.value
+                    updateBox({ buyRestrictionMax: value === '' ? undefined : parseInt(value, 10) || 0 })
+                  }}
+                />
+              </Field>
+            </>
           )}
         </div>
       )}

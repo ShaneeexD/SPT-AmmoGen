@@ -29,6 +29,8 @@ export interface AmmoStats {
   ammoAccr: number
   ammoRec: number
   stackMaxSize: number
+  lightBleedingDelta: number
+  heavyBleedingDelta: number
 }
 
 export interface AmmoEconomy {
@@ -76,6 +78,10 @@ export interface AmmoBoxEntry {
   rarityPvE: string
   sellToTraders: boolean
   traderPriceRoubles: number
+  traderId?: string
+  loyaltyLevel?: number
+  stockCount?: number
+  buyRestrictionMax?: number
 }
 
 export type LootItem = 'ammo' | 'box' | 'both'
@@ -138,6 +144,8 @@ export function createDefaultAmmo(): AmmoDefinition {
       ammoAccr: 0,
       ammoRec: 0,
       stackMaxSize: 0,
+      lightBleedingDelta: 0,
+      heavyBleedingDelta: 0,
     },
     economy: {
       handbookPriceRoubles: 0,

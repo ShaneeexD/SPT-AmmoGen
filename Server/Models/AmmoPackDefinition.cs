@@ -73,6 +73,8 @@ public class AmmoStats
     [JsonPropertyName("ammoAccr")] public int AmmoAccr { get; set; }
     [JsonPropertyName("ammoRec")] public int AmmoRec { get; set; }
     [JsonPropertyName("stackMaxSize")] public int StackMaxSize { get; set; }
+    [JsonPropertyName("lightBleedingDelta")] public double LightBleedingDelta { get; set; }
+    [JsonPropertyName("heavyBleedingDelta")] public double HeavyBleedingDelta { get; set; }
 }
 
 public class AmmoEconomy
@@ -131,6 +133,10 @@ public class AmmoBoxEntry
     [JsonPropertyName("rarityPvE")] public string RarityPvE { get; set; } = "Rare";
     [JsonPropertyName("sellToTraders")] public bool SellToTraders { get; set; }
     [JsonPropertyName("traderPriceRoubles")] public int TraderPriceRoubles { get; set; }
+    [JsonPropertyName("traderId")] public string? TraderId { get; set; }
+    [JsonPropertyName("loyaltyLevel")] public int? LoyaltyLevel { get; set; }
+    [JsonPropertyName("stockCount")] public int? StockCount { get; set; }
+    [JsonPropertyName("buyRestrictionMax")] public int? BuyRestrictionMax { get; set; }
 }
 
 public class LootEntry

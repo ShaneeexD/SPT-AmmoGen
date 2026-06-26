@@ -17,7 +17,9 @@
         "initialSpeed": 850,
         "ammoAccr": 2,
         "ammoRec": -5,
-        "stackMaxSize": 30
+        "stackMaxSize": 30,
+        "lightBleedingDelta": 0.35,
+        "heavyBleedingDelta": 0.15
       },
       "economy": {
         "handbookPriceRoubles": 1200,
@@ -32,6 +34,14 @@
           "priceRoubles": 900,
           "stockCount": 200,
           "buyRestrictionMax": 200
+        },
+        {
+          "enabled": true,
+          "traderId": "54cb57776803fa99248b456e",
+          "loyaltyLevel": 3,
+          "priceRoubles": 1000,
+          "stockCount": 0,
+          "buyRestrictionMax": 0
         }
       ],
       "crafting": {
@@ -59,7 +69,11 @@
         "handbookPriceRoubles": 60000,
         "rarityPvE": "Rare",
         "sellToTraders": true,
-        "traderPriceRoubles": 45000
+        "traderPriceRoubles": 45000,
+        "traderId": "54cb50c76803fa8b248b4571",
+        "loyaltyLevel": 2,
+        "stockCount": 0,
+        "buyRestrictionMax": 0
       },
       "loot": {
         "enabled": true,

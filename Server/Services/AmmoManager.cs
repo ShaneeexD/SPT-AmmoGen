@@ -72,6 +72,8 @@ public static class AmmoManager
             AmmoAccr = def.Stats.AmmoAccr,
             AmmoRec = def.Stats.AmmoRec,
             StackMaxSize = def.Stats.StackMaxSize > 0 ? def.Stats.StackMaxSize : null,
+            LightBleedingDelta = def.Stats.LightBleedingDelta != 0 ? def.Stats.LightBleedingDelta : null,
+            HeavyBleedingDelta = def.Stats.HeavyBleedingDelta != 0 ? def.Stats.HeavyBleedingDelta : null,
         };
 
         var details = new NewItemFromCloneDetails

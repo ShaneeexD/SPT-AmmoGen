@@ -88,7 +88,9 @@ A pack is a single JSON file containing one or more custom ammo definitions.
         "initialSpeed": 850,
         "ammoAccr": 2,
         "ammoRec": -5,
-        "stackMaxSize": 30
+        "stackMaxSize": 30,
+        "lightBleedingDelta": 0.35,
+        "heavyBleedingDelta": 0.15
       },
       "economy": {
         "handbookPriceRoubles": 1200,
@@ -103,6 +105,14 @@ A pack is a single JSON file containing one or more custom ammo definitions.
           "priceRoubles": 900,
           "stockCount": 200,
           "buyRestrictionMax": 200
+        },
+        {
+          "enabled": true,
+          "traderId": "54cb57776803fa99248b456e",
+          "loyaltyLevel": 3,
+          "priceRoubles": 1000,
+          "stockCount": 0,
+          "buyRestrictionMax": 0
         }
       ],
       "crafting": {
@@ -130,7 +140,11 @@ A pack is a single JSON file containing one or more custom ammo definitions.
         "handbookPriceRoubles": 60000,
         "rarityPvE": "Rare",
         "sellToTraders": true,
-        "traderPriceRoubles": 45000
+        "traderPriceRoubles": 45000,
+        "traderId": "54cb50c76803fa8b248b4571",
+        "loyaltyLevel": 2,
+        "stockCount": 0,
+        "buyRestrictionMax": 0
       },
       "loot": {
         "enabled": true,
@@ -155,13 +169,19 @@ Find item template IDs at: https://db.sp-tarkov.com/search
 | `baseTpl` | Existing ammo template to clone. |
 | `name` / `shortName` / `description` | Locale strings shown in-game. |
 | `handbookParentId` | Optional handbook category. Defaults to the base ammo's category. |
-| `stats` | Damage, penetration, armor damage, initial speed, accuracy, recoil, and stack max size. |
+| `stats` | Damage, penetration, armor damage, initial speed, accuracy, recoil, stack max size, light/heavy bleed chance. |
 | `economy` | Handbook price, flea price, and PvE rarity. |
-| `traders` | Optional vanilla trader listings. |
+| `traders` | Optional vanilla trader listings. `stockCount: 0` means unlimited; `buyRestrictionMax: 0` means no limit. |
 | `crafting` | Optional workbench recipe with item requirements. |
 | `filters` | Optional magazine / weapon IDs to patch so the ammo fits. |
-| `ammoBox` | Optional custom ammo box containing this ammo. |
+| `ammoBox` | Optional custom ammo box containing this ammo. Can override trader, loyalty level, stock, and buy restriction. |
 | `loot` | Optional loot table injection for containers. |
+
+### Infinite Stock & Ammo Box Overrides
+
+- **`traders[].stockCount: 0`** = unlimited restock stock (sets `UnlimitedCount` in the trader assortment).
+- **`traders[].buyRestrictionMax: 0`** = no purchase limit per restock cycle.
+- **`ammoBox.traderId`** / **`ammoBox.loyaltyLevel`** / **`ammoBox.stockCount`** / **`ammoBox.buyRestrictionMax`** let the ammo box use different trader settings than the parent ammo. Leave them out to inherit from the ammo's trader entries.
 
 ### Vanilla Trader IDs
 
@@ -200,7 +220,7 @@ Invalid packs are **skipped** — other packs still load normally.
 
 The AmmoGen Tool export ZIP is already structured for distribution. When publishing:
 
-1. **State the dependency**: Your pack requires AmmoGen for SPT 4.0.13.
+1. **State the dependency**: Your pack requires AmmoGen v1.1.0 for SPT 4.0.13.
 2. **Do not include** the AmmoGen DLL or other authors' packs in your ZIP.
 3. **Test** by extracting and running the server before publishing.
 

@@ -37,13 +37,15 @@ for (const itemId of Object.keys(items)) {
     ammoAccr: item._props.AmmoAccr || 0,
     ammoRec: item._props.AmmoRec || 0,
     stackMaxSize: item._props.StackMaxSize || 0,
+    lightBleedingDelta: item._props.LightBleedingDelta || 0,
+    heavyBleedingDelta: item._props.HeavyBleedingDelta || 0,
   }
 }
 
 const entries = Object.entries(stats).sort((a, b) => a[1].name.localeCompare(b[1].name))
 
 const lines = entries.map(([id, s]) => {
-  return `  '${id}': { name: ${JSON.stringify(s.name)}, shortName: ${JSON.stringify(s.shortName)}, damage: ${s.damage}, penetration: ${s.penetration}, armorDamage: ${s.armorDamage}, initialSpeed: ${s.initialSpeed}, ammoAccr: ${s.ammoAccr}, ammoRec: ${s.ammoRec}, stackMaxSize: ${s.stackMaxSize} },`
+  return `  '${id}': { name: ${JSON.stringify(s.name)}, shortName: ${JSON.stringify(s.shortName)}, damage: ${s.damage}, penetration: ${s.penetration}, armorDamage: ${s.armorDamage}, initialSpeed: ${s.initialSpeed}, ammoAccr: ${s.ammoAccr}, ammoRec: ${s.ammoRec}, stackMaxSize: ${s.stackMaxSize}, lightBleedingDelta: ${s.lightBleedingDelta}, heavyBleedingDelta: ${s.heavyBleedingDelta} },`
 })
 
 const output = `// Generated from SPT 4.0.13 database. Do not edit manually.
@@ -59,6 +61,8 @@ export interface AmmoTemplateStats {
   ammoAccr: number
   ammoRec: number
   stackMaxSize: number
+  lightBleedingDelta: number
+  heavyBleedingDelta: number
 }
 
 export const AMMO_STATS: Record<string, AmmoTemplateStats> = {
