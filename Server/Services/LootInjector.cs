@@ -37,6 +37,23 @@ public static class LootInjector
                 var probability = RarityProbabilities.GetValueOrDefault(def.Loot.Rarity, 5000);
                 if (probability <= 0) continue;
 
+                var itemsToInject = new List<string>();
+                var lootItem = def.Loot.LootItem?.ToLowerInvariant() ?? "ammo";
+                if (lootItem == "ammo" || lootItem == "both")
+                {
+                    itemsToInject.Add(def.Id);
+                }
+                if ((lootItem == "box" || lootItem == "both") && def.AmmoBox.Enabled)
+                {
+                    itemsToInject.Add(def.AmmoBox.Id);
+                }
+
+                if (itemsToInject.Count == 0)
+                {
+                    logger.LogWithColor($"[AmmoGen] Loot injection enabled for '{def.Name}' but no items selected or ammo box not enabled.", LogTextColor.Yellow);
+                    continue;
+                }
+
                 int injected = 0;
                 foreach (dynamic location in locations)
                 {
@@ -52,20 +69,23 @@ public static class LootInjector
                         var distribution = containerLoot.ItemDistribution;
                         if (distribution == null) continue;
 
-                        var existing = ((IEnumerable<dynamic>)distribution).FirstOrDefault(d => d.Tpl == def.Id);
-                        if (existing != null)
+                        foreach (var itemId in itemsToInject)
                         {
-                            existing.RelativeProbability = probability;
+                            var existing = ((IEnumerable<dynamic>)distribution).FirstOrDefault(d => d.Tpl == itemId);
+                            if (existing != null)
+                            {
+                                existing.RelativeProbability = probability;
+                            }
+                            else
+                            {
+                                distribution.Add(new { Tpl = itemId, RelativeProbability = probability });
+                            }
+                            injected++;
                         }
-                        else
-                        {
-                            distribution.Add(new { Tpl = def.Id, RelativeProbability = probability });
-                        }
-                        injected++;
                     }
                 }
 
-                logger.LogWithColor($"[AmmoGen] Injected {def.Name} into {injected} container loot entries.", LogTextColor.Green);
+                logger.LogWithColor($"[AmmoGen] Injected {def.Name} ({string.Join(", ", itemsToInject)}) into {injected} container loot entries.", LogTextColor.Green);
             }
             catch (Exception ex)
             {

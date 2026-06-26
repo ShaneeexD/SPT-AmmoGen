@@ -78,10 +78,13 @@ export interface AmmoBoxEntry {
   traderPriceRoubles: number
 }
 
+export type LootItem = 'ammo' | 'box' | 'both'
+
 export interface LootEntry {
   enabled: boolean
   containerIds: string[]
   rarity: string
+  lootItem: LootItem
 }
 
 export interface ValidationError {
@@ -170,6 +173,7 @@ export function createDefaultAmmo(): AmmoDefinition {
       enabled: false,
       containerIds: [],
       rarity: 'Rare',
+      lootItem: 'ammo',
     },
   }
 }

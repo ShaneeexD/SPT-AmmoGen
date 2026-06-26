@@ -28,6 +28,7 @@ import {
   AmmoPackDefinition,
   AmmoBoxEntry,
   LootEntry,
+  LootItem,
   AMMO_TEMPLATES,
   createDefaultAmmo,
   createDefaultPack,
@@ -366,6 +367,10 @@ export default function App() {
             // Backward compatibility: missing ammoBox / loot fields
             if (!a.ammoBox) normalized.ammoBox = createDefaultAmmo().ammoBox
             if (!a.loot) normalized.loot = createDefaultAmmo().loot
+            // Backward compatibility: missing lootItem option
+            if (normalized.loot && (a.loot as typeof a.loot & { lootItem?: LootItem })?.lootItem === undefined) {
+              normalized.loot.lootItem = 'ammo'
+            }
             // Backward compatibility: missing ammoBox sellToTraders / traderPriceRoubles
             if (normalized.ammoBox && (a.ammoBox as typeof a.ammoBox & { sellToTraders?: boolean })?.sellToTraders === undefined) {
               normalized.ammoBox.sellToTraders = false
@@ -1288,22 +1293,40 @@ function LootTab({ ammo, onChange }: { ammo: AmmoDefinition; onChange: (u: Parti
     onChange({ loot: { ...ammo.loot, ...updates } })
   }
 
+  const lootItemOptions: { value: LootItem; label: string }[] = [
+    { value: 'ammo', label: 'Ammo only' },
+    { value: 'box', label: 'Ammo box only' },
+    { value: 'both', label: 'Ammo and ammo box' },
+  ]
+
   return (
     <Section title="Loot Table Injection" icon={<MapPin size={18} />}>
       <div className="mb-4">
         <Toggle
           checked={ammo.loot.enabled}
           onChange={v => updateLoot({ enabled: v })}
-          label="Add this ammo to container loot tables"
+          label="Add this ammo or its ammo box to container loot tables"
         />
       </div>
 
       {ammo.loot.enabled && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <Field label="Loot Item" tooltip="Choose whether to add the ammo, the generated ammo box, or both to the selected containers.">
+            <select
+              className="input-field"
+              value={ammo.loot.lootItem}
+              onChange={e => updateLoot({ lootItem: e.target.value as LootItem })}
+            >
+              {lootItemOptions.map((opt) => (
+                <option key={opt.value} value={opt.value}>{opt.label}</option>
+              ))}
+            </select>
+          </Field>
+
           <Field
             label="Container IDs"
             className="md:col-span-2"
-            tooltip="One container item ID per line. The ammo will be added as a possible loot spawn inside these containers (e.g., weapon crates, ammo boxes, duffle bags)."
+            tooltip="One container item ID per line. The selected item will be added as a possible loot spawn inside these containers (e.g., weapon crates, ammo boxes, duffle bags)."
           >
             <textarea
               className="input-field min-h-[120px] font-mono text-sm resize-y"
