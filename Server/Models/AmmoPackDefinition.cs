@@ -129,6 +129,8 @@ public class AmmoBoxEntry
     [JsonPropertyName("description")] public string Description { get; set; } = string.Empty;
     [JsonPropertyName("handbookPriceRoubles")] public int HandbookPriceRoubles { get; set; }
     [JsonPropertyName("rarityPvE")] public string RarityPvE { get; set; } = "Rare";
+    [JsonPropertyName("sellToTraders")] public bool SellToTraders { get; set; }
+    [JsonPropertyName("traderPriceRoubles")] public int TraderPriceRoubles { get; set; }
 }
 
 public class LootEntry

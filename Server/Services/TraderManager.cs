@@ -28,39 +28,66 @@ public static class TraderManager
 
                 try
                 {
-                    AddToTrader(def, traderEntry, traders, logger);
+                    AddToTrader(def.Id, def.Name, traderEntry, traders, logger);
                 }
                 catch (Exception ex)
                 {
                     logger.LogWithColor($"[AmmoGen] Failed to add trader entry for '{def.Name}' / '{traderEntry.TraderId}': {ex.Message}", LogTextColor.Red);
                 }
             }
+
+            if (!def.AmmoBox.Enabled || !def.AmmoBox.SellToTraders)
+                continue;
+
+            foreach (var traderEntry in def.Traders)
+            {
+                if (!traderEntry.Enabled)
+                    continue;
+
+                try
+                {
+                    var boxTraderEntry = new TraderEntry
+                    {
+                        Enabled = traderEntry.Enabled,
+                        TraderId = traderEntry.TraderId,
+                        LoyaltyLevel = traderEntry.LoyaltyLevel,
+                        PriceRoubles = def.AmmoBox.TraderPriceRoubles,
+                        StockCount = traderEntry.StockCount,
+                        BuyRestrictionMax = traderEntry.BuyRestrictionMax,
+                    };
+                    AddToTrader(def.AmmoBox.Id, def.AmmoBox.Name, boxTraderEntry, traders, logger);
+                }
+                catch (Exception ex)
+                {
+                    logger.LogWithColor($"[AmmoGen] Failed to add ammo box trader entry for '{def.AmmoBox.Name}' / '{traderEntry.TraderId}': {ex.Message}", LogTextColor.Red);
+                }
+            }
         }
     }
 
-    private static void AddToTrader(AmmoDefinition def, TraderEntry traderEntry, Dictionary<MongoId, Trader> traders, ISptLogger<AmmoGenPlugin> logger)
+    private static void AddToTrader(string itemId, string itemName, TraderEntry traderEntry, Dictionary<MongoId, Trader> traders, ISptLogger<AmmoGenPlugin> logger)
     {
         MongoId traderId = new MongoId(traderEntry.TraderId);
 
         if (!traders.TryGetValue(traderId, out var trader))
         {
-            logger.LogWithColor($"[AmmoGen] Trader '{traderEntry.TraderId}' not found for '{def.Name}'. Skipping.", LogTextColor.Red);
+            logger.LogWithColor($"[AmmoGen] Trader '{traderEntry.TraderId}' not found for '{itemName}'. Skipping.", LogTextColor.Red);
             return;
         }
 
         var assort = trader.Assort;
         if (assort == null)
         {
-            logger.LogWithColor($"[AmmoGen] Trader '{traderEntry.TraderId}' has no assort. Skipping '{def.Name}'.", LogTextColor.Red);
+            logger.LogWithColor($"[AmmoGen] Trader '{traderEntry.TraderId}' has no assort. Skipping '{itemName}'.", LogTextColor.Red);
             return;
         }
 
-        MongoId assortItemId = new MongoId(def.Id);
+        MongoId assortItemId = new MongoId(itemId);
 
         var typedItem = new Item
         {
             Id = assortItemId,
-            Template = new MongoId(def.Id),
+            Template = new MongoId(itemId),
             ParentId = "hideout",
             SlotId = "hideout",
             Upd = new Upd
@@ -87,6 +114,6 @@ public static class TraderManager
         assort.BarterScheme[assortItemId] = barterEntry;
         assort.LoyalLevelItems[assortItemId] = traderEntry.LoyaltyLevel;
 
-        logger.LogWithColor($"[AmmoGen] Added {def.Name} to trader '{traderEntry.TraderId}' (LL{traderEntry.LoyaltyLevel}, {traderEntry.PriceRoubles}₽)", LogTextColor.Green);
+        logger.LogWithColor($"[AmmoGen] Added {itemName} to trader '{traderEntry.TraderId}' (LL{traderEntry.LoyaltyLevel}, {traderEntry.PriceRoubles}₽)", LogTextColor.Green);
     }
 }

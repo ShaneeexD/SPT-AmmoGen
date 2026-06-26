@@ -332,35 +332,9 @@ export default function App() {
     }
 
     const zip = new JSZip()
-    const modFolder = zip.folder('AmmoGen')
-    if (!modFolder) return
-
-    const serverFiles = [
-      'AmmoGen.Server.deps.json',
-      'AmmoGen.Server.dll',
-      'AmmoGen.Server.pdb',
-      'package.json',
-      'config/config.json',
-    ]
-
-    try {
-      await Promise.all(
-        serverFiles.map(async (file) => {
-          const response = await fetch(`/AmmoGen/${file}`)
-          if (!response.ok) throw new Error(`Failed to fetch ${file}`)
-          const blob = await response.blob()
-          modFolder.file(file, blob)
-        })
-      )
-    } catch (err) {
-      alert('Failed to package server files. Make sure the server build is in Tool/public/AmmoGen.')
-      console.error(err)
-      return
-    }
-
     const json = buildExportJson(pack)
     const packName = pack.name.toLowerCase().replace(/\s+/g, '-')
-    modFolder.file(`ammo/${packName}.json`, JSON.stringify(json, null, 2))
+    zip.file(`AmmoGen/ammo/${packName}.json`, JSON.stringify(json, null, 2))
 
     const zipBlob = await zip.generateAsync({ type: 'blob' })
     saveAs(zipBlob, `${packName}.zip`)
@@ -392,6 +366,11 @@ export default function App() {
             // Backward compatibility: missing ammoBox / loot fields
             if (!a.ammoBox) normalized.ammoBox = createDefaultAmmo().ammoBox
             if (!a.loot) normalized.loot = createDefaultAmmo().loot
+            // Backward compatibility: missing ammoBox sellToTraders / traderPriceRoubles
+            if (normalized.ammoBox && (a.ammoBox as typeof a.ammoBox & { sellToTraders?: boolean })?.sellToTraders === undefined) {
+              normalized.ammoBox.sellToTraders = false
+              normalized.ammoBox.traderPriceRoubles = 0
+            }
             return normalized
           })
           const merged: AmmoPackDefinition = {
@@ -462,7 +441,7 @@ export default function App() {
             <Download size={14} /> Export JSON
           </button>
           <button onClick={exportModZip} className="btn-primary text-sm flex items-center gap-1.5">
-            <Download size={14} /> Export Mod ZIP
+            <Download size={14} /> Export
           </button>
         </div>
       </header>
@@ -1256,6 +1235,25 @@ function AmmoBoxTab({ ammo, onChange }: { ammo: AmmoDefinition; onChange: (u: Pa
               ))}
             </select>
           </Field>
+
+          <div className="md:col-span-2 mt-2">
+            <Toggle
+              checked={ammo.ammoBox.sellToTraders}
+              onChange={v => updateBox({ sellToTraders: v })}
+              label="Sell ammo box to the same traders as this ammo"
+            />
+          </div>
+
+          {ammo.ammoBox.sellToTraders && (
+            <Field label="Ammo Box Trader Price (₽)" tooltip="Price traders will sell the ammo box for. Loyalty level, stock, and restriction settings are copied from the ammo's trader entries.">
+              <input
+                className="input-field"
+                type="number"
+                value={ammo.ammoBox.traderPriceRoubles}
+                onChange={e => updateBox({ traderPriceRoubles: parseInt(e.target.value, 10) || 0 })}
+              />
+            </Field>
+          )}
         </div>
       )}
     </Section>

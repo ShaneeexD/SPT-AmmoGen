@@ -74,6 +74,8 @@ export interface AmmoBoxEntry {
   description: string
   handbookPriceRoubles: number
   rarityPvE: string
+  sellToTraders: boolean
+  traderPriceRoubles: number
 }
 
 export interface LootEntry {
@@ -161,6 +163,8 @@ export function createDefaultAmmo(): AmmoDefinition {
       description: '',
       handbookPriceRoubles: 0,
       rarityPvE: 'Rare',
+      sellToTraders: false,
+      traderPriceRoubles: 0,
     },
     loot: {
       enabled: false,
