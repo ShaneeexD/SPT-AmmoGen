@@ -2,7 +2,7 @@
 
 A server-side framework for SPTarkov that lets anyone, including non-programmers, create custom ammo, ammo boxes, and loot injections using simple JSON packs. Includes a web-based **AmmoGen Tool** for generating packs visually.
 
-**Tool URL**: Run locally with `npm run dev` inside the `Tool/` folder.
+**Tool**: [AmmoGen](https://ammogen-tool.netlify.app).
 
 > **New**: The tool supports exporting a ready-to-install ZIP and importing existing packs (JSON or ZIP) for editing.
 
