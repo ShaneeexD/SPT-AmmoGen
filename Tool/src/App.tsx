@@ -19,6 +19,7 @@ import {
   X,
   Store,
   ExternalLink,
+  HelpCircle,
 } from 'lucide-react'
 import {
   AmmoDefinition,
@@ -34,6 +35,7 @@ import {
   ValidationError,
 } from './types'
 import { ITEMS, getItemName } from './generated_items'
+import { getAmmoStats } from './generated_ammo_stats'
 
 function SearchableSelect({
   value,
@@ -486,10 +488,20 @@ export default function App() {
   )
 }
 
-function Field({ label, children, className = '' }: { label: string; children: React.ReactNode; className?: string }) {
+function Field({ label, children, className = '', tooltip }: { label: string; children: React.ReactNode; className?: string; tooltip?: string }) {
   return (
     <div className={className}>
-      <label className="label">{label}</label>
+      <label className="label flex items-center gap-1.5">
+        {label}
+        {tooltip && (
+          <span className="relative group">
+            <HelpCircle size={13} className="text-tarkov-text-dim hover:text-tarkov-accent cursor-help transition-colors" />
+            <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-tarkov-bg border border-tarkov-border rounded-lg text-xs text-tarkov-text font-normal w-64 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-150 z-50 shadow-xl leading-relaxed pointer-events-none">
+              {tooltip}
+            </span>
+          </span>
+        )}
+      </label>
       {children}
     </div>
   )
@@ -566,11 +578,34 @@ function IdentityTab({ pack, setPack, ammo, onChange }: {
             </div>
           </Field>
 
-          <Field label="Base Ammo Template" className="md:col-span-2">
+          <Field
+            label="Base Ammo Template"
+            className="md:col-span-2"
+            tooltip="Existing ammo item to clone. Selecting one auto-fills the Stats tab with the base ammo's values."
+          >
             <select
               className="input-field"
               value={ammo.baseTpl}
-              onChange={e => onChange({ baseTpl: e.target.value })}
+              onChange={e => {
+                const baseTpl = e.target.value
+                const base = getAmmoStats(baseTpl)
+                if (base) {
+                  onChange({
+                    baseTpl,
+                    stats: {
+                      damage: base.damage,
+                      penetration: base.penetration,
+                      armorDamage: base.armorDamage,
+                      initialSpeed: base.initialSpeed,
+                      ammoAccr: base.ammoAccr,
+                      ammoRec: base.ammoRec,
+                      stackMaxSize: base.stackMaxSize,
+                    },
+                  })
+                } else {
+                  onChange({ baseTpl })
+                }
+              }}
             >
               <option value="">Select a base ammo...</option>
               {AMMO_TEMPLATES.map((t) => (
@@ -609,16 +644,16 @@ function IdentityTab({ pack, setPack, ammo, onChange }: {
             />
           </Field>
 
-          <Field label="Handbook Parent ID (optional)">
+          <Field
+            label="Handbook Parent ID (optional)"
+            tooltip="Handbook category ID for trader/flea sorting. Leave blank and the server will look up the base ammo's category automatically."
+          >
             <input
               className="input-field font-mono text-sm"
               value={ammo.handbookParentId || ''}
               onChange={e => onChange({ handbookParentId: e.target.value || undefined })}
               placeholder="Leave blank to auto-resolve from base template"
             />
-            <p className="text-xs text-tarkov-text-dim mt-1">
-              If left blank, the server will look up the base ammo's handbook category automatically.
-            </p>
           </Field>
         </div>
       </Section>
@@ -636,11 +671,20 @@ function StatsTab({ ammo, onChange }: { ammo: AmmoDefinition; onChange: (u: Part
     ammoRec: 'Recoil Modifier',
     stackMaxSize: 'Stack Max Size',
   }
+  const statTooltips: Record<string, string> = {
+    damage: 'Hit damage dealt to unarmored body parts.',
+    penetration: 'Armor penetration capability. Higher values pierce higher armor classes.',
+    armorDamage: 'Durability damage dealt to armor when hit.',
+    initialSpeed: 'Muzzle velocity in meters per second. Affects drop and damage.',
+    ammoAccr: 'Accuracy modifier. Positive improves accuracy; negative reduces it.',
+    ammoRec: 'Recoil modifier. Positive increases recoil; negative reduces it.',
+    stackMaxSize: 'Maximum rounds per inventory slot. 0 inherits the base ammo template default.',
+  }
   return (
     <Section title="Ammo Stats" icon={<Crosshair size={18} />}>
       <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
         {(['damage', 'penetration', 'armorDamage', 'initialSpeed', 'ammoAccr', 'ammoRec', 'stackMaxSize'] as const).map((stat) => (
-          <Field key={stat} label={statNames[stat]}>
+          <Field key={stat} label={statNames[stat]} tooltip={statTooltips[stat]}>
             <input
               className="input-field"
               type="number"
@@ -655,9 +699,6 @@ function StatsTab({ ammo, onChange }: { ammo: AmmoDefinition; onChange: (u: Part
           </Field>
         ))}
       </div>
-      <p className="text-xs text-tarkov-text-dim mt-2">
-        Stack Max Size: 0 keeps the base ammo template's default. Set to 30 (or any value) to override.
-      </p>
     </Section>
   )
 }
@@ -666,7 +707,7 @@ function EconomyTab({ ammo, onChange }: { ammo: AmmoDefinition; onChange: (u: Pa
   return (
     <Section title="Economy" icon={<Star size={18} />}>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Field label="Handbook Price (₽)">
+        <Field label="Handbook Price (₽)" tooltip="Base price used for handbook display and insurance calculations.">
           <input
             className="input-field"
             type="number"
@@ -678,7 +719,7 @@ function EconomyTab({ ammo, onChange }: { ammo: AmmoDefinition; onChange: (u: Pa
             }
           />
         </Field>
-        <Field label="Flea Price (₽)">
+        <Field label="Flea Price (₽)" tooltip="Price used for Flea Market listings.">
           <input
             className="input-field"
             type="number"
@@ -690,7 +731,7 @@ function EconomyTab({ ammo, onChange }: { ammo: AmmoDefinition; onChange: (u: Pa
             }
           />
         </Field>
-        <Field label="Rarity PvE">
+        <Field label="Rarity PvE" tooltip="Spawn rarity for PvE containers and loot tables.">
           <select
             className="input-field"
             value={ammo.economy.rarityPvE}
@@ -745,7 +786,7 @@ function TraderTab({ ammo, onChange }: { ammo: AmmoDefinition; onChange: (u: Par
 
             {trader.enabled && (
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <Field label="Trader">
+                <Field label="Trader" tooltip="Vanilla trader that sells this ammo.">
                   <select
                     className="input-field"
                     value={trader.traderId}
@@ -756,7 +797,7 @@ function TraderTab({ ammo, onChange }: { ammo: AmmoDefinition; onChange: (u: Par
                     ))}
                   </select>
                 </Field>
-                <Field label="Loyalty Level">
+                <Field label="Loyalty Level" tooltip="Trader level required for this item to appear.">
                   <input
                     className="input-field"
                     type="number"
@@ -766,7 +807,7 @@ function TraderTab({ ammo, onChange }: { ammo: AmmoDefinition; onChange: (u: Par
                     onChange={e => updateTrader(i, { loyaltyLevel: parseInt(e.target.value, 10) || 1 })}
                   />
                 </Field>
-                <Field label="Price (₽)">
+                <Field label="Price (₽)" tooltip="Price per round in roubles.">
                   <input
                     className="input-field"
                     type="number"
@@ -774,7 +815,7 @@ function TraderTab({ ammo, onChange }: { ammo: AmmoDefinition; onChange: (u: Par
                     onChange={e => updateTrader(i, { priceRoubles: parseInt(e.target.value, 10) || 0 })}
                   />
                 </Field>
-                <Field label="Stock Count">
+                <Field label="Stock Count" tooltip="Amount available after each trader restock.">
                   <input
                     className="input-field"
                     type="number"
@@ -782,7 +823,7 @@ function TraderTab({ ammo, onChange }: { ammo: AmmoDefinition; onChange: (u: Par
                     onChange={e => updateTrader(i, { stockCount: parseInt(e.target.value, 10) || 0 })}
                   />
                 </Field>
-                <Field label="Buy Restriction Max">
+                <Field label="Buy Restriction Max" tooltip="Maximum rounds a player can buy per restock cycle.">
                   <input
                     className="input-field"
                     type="number"
@@ -817,7 +858,7 @@ function CraftingTab({ ammo, onChange }: { ammo: AmmoDefinition; onChange: (u: P
       {ammo.crafting.enabled && (
         <>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-            <Field label="Workbench Level">
+            <Field label="Workbench Level" tooltip="Hideout workbench level required to craft this ammo.">
               <input
                 className="input-field"
                 type="number"
@@ -831,7 +872,7 @@ function CraftingTab({ ammo, onChange }: { ammo: AmmoDefinition; onChange: (u: P
                 }
               />
             </Field>
-            <Field label="Craft Time (seconds)">
+            <Field label="Craft Time (seconds)" tooltip="Time in seconds to complete one craft.">
               <input
                 className="input-field"
                 type="number"
@@ -843,7 +884,7 @@ function CraftingTab({ ammo, onChange }: { ammo: AmmoDefinition; onChange: (u: P
                 }
               />
             </Field>
-            <Field label="Output Count">
+            <Field label="Output Count" tooltip="Number of rounds produced per craft completion.">
               <input
                 className="input-field"
                 type="number"
