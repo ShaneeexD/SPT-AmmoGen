@@ -5,6 +5,9 @@
 # Reference copies of other mods (keep locally, don't commit)
 ref/
 
+# Client-side debug patch (keep locally, don't commit)
+Client/
+
 # Build logs
 *.log
 build.log

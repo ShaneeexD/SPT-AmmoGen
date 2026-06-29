@@ -47,14 +47,20 @@ public static class TraderManager
                 try
                 {
                     var box = def.AmmoBox;
+                    var boxStock = box.StockCount ?? traderEntry.StockCount;
+                    var boxRestriction = box.BuyRestrictionMax ?? traderEntry.BuyRestrictionMax;
+                    var boxUnlimitedStock = box.UnlimitedStock || (box.StockCount is null && traderEntry.UnlimitedStock);
+                    var boxUnlimitedBuyRestriction = box.UnlimitedBuyRestriction || (box.BuyRestrictionMax is null && traderEntry.UnlimitedBuyRestriction);
                     var boxTraderEntry = new TraderEntry
                     {
                         Enabled = traderEntry.Enabled,
                         TraderId = !string.IsNullOrWhiteSpace(box.TraderId) ? box.TraderId : traderEntry.TraderId,
                         LoyaltyLevel = box.LoyaltyLevel is > 0 ? box.LoyaltyLevel.Value : traderEntry.LoyaltyLevel,
                         PriceRoubles = box.TraderPriceRoubles,
-                        StockCount = box.StockCount is >= 0 ? box.StockCount.Value : traderEntry.StockCount,
-                        BuyRestrictionMax = box.BuyRestrictionMax is >= 0 ? box.BuyRestrictionMax.Value : traderEntry.BuyRestrictionMax,
+                        StockCount = boxStock,
+                        BuyRestrictionMax = boxRestriction,
+                        UnlimitedStock = boxUnlimitedStock,
+                        UnlimitedBuyRestriction = boxUnlimitedBuyRestriction,
                     };
                     AddBoxToTrader(def, boxTraderEntry, traders, logger);
                 }
@@ -85,6 +91,9 @@ public static class TraderManager
 
         MongoId assortItemId = new MongoId(itemId);
 
+        var stockCount = traderEntry.UnlimitedStock ? 999999 : traderEntry.StockCount ?? 0;
+        var buyRestrictionMax = traderEntry.UnlimitedBuyRestriction ? null : traderEntry.BuyRestrictionMax;
+
         var typedItem = new Item
         {
             Id = assortItemId,
@@ -93,9 +102,9 @@ public static class TraderManager
             SlotId = "hideout",
             Upd = new Upd
             {
-                StackObjectsCount = traderEntry.StockCount,
-                UnlimitedCount = traderEntry.StockCount == 0,
-                BuyRestrictionMax = traderEntry.BuyRestrictionMax,
+                StackObjectsCount = stockCount,
+                UnlimitedCount = traderEntry.UnlimitedStock,
+                BuyRestrictionMax = buyRestrictionMax,
                 BuyRestrictionCurrent = 0,
             }
         };
@@ -139,6 +148,9 @@ public static class TraderManager
         MongoId boxTemplateId = new MongoId(box.Id);
         MongoId boxAssortId = new MongoId();
 
+        var boxStockCount = traderEntry.UnlimitedStock ? 999999 : traderEntry.StockCount ?? 0;
+        var boxBuyRestrictionMax = traderEntry.UnlimitedBuyRestriction ? null : traderEntry.BuyRestrictionMax;
+
         var boxItem = new Item
         {
             Id = boxAssortId,
@@ -147,9 +159,9 @@ public static class TraderManager
             SlotId = "hideout",
             Upd = new Upd
             {
-                StackObjectsCount = traderEntry.StockCount,
-                UnlimitedCount = traderEntry.StockCount == 0,
-                BuyRestrictionMax = traderEntry.BuyRestrictionMax,
+                StackObjectsCount = boxStockCount,
+                UnlimitedCount = traderEntry.UnlimitedStock,
+                BuyRestrictionMax = boxBuyRestrictionMax,
                 BuyRestrictionCurrent = 0,
             }
         };

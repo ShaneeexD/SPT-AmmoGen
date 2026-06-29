@@ -33,15 +33,19 @@
           "loyaltyLevel": 2,
           "priceRoubles": 900,
           "stockCount": 200,
-          "buyRestrictionMax": 200
+          "buyRestrictionMax": 200,
+          "unlimitedStock": false,
+          "unlimitedBuyRestriction": false
         },
         {
           "enabled": true,
           "traderId": "54cb57776803fa99248b456e",
           "loyaltyLevel": 3,
           "priceRoubles": 1000,
-          "stockCount": 0,
-          "buyRestrictionMax": 0
+          "stockCount": 200,
+          "buyRestrictionMax": 200,
+          "unlimitedStock": true,
+          "unlimitedBuyRestriction": true
         }
       ],
       "crafting": {
@@ -72,8 +76,10 @@
         "traderPriceRoubles": 45000,
         "traderId": "54cb50c76803fa8b248b4571",
         "loyaltyLevel": 2,
-        "stockCount": 0,
-        "buyRestrictionMax": 0
+        "stockCount": 200,
+        "buyRestrictionMax": 200,
+        "unlimitedStock": true,
+        "unlimitedBuyRestriction": true
       },
       "loot": {
         "enabled": true,

@@ -171,7 +171,7 @@ Find item template IDs at: https://db.sp-tarkov.com/search
 | `handbookParentId` | Optional handbook category. Defaults to the base ammo's category. |
 | `stats` | Damage, penetration, armor damage, initial speed, accuracy, recoil, stack max size, light/heavy bleed chance. |
 | `economy` | Handbook price, flea price, and PvE rarity. |
-| `traders` | Optional vanilla trader listings. `stockCount: 0` means unlimited; `buyRestrictionMax: 0` means no limit. |
+| `traders` | Optional vanilla trader listings. Use `unlimitedStock` / `unlimitedBuyRestriction` toggles for infinite stock and no purchase limit. `stockCount: 0` is now literally out of stock. |
 | `crafting` | Optional workbench recipe with item requirements. |
 | `filters` | Optional magazine / weapon IDs to patch so the ammo fits. |
 | `ammoBox` | Optional custom ammo box containing this ammo. Can override trader, loyalty level, stock, and buy restriction. |
@@ -179,9 +179,10 @@ Find item template IDs at: https://db.sp-tarkov.com/search
 
 ### Infinite Stock & Ammo Box Overrides
 
-- **`traders[].stockCount: 0`** = unlimited restock stock (sets `UnlimitedCount` in the trader assortment).
-- **`traders[].buyRestrictionMax: 0`** = no purchase limit per restock cycle.
-- **`ammoBox.traderId`** / **`ammoBox.loyaltyLevel`** / **`ammoBox.stockCount`** / **`ammoBox.buyRestrictionMax`** let the ammo box use different trader settings than the parent ammo. Leave them out to inherit from the ammo's trader entries.
+- **`traders[].unlimitedStock: true`** = unlimited restock stock (sets `UnlimitedCount` and a high stack count in the trader assortment). `stockCount: 0` is now literal zero stock.
+- **`traders[].unlimitedBuyRestriction: true`** = no purchase limit per restock cycle. `buyRestrictionMax: 0` is now literally zero allowed purchases.
+- **`ammoBox.unlimitedStock`** / **`ammoBox.unlimitedBuyRestriction`** can override the parent ammo's unlimited flags. Leave them out to inherit from the ammo's trader entries.
+- **`ammoBox.traderId`** / **`ammoBox.loyaltyLevel`** / **`ammoBox.stockCount`** / **`ammoBox.buyRestrictionMax`** let the ammo box use different trader values than the parent ammo.
 
 ### Vanilla Trader IDs
 
@@ -233,7 +234,8 @@ The AmmoGen Tool export ZIP is already structured for distribution. When publish
 - **DI Pattern**: `[Injectable]` + `IOnLoad`
 - **NuGet Packages**: `SPTarkov.Common`, `SPTarkov.DI`, `SPTarkov.Server.Core` (4.0.13)
 - **Tool**: React + TypeScript + Vite + TailwindCSS
-- **No bundles or client plugin required**: cloned ammo uses the base ammo's existing model/texture.
+- **No bundles or client plugin required for normal use**: cloned ammo uses the base ammo's existing model/texture.
+- **Optional client debug plugin**: `Client/` contains a BepInEx plugin that logs when watched AmmoGen items spawn in-raid. See `Client/README.md` for build/install instructions.
 
 ## License
 

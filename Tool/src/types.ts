@@ -46,6 +46,8 @@ export interface TraderEntry {
   priceRoubles: number
   stockCount: number
   buyRestrictionMax: number
+  unlimitedStock: boolean
+  unlimitedBuyRestriction: boolean
 }
 
 export interface CraftingEntry {
@@ -82,6 +84,8 @@ export interface AmmoBoxEntry {
   loyaltyLevel?: number
   stockCount?: number
   buyRestrictionMax?: number
+  unlimitedStock?: boolean
+  unlimitedBuyRestriction?: boolean
 }
 
 export type LootItem = 'ammo' | 'box' | 'both'
@@ -125,6 +129,8 @@ export function createDefaultTraderEntry(): TraderEntry {
     priceRoubles: 0,
     stockCount: 200,
     buyRestrictionMax: 200,
+    unlimitedStock: false,
+    unlimitedBuyRestriction: false,
   }
 }
 

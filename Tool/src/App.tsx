@@ -369,6 +369,26 @@ export default function App() {
       if (normalized.ammoBox) {
         normalized.ammoBox = { ...createDefaultAmmo().ammoBox, ...a.ammoBox }
       }
+      // Backward compatibility: old "0 means infinite" semantics -> new unlimited flags
+      normalized.traders = normalized.traders.map((t) => {
+        if (t.unlimitedStock === undefined && t.stockCount === 0) {
+          t.unlimitedStock = true
+          t.stockCount = 200
+        }
+        if (t.unlimitedBuyRestriction === undefined && t.buyRestrictionMax === 0) {
+          t.unlimitedBuyRestriction = true
+          t.buyRestrictionMax = 200
+        }
+        return t
+      })
+      if (normalized.ammoBox && normalized.ammoBox.stockCount === 0 && normalized.ammoBox.unlimitedStock === undefined) {
+        normalized.ammoBox.unlimitedStock = true
+        normalized.ammoBox.stockCount = 200
+      }
+      if (normalized.ammoBox && normalized.ammoBox.buyRestrictionMax === 0 && normalized.ammoBox.unlimitedBuyRestriction === undefined) {
+        normalized.ammoBox.unlimitedBuyRestriction = true
+        normalized.ammoBox.buyRestrictionMax = 200
+      }
       return normalized
     })
     return {
@@ -960,20 +980,32 @@ function TraderTab({ ammo, onChange }: { ammo: AmmoDefinition; onChange: (u: Par
                     onChange={e => updateTrader(i, { priceRoubles: parseInt(e.target.value, 10) || 0 })}
                   />
                 </Field>
-                <Field label="Stock Count" tooltip="Amount available after each trader restock. Set to 0 for unlimited stock.">
+                <Field label="Stock Count" tooltip="Amount available after each trader restock. 0 is out of stock. Use the toggle below for unlimited stock.">
                   <input
                     className="input-field"
                     type="number"
+                    disabled={trader.unlimitedStock}
                     value={trader.stockCount}
                     onChange={e => updateTrader(i, { stockCount: parseInt(e.target.value, 10) || 0 })}
                   />
+                  <Toggle
+                    checked={trader.unlimitedStock}
+                    onChange={v => updateTrader(i, { unlimitedStock: v })}
+                    label="Unlimited stock"
+                  />
                 </Field>
-                <Field label="Buy Restriction Max" tooltip="Maximum rounds a player can buy per restock cycle. Set to 0 for no restriction.">
+                <Field label="Buy Restriction Max" tooltip="Maximum rounds a player can buy per restock cycle. 0 means no purchases allowed. Use the toggle below for no restriction.">
                   <input
                     className="input-field"
                     type="number"
+                    disabled={trader.unlimitedBuyRestriction}
                     value={trader.buyRestrictionMax}
                     onChange={e => updateTrader(i, { buyRestrictionMax: parseInt(e.target.value, 10) || 0 })}
+                  />
+                  <Toggle
+                    checked={trader.unlimitedBuyRestriction}
+                    onChange={v => updateTrader(i, { unlimitedBuyRestriction: v })}
+                    label="Unlimited buy restriction"
                   />
                 </Field>
               </div>
@@ -1365,10 +1397,11 @@ function AmmoBoxTab({ ammo, onChange }: { ammo: AmmoDefinition; onChange: (u: Pa
                 />
               </Field>
 
-              <Field label="Stock Count Override" tooltip="Leave blank to use the ammo's stock count. Set to 0 for unlimited stock.">
+              <Field label="Stock Count Override" tooltip="Leave blank to use the ammo's stock count. 0 is out of stock. Use the toggle below for unlimited stock.">
                 <input
                   className="input-field"
                   type="number"
+                  disabled={ammo.ammoBox.unlimitedStock}
                   value={ammo.ammoBox.stockCount ?? ''}
                   placeholder="Same as ammo"
                   onChange={e => {
@@ -1376,18 +1409,29 @@ function AmmoBoxTab({ ammo, onChange }: { ammo: AmmoDefinition; onChange: (u: Pa
                     updateBox({ stockCount: value === '' ? undefined : parseInt(value, 10) || 0 })
                   }}
                 />
+                <Toggle
+                  checked={!!ammo.ammoBox.unlimitedStock}
+                  onChange={v => updateBox({ unlimitedStock: v })}
+                  label="Unlimited stock"
+                />
               </Field>
 
-              <Field label="Buy Restriction Override" tooltip="Leave blank to use the ammo's buy restriction. Set to 0 for no restriction.">
+              <Field label="Buy Restriction Override" tooltip="Leave blank to use the ammo's buy restriction. 0 means no purchases allowed. Use the toggle below for no restriction.">
                 <input
                   className="input-field"
                   type="number"
+                  disabled={ammo.ammoBox.unlimitedBuyRestriction}
                   value={ammo.ammoBox.buyRestrictionMax ?? ''}
                   placeholder="Same as ammo"
                   onChange={e => {
                     const value = e.target.value
                     updateBox({ buyRestrictionMax: value === '' ? undefined : parseInt(value, 10) || 0 })
                   }}
+                />
+                <Toggle
+                  checked={!!ammo.ammoBox.unlimitedBuyRestriction}
+                  onChange={v => updateBox({ unlimitedBuyRestriction: v })}
+                  label="Unlimited buy restriction"
                 />
               </Field>
             </>

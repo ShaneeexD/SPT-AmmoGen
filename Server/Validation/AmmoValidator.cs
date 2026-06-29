@@ -52,6 +52,23 @@ public static class AmmoValidator
             if (string.IsNullOrWhiteSpace(ammo.Description))
                 errors.Add($"{prefix}: 'description' is required.");
 
+            if (ammo.Loot.Enabled)
+            {
+                if (ammo.Loot.ContainerIds == null || ammo.Loot.ContainerIds.Count == 0)
+                {
+                    errors.Add($"{prefix}: 'loot.containerIds' must contain at least one container ID when loot is enabled.");
+                }
+                else
+                {
+                    for (var c = 0; c < ammo.Loot.ContainerIds.Count; c++)
+                    {
+                        var containerId = ammo.Loot.ContainerIds[c];
+                        if (string.IsNullOrWhiteSpace(containerId) || !Hex24.IsMatch(containerId))
+                            errors.Add($"{prefix}: 'loot.containerIds[{c}]' must be a 24-character hex string.");
+                    }
+                }
+            }
+
             if (ammo.Economy.HandbookPriceRoubles < 0)
                 errors.Add($"{prefix}: 'economy.handbookPriceRoubles' cannot be negative.");
 
@@ -74,8 +91,8 @@ public static class AmmoValidator
                 if (trader.PriceRoubles < 0)
                     errors.Add($"{tPrefix}: 'priceRoubles' cannot be negative.");
 
-                if (trader.StockCount < 1)
-                    errors.Add($"{tPrefix}: 'stockCount' must be >= 1.");
+                if (trader.StockCount < 0)
+                    errors.Add($"{tPrefix}: 'stockCount' cannot be negative.");
             }
 
             if (ammo.Crafting.Enabled)

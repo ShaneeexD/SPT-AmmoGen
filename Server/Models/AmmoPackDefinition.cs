@@ -90,8 +90,10 @@ public class TraderEntry
     [JsonPropertyName("traderId")] public string TraderId { get; set; } = string.Empty;
     [JsonPropertyName("loyaltyLevel")] public int LoyaltyLevel { get; set; } = 1;
     [JsonPropertyName("priceRoubles")] public int PriceRoubles { get; set; }
-    [JsonPropertyName("stockCount")] public int StockCount { get; set; } = 200;
-    [JsonPropertyName("buyRestrictionMax")] public int BuyRestrictionMax { get; set; } = 200;
+    [JsonPropertyName("stockCount")] public int? StockCount { get; set; } = 200;
+    [JsonPropertyName("buyRestrictionMax")] public int? BuyRestrictionMax { get; set; } = 200;
+    [JsonPropertyName("unlimitedStock")] public bool UnlimitedStock { get; set; }
+    [JsonPropertyName("unlimitedBuyRestriction")] public bool UnlimitedBuyRestriction { get; set; }
 }
 
 public class CraftingEntry
@@ -137,6 +139,8 @@ public class AmmoBoxEntry
     [JsonPropertyName("loyaltyLevel")] public int? LoyaltyLevel { get; set; }
     [JsonPropertyName("stockCount")] public int? StockCount { get; set; }
     [JsonPropertyName("buyRestrictionMax")] public int? BuyRestrictionMax { get; set; }
+    [JsonPropertyName("unlimitedStock")] public bool UnlimitedStock { get; set; }
+    [JsonPropertyName("unlimitedBuyRestriction")] public bool UnlimitedBuyRestriction { get; set; }
 }
 
 public class LootEntry

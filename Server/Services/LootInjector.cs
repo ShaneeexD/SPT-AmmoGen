@@ -1,6 +1,10 @@
+using System.Linq;
+using SPTarkov.Server.Core.Models.Common;
+using SPTarkov.Server.Core.Models.Eft.Common;
 using SPTarkov.Server.Core.Models.Logging;
 using SPTarkov.Server.Core.Models.Utils;
 using SPTarkov.Server.Core.Services;
+using SPTarkov.Server.Core.Utils.Json;
 using AmmoGen.Models;
 
 namespace AmmoGen.Services;
@@ -16,81 +20,164 @@ public static class LootInjector
         ["NotExists"] = 0,
     };
 
+    private record LootInjectionDefinition(
+        string Name,
+        IReadOnlyList<string> ContainerIds,
+        IReadOnlyList<string> ItemsToInject,
+        int Probability);
+
     public static void InjectAll(
         DatabaseService databaseService,
         IReadOnlyList<AmmoDefinition> definitions,
-        ISptLogger<AmmoGenPlugin> logger)
+        ISptLogger<AmmoGenPlugin> logger,
+        bool debug = false)
     {
-        dynamic? locations = databaseService.GetLocations();
+        var locations = databaseService.GetLocations();
         if (locations == null)
         {
             logger.LogWithColor("[AmmoGen] No locations found in database, skipping loot injection.", LogTextColor.Yellow);
             return;
         }
 
+        var locationDictionary = locations.GetDictionary();
+        var processedDefinitions = BuildInjectionDefinitions(definitions, logger);
+        if (processedDefinitions.Count == 0)
+        {
+            logger.LogWithColor("[AmmoGen] No ammo definitions have loot injection enabled, skipping.", LogTextColor.Gray);
+            return;
+        }
+
+        int locationCount = 0;
+        foreach (var location in locationDictionary.Values)
+        {
+            if (location.StaticLoot == null) continue;
+            location.StaticLoot.AddTransformer(staticLoot =>
+                TransformStaticLoot(staticLoot, processedDefinitions, logger, debug));
+            locationCount++;
+        }
+
+        logger.LogWithColor(
+            $"[AmmoGen] Registered loot injection transformer for {locationCount} location(s) covering {processedDefinitions.Count} ammo definition(s).",
+            LogTextColor.Green);
+
+        foreach (var def in processedDefinitions)
+        {
+            logger.LogWithColor(
+                $"[AmmoGen] {def.Name}: items [{string.Join(", ", def.ItemsToInject)}] -> containers [{string.Join(", ", def.ContainerIds)}] at probability {def.Probability}.",
+                LogTextColor.Gray);
+        }
+    }
+
+    private static List<LootInjectionDefinition> BuildInjectionDefinitions(
+        IReadOnlyList<AmmoDefinition> definitions,
+        ISptLogger<AmmoGenPlugin> logger)
+    {
+        var result = new List<LootInjectionDefinition>();
         foreach (var def in definitions)
         {
             if (!def.Loot.Enabled || def.Loot.ContainerIds.Count == 0) continue;
 
-            try
+            var probability = RarityProbabilities.GetValueOrDefault(def.Loot.Rarity, 5000);
+            if (probability <= 0) continue;
+
+            var itemsToInject = new List<string>();
+            var lootItem = def.Loot.LootItem?.ToLowerInvariant() ?? "ammo";
+            if (lootItem == "ammo" || lootItem == "both")
             {
-                var probability = RarityProbabilities.GetValueOrDefault(def.Loot.Rarity, 5000);
-                if (probability <= 0) continue;
+                itemsToInject.Add(def.Id);
+            }
+            if ((lootItem == "box" || lootItem == "both") && def.AmmoBox.Enabled)
+            {
+                itemsToInject.Add(def.AmmoBox.Id);
+            }
 
-                var itemsToInject = new List<string>();
-                var lootItem = def.Loot.LootItem?.ToLowerInvariant() ?? "ammo";
-                if (lootItem == "ammo" || lootItem == "both")
-                {
-                    itemsToInject.Add(def.Id);
-                }
-                if ((lootItem == "box" || lootItem == "both") && def.AmmoBox.Enabled)
-                {
-                    itemsToInject.Add(def.AmmoBox.Id);
-                }
+            if (itemsToInject.Count == 0)
+            {
+                logger.LogWithColor(
+                    $"[AmmoGen] Loot injection enabled for '{def.Name}' but no items selected or ammo box not enabled.",
+                    LogTextColor.Yellow);
+                continue;
+            }
 
-                if (itemsToInject.Count == 0)
+            result.Add(new LootInjectionDefinition(def.Name, def.Loot.ContainerIds, itemsToInject, probability));
+        }
+
+        return result;
+    }
+
+    private static Dictionary<MongoId, StaticLootDetails>? TransformStaticLoot(
+        Dictionary<MongoId, StaticLootDetails>? staticLoot,
+        IReadOnlyList<LootInjectionDefinition> definitions,
+        ISptLogger<AmmoGenPlugin> logger,
+        bool debug)
+    {
+        // Verbose per-call logging commented out; re-enable only when needed.
+        // _transformCallCount++;
+        // var containerCount = staticLoot?.Count ?? 0;
+        // logger.LogWithColor(
+        //     $"[AmmoGen][DEBUG] TransformStaticLoot called #{_transformCallCount} (containers: {containerCount}).",
+        //     LogTextColor.Gray);
+
+        if (staticLoot == null) return staticLoot;
+
+        var injected = 0;
+        var containersTouched = new HashSet<string>();
+        var containersNotFound = new HashSet<string>();
+
+        foreach (var def in definitions)
+        {
+            foreach (var containerId in def.ContainerIds)
+            {
+                if (!staticLoot.TryGetValue(containerId, out var containerLoot) || containerLoot == null)
                 {
-                    logger.LogWithColor($"[AmmoGen] Loot injection enabled for '{def.Name}' but no items selected or ammo box not enabled.", LogTextColor.Yellow);
+                    containersNotFound.Add(containerId);
                     continue;
                 }
 
-                int injected = 0;
-                foreach (dynamic location in locations)
+                var distribution = containerLoot.ItemDistribution?.ToList();
+                if (distribution == null) continue;
+
+                containersTouched.Add(containerId);
+
+                foreach (var itemId in def.ItemsToInject)
                 {
-                    var loc = (dynamic)location;
-                    var staticLoot = loc.Value?.StaticLoot;
-                    if (staticLoot == null) continue;
-
-                    foreach (var containerId in def.Loot.ContainerIds)
+                    var mongoId = new MongoId(itemId);
+                    var existing = distribution.FirstOrDefault(d => d.Tpl == mongoId);
+                    if (existing != null)
                     {
-                        var containerLoot = staticLoot[containerId];
-                        if (containerLoot == null) continue;
-
-                        var distribution = containerLoot.ItemDistribution;
-                        if (distribution == null) continue;
-
-                        foreach (var itemId in itemsToInject)
-                        {
-                            var existing = ((IEnumerable<dynamic>)distribution).FirstOrDefault(d => d.Tpl == itemId);
-                            if (existing != null)
-                            {
-                                existing.RelativeProbability = probability;
-                            }
-                            else
-                            {
-                                distribution.Add(new { Tpl = itemId, RelativeProbability = probability });
-                            }
-                            injected++;
-                        }
+                        existing.RelativeProbability = def.Probability;
+                        if (debug)
+                            logger.LogWithColor(
+                                $"[AmmoGen][Debug] Updated '{itemId}' probability in '{containerId}' to {def.Probability}.",
+                                LogTextColor.Gray);
                     }
+                    else
+                    {
+                        distribution.Add(new ItemDistribution { Tpl = mongoId, RelativeProbability = def.Probability });
+                        if (debug)
+                            logger.LogWithColor(
+                                $"[AmmoGen][Debug] Added '{itemId}' to '{containerId}' with probability {def.Probability}.",
+                                LogTextColor.Gray);
+                    }
+                    injected++;
                 }
 
-                logger.LogWithColor($"[AmmoGen] Injected {def.Name} ({string.Join(", ", itemsToInject)}) into {injected} container loot entries.", LogTextColor.Green);
-            }
-            catch (Exception ex)
-            {
-                logger.LogWithColor($"[AmmoGen] Failed to inject loot for '{def.Name}': {ex.Message}", LogTextColor.Red);
+                containerLoot.ItemDistribution = distribution;
             }
         }
+
+        // Verbose per-call summary logging commented out; re-enable only when needed.
+        // logger.LogWithColor(
+        //     $"[AmmoGen][DEBUG] Transformer call #{_transformCallCount} finished: injected={injected}, touched={containersTouched.Count}, notFound={containersNotFound.Count}.",
+        //     LogTextColor.Gray);
+
+        if (containersNotFound.Count > 0)
+        {
+            logger.LogWithColor(
+                $"[AmmoGen] Warning: {containersNotFound.Count} container ID(s) were not found in static loot: {string.Join(", ", containersNotFound)}.",
+                LogTextColor.Yellow);
+        }
+
+        return staticLoot;
     }
 }

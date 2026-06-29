@@ -5,6 +5,7 @@ using SPTarkov.Server.Core.Models.Spt.Mod;
 using SPTarkov.Server.Core.Models.Utils;
 using SPTarkov.Server.Core.Services;
 using SPTarkov.Server.Core.Services.Mod;
+using AmmoGen.Models;
 using AmmoGen.Services;
 using AmmoGen.Validation;
 
@@ -39,6 +40,11 @@ public class AmmoGenPlugin(
         logger.LogWithColor("[AmmoGen] AmmoGen Framework v1.1.0 loading...", LogTextColor.Cyan);
         logger.LogWithColor("[AmmoGen] ====================================", LogTextColor.Cyan);
 
+        var configPath = Path.Combine(Directory.GetCurrentDirectory(), "user", "mods", "AmmoGen", "config", "config.json");
+        var config = ModConfig.Load(configPath);
+        if (config.Debug)
+            logger.LogWithColor($"[AmmoGen] Debug logging enabled (config: {configPath}).", LogTextColor.Gray);
+
         try
         {
             var packs = ammoLoader.LoadAllPacks();
@@ -70,7 +76,7 @@ public class AmmoGenPlugin(
             CraftingManager.RegisterAll(databaseService, enabledDefinitions, logger);
 
             // Inject ammo into container loot tables
-            LootInjector.InjectAll(databaseService, enabledDefinitions, logger);
+            LootInjector.InjectAll(databaseService, enabledDefinitions, logger, config.Debug);
 
             logger.LogWithColor("[AmmoGen] ====================================", LogTextColor.Cyan);
             logger.LogWithColor($"[AmmoGen] Done! Registered {enabledDefinitions.Count} custom ammo type(s).", LogTextColor.Green);
