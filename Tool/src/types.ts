@@ -32,6 +32,8 @@ export interface AmmoStats {
   stackMaxSize: number
   lightBleedingDelta: number
   heavyBleedingDelta: number
+  durabilityBurnModificator: number
+  ballisticCoeficient: number
 }
 
 export interface AmmoEconomy {
@@ -158,6 +160,8 @@ export function createDefaultAmmo(): AmmoDefinition {
       stackMaxSize: 0,
       lightBleedingDelta: 0,
       heavyBleedingDelta: 0,
+      durabilityBurnModificator: 1,
+      ballisticCoeficient: 1,
     },
     economy: {
       handbookPriceRoubles: 0,

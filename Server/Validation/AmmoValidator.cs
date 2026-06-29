@@ -71,6 +71,12 @@ public static class AmmoValidator
             if (ammo.Economy.FleaPriceRoubles < 0)
                 errors.Add($"{prefix}: 'economy.fleaPriceRoubles' cannot be negative.");
 
+            if (ammo.Stats.DurabilityBurnModificator < 0)
+                errors.Add($"{prefix}: 'stats.durabilityBurnModificator' cannot be negative.");
+
+            if (ammo.Stats.BallisticCoeficient < 0)
+                errors.Add($"{prefix}: 'stats.ballisticCoeficient' cannot be negative.");
+
             for (var j = 0; j < ammo.Traders.Count; j++)
             {
                 var trader = ammo.Traders[j];

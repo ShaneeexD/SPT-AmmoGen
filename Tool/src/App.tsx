@@ -256,6 +256,14 @@ function validatePack(pack: AmmoPackDefinition): ValidationError[] {
         errors.push({ field: `${prefix}.ammoBoxLoot.enabled`, message: 'Ammo box loot requires ammoBox.enabled to be true' })
       }
     }
+
+    if (ammo.stats.durabilityBurnModificator < 0) {
+      errors.push({ field: `${prefix}.stats.durabilityBurnModificator`, message: 'Durability burn cannot be negative' })
+    }
+
+    if (ammo.stats.ballisticCoeficient < 0) {
+      errors.push({ field: `${prefix}.stats.ballisticCoeficient`, message: 'Ballistic coefficient cannot be negative' })
+    }
   })
 
   return errors
@@ -737,6 +745,8 @@ function IdentityTab({ pack, setPack, ammo, onChange }: {
                       stackMaxSize: base.stackMaxSize,
                       lightBleedingDelta: base.lightBleedingDelta,
                       heavyBleedingDelta: base.heavyBleedingDelta,
+                      durabilityBurnModificator: base.durabilityBurnModificator,
+                      ballisticCoeficient: base.ballisticCoeficient,
                     },
                   })
                 } else {
@@ -825,6 +835,8 @@ function StatsTab({ ammo, onChange }: { ammo: AmmoDefinition; onChange: (u: Part
     stackMaxSize: 'Stack Max Size',
     lightBleedingDelta: 'Light Bleed Chance',
     heavyBleedingDelta: 'Heavy Bleed Chance',
+    durabilityBurnModificator: 'Durability Burn',
+    ballisticCoeficient: 'Ballistic Coefficient',
   }
   const statTooltips: Record<string, string> = {
     damage: 'Hit damage dealt to unarmored body parts.',
@@ -836,18 +848,20 @@ function StatsTab({ ammo, onChange }: { ammo: AmmoDefinition; onChange: (u: Part
     stackMaxSize: 'Maximum rounds per inventory slot. 0 inherits the base ammo template default.',
     lightBleedingDelta: 'Chance to cause light bleeding on hit (0-1). 0 leaves the base ammo value unchanged.',
     heavyBleedingDelta: 'Chance to cause heavy bleeding on hit (0-1). 0 leaves the base ammo value unchanged.',
+    durabilityBurnModificator: 'Multiplier for weapon durability burn per shot. 1 is the base ammo value; 0 disables durability burn.',
+    ballisticCoeficient: 'Ballistic coefficient (G1). Lower values drop faster; higher values retain velocity better.',
   }
   const base = getAmmoStats(ammo.baseTpl)
 
   return (
     <Section title="Ammo Stats" icon={<Crosshair size={18} />}>
       <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-        {(['damage', 'penetration', 'armorDamage', 'initialSpeed', 'ammoAccr', 'ammoRec', 'stackMaxSize', 'lightBleedingDelta', 'heavyBleedingDelta'] as const).map((stat) => (
+        {(['damage', 'penetration', 'armorDamage', 'initialSpeed', 'ammoAccr', 'ammoRec', 'stackMaxSize', 'lightBleedingDelta', 'heavyBleedingDelta', 'durabilityBurnModificator', 'ballisticCoeficient'] as const).map((stat) => (
           <Field key={stat} label={statNames[stat]} tooltip={statTooltips[stat]}>
             <input
               className="input-field"
               type="number"
-              step={stat === 'lightBleedingDelta' || stat === 'heavyBleedingDelta' ? 0.01 : 1}
+              step={stat === 'lightBleedingDelta' || stat === 'heavyBleedingDelta' ? 0.01 : stat === 'ballisticCoeficient' ? 0.001 : 1}
               value={ammo.stats[stat]}
               onChange={e =>
                 onChange({
@@ -865,7 +879,7 @@ function StatsTab({ ammo, onChange }: { ammo: AmmoDefinition; onChange: (u: Part
             <Crosshair size={16} /> Base Ammo Comparison: {base.name}
           </h3>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
-            {(['damage', 'penetration', 'armorDamage', 'initialSpeed', 'ammoAccr', 'ammoRec', 'stackMaxSize', 'lightBleedingDelta', 'heavyBleedingDelta'] as const).map((stat) => {
+            {(['damage', 'penetration', 'armorDamage', 'initialSpeed', 'ammoAccr', 'ammoRec', 'stackMaxSize', 'lightBleedingDelta', 'heavyBleedingDelta', 'durabilityBurnModificator', 'ballisticCoeficient'] as const).map((stat) => {
               const custom = ammo.stats[stat]
               const original = base[stat]
               const diff = custom - original

@@ -39,13 +39,15 @@ for (const itemId of Object.keys(items)) {
     stackMaxSize: item._props.StackMaxSize || 0,
     lightBleedingDelta: item._props.LightBleedingDelta || 0,
     heavyBleedingDelta: item._props.HeavyBleedingDelta || 0,
+    durabilityBurnModificator: item._props.DurabilityBurnModificator ?? 1,
+    ballisticCoeficient: item._props.BallisticCoeficient ?? 1,
   }
 }
 
 const entries = Object.entries(stats).sort((a, b) => a[1].name.localeCompare(b[1].name))
 
 const lines = entries.map(([id, s]) => {
-  return `  '${id}': { name: ${JSON.stringify(s.name)}, shortName: ${JSON.stringify(s.shortName)}, damage: ${s.damage}, penetration: ${s.penetration}, armorDamage: ${s.armorDamage}, initialSpeed: ${s.initialSpeed}, ammoAccr: ${s.ammoAccr}, ammoRec: ${s.ammoRec}, stackMaxSize: ${s.stackMaxSize}, lightBleedingDelta: ${s.lightBleedingDelta}, heavyBleedingDelta: ${s.heavyBleedingDelta} },`
+  return `  '${id}': { name: ${JSON.stringify(s.name)}, shortName: ${JSON.stringify(s.shortName)}, damage: ${s.damage}, penetration: ${s.penetration}, armorDamage: ${s.armorDamage}, initialSpeed: ${s.initialSpeed}, ammoAccr: ${s.ammoAccr}, ammoRec: ${s.ammoRec}, stackMaxSize: ${s.stackMaxSize}, lightBleedingDelta: ${s.lightBleedingDelta}, heavyBleedingDelta: ${s.heavyBleedingDelta}, durabilityBurnModificator: ${s.durabilityBurnModificator}, ballisticCoeficient: ${s.ballisticCoeficient} },`
 })
 
 const output = `// Generated from SPT 4.0.13 database. Do not edit manually.
@@ -63,6 +65,8 @@ export interface AmmoTemplateStats {
   stackMaxSize: number
   lightBleedingDelta: number
   heavyBleedingDelta: number
+  durabilityBurnModificator: number
+  ballisticCoeficient: number
 }
 
 export const AMMO_STATS: Record<string, AmmoTemplateStats> = {

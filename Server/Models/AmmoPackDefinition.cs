@@ -78,6 +78,8 @@ public class AmmoStats
     [JsonPropertyName("stackMaxSize")] public int StackMaxSize { get; set; }
     [JsonPropertyName("lightBleedingDelta")] public double LightBleedingDelta { get; set; }
     [JsonPropertyName("heavyBleedingDelta")] public double HeavyBleedingDelta { get; set; }
+    [JsonPropertyName("durabilityBurnModificator")] public double DurabilityBurnModificator { get; set; } = 1;
+    [JsonPropertyName("ballisticCoeficient")] public double BallisticCoeficient { get; set; } = 1;
 }
 
 public class AmmoEconomy
