@@ -75,31 +75,33 @@ public static class LootInjector
         var result = new List<LootInjectionDefinition>();
         foreach (var def in definitions)
         {
-            if (!def.Loot.Enabled || def.Loot.ContainerIds.Count == 0) continue;
-
-            var probability = RarityProbabilities.GetValueOrDefault(def.Loot.Rarity, 5000);
-            if (probability <= 0) continue;
-
-            var itemsToInject = new List<string>();
-            var lootItem = def.Loot.LootItem?.ToLowerInvariant() ?? "ammo";
-            if (lootItem == "ammo" || lootItem == "both")
+            if (def.AmmoLoot.Enabled && def.AmmoLoot.ContainerIds.Count > 0)
             {
-                itemsToInject.Add(def.Id);
-            }
-            if ((lootItem == "box" || lootItem == "both") && def.AmmoBox.Enabled)
-            {
-                itemsToInject.Add(def.AmmoBox.Id);
+                var probability = RarityProbabilities.GetValueOrDefault(def.AmmoLoot.Rarity, 5000);
+                if (probability > 0)
+                {
+                    result.Add(new LootInjectionDefinition(
+                        $"{def.Name} (ammo)", def.AmmoLoot.ContainerIds, [def.Id], probability));
+                }
             }
 
-            if (itemsToInject.Count == 0)
+            if (def.AmmoBoxLoot.Enabled && def.AmmoBoxLoot.ContainerIds.Count > 0)
             {
-                logger.LogWithColor(
-                    $"[AmmoGen] Loot injection enabled for '{def.Name}' but no items selected or ammo box not enabled.",
-                    LogTextColor.Yellow);
-                continue;
-            }
+                if (!def.AmmoBox.Enabled)
+                {
+                    logger.LogWithColor(
+                        $"[AmmoGen] Ammo box loot enabled for '{def.Name}' but ammo box generation is disabled; skipping ammo box loot injection.",
+                        LogTextColor.Yellow);
+                    continue;
+                }
 
-            result.Add(new LootInjectionDefinition(def.Name, def.Loot.ContainerIds, itemsToInject, probability));
+                var probability = RarityProbabilities.GetValueOrDefault(def.AmmoBoxLoot.Rarity, 5000);
+                if (probability > 0)
+                {
+                    result.Add(new LootInjectionDefinition(
+                        $"{def.Name} (ammo box)", def.AmmoBoxLoot.ContainerIds, [def.AmmoBox.Id], probability));
+                }
+            }
         }
 
         return result;

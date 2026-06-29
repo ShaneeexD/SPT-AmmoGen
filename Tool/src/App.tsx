@@ -28,9 +28,9 @@ import {
   AmmoPackDefinition,
   AmmoBoxEntry,
   LootEntry,
-  LootItem,
   AMMO_TEMPLATES,
   createDefaultAmmo,
+  createDefaultLootEntry,
   createDefaultPack,
   createDefaultTraderEntry,
   generateMongoId,
@@ -242,10 +242,19 @@ function validatePack(pack: AmmoPackDefinition): ValidationError[] {
       if (!ammo.ammoBox.shortName.trim()) errors.push({ field: `${prefix}.ammoBox.shortName`, message: 'Ammo box short name is required' })
     }
 
-    if (ammo.loot.enabled) {
-      ammo.loot.containerIds.forEach((id, j) => {
-        if (!hex24.test(id)) errors.push({ field: `${prefix}.loot.containerIds[${j}]`, message: 'Container ID must be 24 hex chars' })
+    if (ammo.ammoLoot.enabled) {
+      ammo.ammoLoot.containerIds.forEach((id, j) => {
+        if (!hex24.test(id)) errors.push({ field: `${prefix}.ammoLoot.containerIds[${j}]`, message: 'Container ID must be 24 hex chars' })
       })
+    }
+
+    if (ammo.ammoBoxLoot.enabled) {
+      ammo.ammoBoxLoot.containerIds.forEach((id, j) => {
+        if (!hex24.test(id)) errors.push({ field: `${prefix}.ammoBoxLoot.containerIds[${j}]`, message: 'Container ID must be 24 hex chars' })
+      })
+      if (!ammo.ammoBox.enabled) {
+        errors.push({ field: `${prefix}.ammoBoxLoot.enabled`, message: 'Ammo box loot requires ammoBox.enabled to be true' })
+      }
     }
   })
 
@@ -270,7 +279,8 @@ function buildExportJson(pack: AmmoPackDefinition): object {
       crafting: ammo.crafting,
       filters: ammo.filters,
       ammoBox: ammo.ammoBox,
-      loot: ammo.loot,
+      ammoLoot: ammo.ammoLoot,
+      ammoBoxLoot: ammo.ammoBoxLoot,
     })),
   }
 }
@@ -350,21 +360,32 @@ export default function App() {
       .replace(/\/\*[\s\S]*?\*\//g, '')
       .replace(/,\s*([\]}])/g, '$1')
     const parsed = JSON.parse(cleaned)
-    const ammo = (parsed.ammo ?? []).map((a: AmmoDefinition & { trader?: Partial<TraderEntry> }) => {
-      const normalized: AmmoDefinition = { ...createDefaultAmmo(), ...a }
+    const ammo = (parsed.ammo ?? []).map((a: AmmoDefinition & { trader?: Partial<TraderEntry>; loot?: LootEntry & { lootItem?: 'ammo' | 'box' | 'both' } }) => {
+      const defaults = createDefaultAmmo()
+      // Strip the legacy loot field so it doesn't leak into the new AmmoDefinition shape
+      const { loot: _, ...aWithoutLoot } = a
+      const normalized: AmmoDefinition = { ...defaults, ...aWithoutLoot }
       // Backward compatibility: old single "trader" field -> new "traders" array
       if (a.trader && !Array.isArray(a.traders)) {
         normalized.traders = [a.trader as TraderEntry]
       }
       // Backward compatibility: missing ammoBox / loot fields
-      if (!a.ammoBox) normalized.ammoBox = createDefaultAmmo().ammoBox
-      if (!a.loot) normalized.loot = createDefaultAmmo().loot
-      // Backward compatibility: missing stats fields (light/heavy bleed delta)
-      normalized.stats = { ...createDefaultAmmo().stats, ...a.stats }
-      // Backward compatibility: missing lootItem option
-      if (normalized.loot && (a.loot as typeof a.loot & { lootItem?: LootItem })?.lootItem === undefined) {
-        normalized.loot.lootItem = 'ammo'
+      if (!a.ammoBox) normalized.ammoBox = defaults.ammoBox
+      if (!a.ammoLoot) normalized.ammoLoot = defaults.ammoLoot
+      if (!a.ammoBoxLoot) normalized.ammoBoxLoot = defaults.ammoBoxLoot
+      // Backward compatibility: legacy single "loot" field -> split into ammoLoot and ammoBoxLoot
+      if (a.loot && !a.ammoLoot && !a.ammoBoxLoot) {
+        const legacyLoot = a.loot
+        normalized.ammoLoot = { ...createDefaultLootEntry(), enabled: legacyLoot.enabled, containerIds: legacyLoot.containerIds, rarity: legacyLoot.rarity }
+        normalized.ammoBoxLoot = { ...createDefaultLootEntry(), enabled: legacyLoot.enabled, containerIds: legacyLoot.containerIds, rarity: legacyLoot.rarity }
+        if (legacyLoot.lootItem === 'ammo' || legacyLoot.lootItem === undefined) {
+          normalized.ammoBoxLoot.enabled = false
+        } else if (legacyLoot.lootItem === 'box') {
+          normalized.ammoLoot.enabled = false
+        }
       }
+      // Backward compatibility: missing stats fields (light/heavy bleed delta)
+      normalized.stats = { ...defaults.stats, ...a.stats }
       // Backward compatibility: missing ammoBox sellToTraders / traderPriceRoubles / trader settings
       if (normalized.ammoBox) {
         normalized.ammoBox = { ...createDefaultAmmo().ammoBox, ...a.ammoBox }
@@ -1442,54 +1463,50 @@ function AmmoBoxTab({ ammo, onChange }: { ammo: AmmoDefinition; onChange: (u: Pa
   )
 }
 
-function LootTab({ ammo, onChange }: { ammo: AmmoDefinition; onChange: (u: Partial<AmmoDefinition>) => void }) {
-  const updateLoot = (updates: Partial<LootEntry>) => {
-    onChange({ loot: { ...ammo.loot, ...updates } })
-  }
+function LootEntryEditor({
+  title,
+  loot,
+  onChange,
+  itemLabel,
+  disabled,
+  disabledHint,
+}: {
+  title: string
+  loot: LootEntry
+  onChange: (u: Partial<LootEntry>) => void
+  itemLabel: string
+  disabled?: boolean
+  disabledHint?: string
+}) {
   const [manualId, setManualId] = useState('')
   const [selectedContainer, setSelectedContainer] = useState('')
 
   const addContainer = (id: string) => {
     const trimmed = id.trim()
     if (!trimmed) return
-    if (ammo.loot.containerIds.includes(trimmed)) return
-    updateLoot({ containerIds: [...ammo.loot.containerIds, trimmed] })
+    if (loot.containerIds.includes(trimmed)) return
+    onChange({ containerIds: [...loot.containerIds, trimmed] })
   }
 
   const removeContainer = (id: string) => {
-    updateLoot({ containerIds: ammo.loot.containerIds.filter(c => c !== id) })
+    onChange({ containerIds: loot.containerIds.filter((c: string) => c !== id) })
   }
 
-  const lootItemOptions: { value: LootItem; label: string }[] = [
-    { value: 'ammo', label: 'Ammo only' },
-    { value: 'box', label: 'Ammo box only' },
-    { value: 'both', label: 'Ammo and ammo box' },
-  ]
-
   return (
-    <Section title="Loot Table Injection" icon={<MapPin size={18} />}>
+    <div className="mb-6">
+      <div className="text-sm font-semibold text-tarkov-text mb-2">{title}</div>
       <div className="mb-4">
         <Toggle
-          checked={ammo.loot.enabled}
-          onChange={v => updateLoot({ enabled: v })}
-          label="Add this ammo or its ammo box to container loot tables"
+          checked={loot.enabled && !disabled}
+          onChange={v => {
+            if (!disabled) onChange({ enabled: v })
+          }}
+          label={disabled && disabledHint ? `${itemLabel} (${disabledHint})` : itemLabel}
         />
       </div>
 
-      {ammo.loot.enabled && (
+      {loot.enabled && !disabled && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <Field label="Loot Item" tooltip="Choose whether to add the ammo, the generated ammo box, or both to the selected containers.">
-            <select
-              className="input-field"
-              value={ammo.loot.lootItem}
-              onChange={e => updateLoot({ lootItem: e.target.value as LootItem })}
-            >
-              {lootItemOptions.map((opt) => (
-                <option key={opt.value} value={opt.value}>{opt.label}</option>
-              ))}
-            </select>
-          </Field>
-
           <Field
             label="Container IDs"
             className="md:col-span-2"
@@ -1545,9 +1562,9 @@ function LootTab({ ammo, onChange }: { ammo: AmmoDefinition; onChange: (u: Parti
                 </button>
               </div>
 
-              {ammo.loot.containerIds.length > 0 && (
+              {loot.containerIds.length > 0 && (
                 <div className="flex flex-wrap gap-2">
-                  {ammo.loot.containerIds.map((id) => {
+                  {loot.containerIds.map((id: string) => {
                     const container = getLootContainer(id)
                     const label = container ? `${container.name} (${id})` : id
                     return (
@@ -1571,11 +1588,11 @@ function LootTab({ ammo, onChange }: { ammo: AmmoDefinition; onChange: (u: Parti
             </div>
           </Field>
 
-          <Field label="Rarity" tooltip="Loot rarity for this ammo in the specified containers.">
+          <Field label="Rarity" tooltip="Loot rarity for this item in the specified containers.">
             <select
               className="input-field"
-              value={ammo.loot.rarity}
-              onChange={e => updateLoot({ rarity: e.target.value })}
+              value={loot.rarity}
+              onChange={e => onChange({ rarity: e.target.value })}
             >
               {RARITY_OPTIONS.map((r) => (
                 <option key={r} value={r}>{r}</option>
@@ -1584,6 +1601,34 @@ function LootTab({ ammo, onChange }: { ammo: AmmoDefinition; onChange: (u: Parti
           </Field>
         </div>
       )}
+    </div>
+  )
+}
+
+function LootTab({ ammo, onChange }: { ammo: AmmoDefinition; onChange: (u: Partial<AmmoDefinition>) => void }) {
+  const updateAmmoLoot = (updates: Partial<LootEntry>) => {
+    onChange({ ammoLoot: { ...ammo.ammoLoot, ...updates } })
+  }
+  const updateAmmoBoxLoot = (updates: Partial<LootEntry>) => {
+    onChange({ ammoBoxLoot: { ...ammo.ammoBoxLoot, ...updates } })
+  }
+
+  return (
+    <Section title="Loot Table Injection" icon={<MapPin size={18} />}>
+      <LootEntryEditor
+        title="Ammo Loot"
+        loot={ammo.ammoLoot}
+        onChange={updateAmmoLoot}
+        itemLabel="Add this ammo to container loot tables"
+      />
+      <LootEntryEditor
+        title="Ammo Box Loot"
+        loot={ammo.ammoBoxLoot}
+        onChange={updateAmmoBoxLoot}
+        itemLabel="Add the generated ammo box to container loot tables"
+        disabled={!ammo.ammoBox.enabled}
+        disabledHint="enable the ammo box first"
+      />
     </Section>
   )
 }

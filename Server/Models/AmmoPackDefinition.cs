@@ -60,8 +60,11 @@ public class AmmoDefinition
     [JsonPropertyName("ammoBox")]
     public AmmoBoxEntry AmmoBox { get; set; } = new();
 
-    [JsonPropertyName("loot")]
-    public LootEntry Loot { get; set; } = new();
+    [JsonPropertyName("ammoLoot")]
+    public LootEntry AmmoLoot { get; set; } = new();
+
+    [JsonPropertyName("ammoBoxLoot")]
+    public LootEntry AmmoBoxLoot { get; set; } = new();
 }
 
 public class AmmoStats
@@ -148,5 +151,4 @@ public class LootEntry
     [JsonPropertyName("enabled")] public bool Enabled { get; set; }
     [JsonPropertyName("containerIds")] public List<string> ContainerIds { get; set; } = [];
     [JsonPropertyName("rarity")] public string Rarity { get; set; } = "Rare";
-    [JsonPropertyName("lootItem")] public string LootItem { get; set; } = "ammo";
 }

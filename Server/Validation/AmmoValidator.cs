@@ -52,21 +52,17 @@ public static class AmmoValidator
             if (string.IsNullOrWhiteSpace(ammo.Description))
                 errors.Add($"{prefix}: 'description' is required.");
 
-            if (ammo.Loot.Enabled)
+            ValidateLootEntry(ammo.AmmoLoot, "ammoLoot", prefix, errors);
+            ValidateLootEntry(ammo.AmmoBoxLoot, "ammoBoxLoot", prefix, errors);
+
+            if (ammo.AmmoBoxLoot.Enabled && !ammo.AmmoBox.Enabled)
             {
-                if (ammo.Loot.ContainerIds == null || ammo.Loot.ContainerIds.Count == 0)
-                {
-                    errors.Add($"{prefix}: 'loot.containerIds' must contain at least one container ID when loot is enabled.");
-                }
-                else
-                {
-                    for (var c = 0; c < ammo.Loot.ContainerIds.Count; c++)
-                    {
-                        var containerId = ammo.Loot.ContainerIds[c];
-                        if (string.IsNullOrWhiteSpace(containerId) || !Hex24.IsMatch(containerId))
-                            errors.Add($"{prefix}: 'loot.containerIds[{c}]' must be a 24-character hex string.");
-                    }
-                }
+                errors.Add($"{prefix}: 'ammoBoxLoot' is enabled but 'ammoBox.enabled' is false.");
+            }
+
+            if (ammo.AmmoBoxLoot.Enabled && (ammo.AmmoBoxLoot.ContainerIds == null || ammo.AmmoBoxLoot.ContainerIds.Count == 0) && string.IsNullOrWhiteSpace(ammo.AmmoBox.Id))
+            {
+                errors.Add($"{prefix}: 'ammoBox.id' is required when ammo box loot is enabled.");
             }
 
             if (ammo.Economy.HandbookPriceRoubles < 0)
@@ -126,5 +122,23 @@ public static class AmmoValidator
         }
 
         return errors;
+    }
+
+    private static void ValidateLootEntry(LootEntry loot, string propertyName, string prefix, List<string> errors)
+    {
+        if (!loot.Enabled) return;
+
+        if (loot.ContainerIds == null || loot.ContainerIds.Count == 0)
+        {
+            errors.Add($"{prefix}: '{propertyName}.containerIds' must contain at least one container ID when {propertyName} is enabled.");
+            return;
+        }
+
+        for (var c = 0; c < loot.ContainerIds.Count; c++)
+        {
+            var containerId = loot.ContainerIds[c];
+            if (string.IsNullOrWhiteSpace(containerId) || !Hex24.IsMatch(containerId))
+                errors.Add($"{prefix}: '{propertyName}.containerIds[{c}]' must be a 24-character hex string.");
+        }
     }
 }

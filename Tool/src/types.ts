@@ -18,7 +18,8 @@ export interface AmmoDefinition {
   crafting: CraftingEntry
   filters: FilterEntry
   ammoBox: AmmoBoxEntry
-  loot: LootEntry
+  ammoLoot: LootEntry
+  ammoBoxLoot: LootEntry
 }
 
 export interface AmmoStats {
@@ -88,13 +89,18 @@ export interface AmmoBoxEntry {
   unlimitedBuyRestriction?: boolean
 }
 
-export type LootItem = 'ammo' | 'box' | 'both'
-
 export interface LootEntry {
   enabled: boolean
   containerIds: string[]
   rarity: string
-  lootItem: LootItem
+}
+
+export function createDefaultLootEntry(): LootEntry {
+  return {
+    enabled: false,
+    containerIds: [],
+    rarity: 'Rare',
+  }
 }
 
 export interface ValidationError {
@@ -183,12 +189,8 @@ export function createDefaultAmmo(): AmmoDefinition {
       sellToTraders: false,
       traderPriceRoubles: 0,
     },
-    loot: {
-      enabled: false,
-      containerIds: [],
-      rarity: 'Rare',
-      lootItem: 'ammo',
-    },
+    ammoLoot: createDefaultLootEntry(),
+    ammoBoxLoot: createDefaultLootEntry(),
   }
 }
 
