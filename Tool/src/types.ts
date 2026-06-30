@@ -8,6 +8,7 @@ export interface AmmoDefinition {
   id: string
   enabled: boolean
   baseTpl: string
+  compareToAmmoId?: string
   name: string
   shortName: string
   description: string
@@ -147,6 +148,7 @@ export function createDefaultAmmo(): AmmoDefinition {
     id: generateMongoId(),
     enabled: true,
     baseTpl: '',
+    compareToAmmoId: '',
     name: '',
     shortName: '',
     description: '',

@@ -724,33 +724,40 @@ function IdentityTab({ pack, setPack, ammo, onChange }: {
           <Field
             label="Base Ammo Template"
             className="md:col-span-2"
-            tooltip="Existing ammo item to clone. Selecting one auto-fills the Stats tab with the base ammo's values."
+            tooltip="Existing ammo item to clone. Selecting one auto-fills the Stats tab with the base ammo's values. Choose 'Other' to enter a custom template ID from a mod."
           >
             <select
               className="input-field"
-              value={ammo.baseTpl}
+              value={AMMO_TEMPLATES.some(t => t.id === ammo.baseTpl) ? ammo.baseTpl : ammo.baseTpl ? '__other__' : ''}
               onChange={e => {
-                const baseTpl = e.target.value
-                const base = getAmmoStats(baseTpl)
-                if (base) {
-                  onChange({
-                    baseTpl,
-                    stats: {
-                      damage: base.damage,
-                      penetration: base.penetration,
-                      armorDamage: base.armorDamage,
-                      initialSpeed: base.initialSpeed,
-                      ammoAccr: base.ammoAccr,
-                      ammoRec: base.ammoRec,
-                      stackMaxSize: base.stackMaxSize,
-                      lightBleedingDelta: base.lightBleedingDelta,
-                      heavyBleedingDelta: base.heavyBleedingDelta,
-                      durabilityBurnModificator: base.durabilityBurnModificator,
-                      ballisticCoeficient: base.ballisticCoeficient,
-                    },
-                  })
+                const value = e.target.value
+                if (value === '__other__') {
+                  onChange({ baseTpl: '__other__', compareToAmmoId: '' })
+                } else if (value) {
+                  const base = getAmmoStats(value)
+                  if (base) {
+                    onChange({
+                      baseTpl: value,
+                      compareToAmmoId: '',
+                      stats: {
+                        damage: base.damage,
+                        penetration: base.penetration,
+                        armorDamage: base.armorDamage,
+                        initialSpeed: base.initialSpeed,
+                        ammoAccr: base.ammoAccr,
+                        ammoRec: base.ammoRec,
+                        stackMaxSize: base.stackMaxSize,
+                        lightBleedingDelta: base.lightBleedingDelta,
+                        heavyBleedingDelta: base.heavyBleedingDelta,
+                        durabilityBurnModificator: base.durabilityBurnModificator,
+                        ballisticCoeficient: base.ballisticCoeficient,
+                      },
+                    })
+                  } else {
+                    onChange({ baseTpl: value, compareToAmmoId: '' })
+                  }
                 } else {
-                  onChange({ baseTpl })
+                  onChange({ baseTpl: '', compareToAmmoId: '' })
                 }
               }}
             >
@@ -760,7 +767,16 @@ function IdentityTab({ pack, setPack, ammo, onChange }: {
                   {t.name} ({t.caliber}) — {t.id}{t.requiresMod ? ` [Requires: ${t.requiresMod}]` : ''}
                 </option>
               ))}
+              <option value="__other__">Other (custom ID)...</option>
             </select>
+            {(ammo.baseTpl === '__other__' || (!!ammo.baseTpl && !AMMO_TEMPLATES.some(t => t.id === ammo.baseTpl))) && (
+              <input
+                className="input-field mt-2 font-mono text-sm"
+                value={ammo.baseTpl === '__other__' ? '' : ammo.baseTpl}
+                onChange={e => onChange({ baseTpl: e.target.value })}
+                placeholder="Enter custom ammo template ID"
+              />
+            )}
             {(() => {
               const selected = AMMO_TEMPLATES.find(t => t.id === ammo.baseTpl)
               if (!selected?.requiresMod) return null
@@ -851,7 +867,8 @@ function StatsTab({ ammo, onChange }: { ammo: AmmoDefinition; onChange: (u: Part
     durabilityBurnModificator: 'Multiplier for weapon durability burn per shot. 1 is the base ammo value; 0 disables durability burn.',
     ballisticCoeficient: 'Ballistic coefficient (G1). Lower values drop faster; higher values retain velocity better.',
   }
-  const base = getAmmoStats(ammo.baseTpl)
+  const compareToId = ammo.compareToAmmoId === '__other__' ? ammo.baseTpl : (ammo.compareToAmmoId || ammo.baseTpl)
+  const base = getAmmoStats(compareToId)
 
   return (
     <Section title="Ammo Stats" icon={<Crosshair size={18} />}>
@@ -873,11 +890,51 @@ function StatsTab({ ammo, onChange }: { ammo: AmmoDefinition; onChange: (u: Part
         ))}
       </div>
 
-      {base && (
-        <div className="mt-6 p-4 bg-tarkov-bg border border-tarkov-border rounded-lg">
-          <h3 className="text-sm font-semibold text-tarkov-accent mb-3 flex items-center gap-2">
-            <Crosshair size={16} /> Base Ammo Comparison: {base.name}
+      {ammo.baseTpl && (
+      <div className="mt-6 p-4 bg-tarkov-bg border border-tarkov-border rounded-lg">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4">
+          <h3 className="text-sm font-semibold text-tarkov-accent flex items-center gap-2">
+            <Crosshair size={16} /> Base Ammo Comparison
           </h3>
+          <div className="flex flex-col md:flex-row md:items-center gap-2">
+            <span className="text-xs text-tarkov-text-dim">Compare to:</span>
+            <select
+              className="input-field text-sm py-1"
+              value={(() => {
+                if (!ammo.compareToAmmoId) return ammo.baseTpl
+                if (AMMO_TEMPLATES.some(t => t.id === ammo.compareToAmmoId)) return ammo.compareToAmmoId
+                return '__other__'
+              })()}
+              onChange={e => {
+                const value = e.target.value
+                if (value === '__other__') {
+                  onChange({ compareToAmmoId: '__other__' })
+                } else if (value === ammo.baseTpl) {
+                  onChange({ compareToAmmoId: '' })
+                } else {
+                  onChange({ compareToAmmoId: value })
+                }
+              }}
+            >
+              <option value={ammo.baseTpl}>Original clone ({getAmmoStats(ammo.baseTpl)?.name || ammo.baseTpl})</option>
+              {AMMO_TEMPLATES.filter(t => t.id !== ammo.baseTpl).map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.name} ({t.caliber})
+                </option>
+              ))}
+              <option value="__other__">Other (custom ID)...</option>
+            </select>
+            {(ammo.compareToAmmoId === '__other__' || (!!ammo.compareToAmmoId && ammo.compareToAmmoId !== ammo.baseTpl && !AMMO_TEMPLATES.some(t => t.id === ammo.compareToAmmoId))) && (
+              <input
+                className="input-field text-sm py-1 font-mono"
+                value={ammo.compareToAmmoId === '__other__' ? '' : ammo.compareToAmmoId}
+                onChange={e => onChange({ compareToAmmoId: e.target.value })}
+                placeholder="Enter custom ammo ID to compare"
+              />
+            )}
+          </div>
+        </div>
+        {base ? (
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
             {(['damage', 'penetration', 'armorDamage', 'initialSpeed', 'ammoAccr', 'ammoRec', 'stackMaxSize', 'lightBleedingDelta', 'heavyBleedingDelta', 'durabilityBurnModificator', 'ballisticCoeficient'] as const).map((stat) => {
               const custom = ammo.stats[stat]
@@ -897,7 +954,10 @@ function StatsTab({ ammo, onChange }: { ammo: AmmoDefinition; onChange: (u: Part
               )
             })}
           </div>
-        </div>
+        ) : (
+          <div className="text-sm text-tarkov-text-dim">Comparison ammo not found.</div>
+        )}
+      </div>
       )}
     </Section>
   )
@@ -1304,17 +1364,23 @@ function AmmoBoxTab({ ammo, onChange }: { ammo: AmmoDefinition; onChange: (u: Pa
             </div>
           </Field>
 
-          <Field label="Base Ammo Box Template" className="md:col-span-2" tooltip="Existing ammo box to clone. Its model and stack slot count will be reused.">
+          <Field label="Base Ammo Box Template" className="md:col-span-2" tooltip="Existing ammo box to clone. Its model and stack slot count will be reused. Choose 'Other' to enter a custom template ID from a mod.">
             <select
               className="input-field"
-              value={ammo.ammoBox.baseTpl}
+              value={AMMO_BOX_TEMPLATES.some(t => t.id === ammo.ammoBox.baseTpl) ? ammo.ammoBox.baseTpl : ammo.ammoBox.baseTpl ? '__other__' : ''}
               onChange={e => {
-                const baseTpl = e.target.value
-                const template = getAmmoBoxTemplate(baseTpl)
-                updateBox({
-                  baseTpl,
-                  count: template?.count || ammo.ammoBox.count,
-                })
+                const value = e.target.value
+                if (value === '__other__') {
+                  updateBox({ baseTpl: '__other__' })
+                } else if (value) {
+                  const template = getAmmoBoxTemplate(value)
+                  updateBox({
+                    baseTpl: value,
+                    count: template?.count || ammo.ammoBox.count,
+                  })
+                } else {
+                  updateBox({ baseTpl: '' })
+                }
               }}
             >
               <option value="">Select an ammo box template...</option>
@@ -1323,7 +1389,16 @@ function AmmoBoxTab({ ammo, onChange }: { ammo: AmmoDefinition; onChange: (u: Pa
                   {t.name} ({t.count} rounds) — {t.id}
                 </option>
               ))}
+              <option value="__other__">Other (custom ID)...</option>
             </select>
+            {(ammo.ammoBox.baseTpl === '__other__' || (!!ammo.ammoBox.baseTpl && !AMMO_BOX_TEMPLATES.some(t => t.id === ammo.ammoBox.baseTpl))) && (
+              <input
+                className="input-field mt-2 font-mono text-sm"
+                value={ammo.ammoBox.baseTpl === '__other__' ? '' : ammo.ammoBox.baseTpl}
+                onChange={e => updateBox({ baseTpl: e.target.value })}
+                placeholder="Enter custom ammo box template ID"
+              />
+            )}
           </Field>
 
           <Field label="Ammo Box Name" tooltip="In-game name for the generated box.">
