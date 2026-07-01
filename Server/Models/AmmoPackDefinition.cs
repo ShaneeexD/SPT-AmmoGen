@@ -246,5 +246,7 @@ public class GrenadeStats
     [JsonPropertyName("throwType")] public string ThrowType { get; set; } = string.Empty;
     [JsonPropertyName("throwDamMax")] public double ThrowDamMax { get; set; }
     [JsonPropertyName("weight")] public double Weight { get; set; }
+    [JsonPropertyName("smokeColor")] public string SmokeColor { get; set; } = string.Empty;
+    [JsonPropertyName("bodyColor")] public string BodyColor { get; set; } = string.Empty;
 }
 

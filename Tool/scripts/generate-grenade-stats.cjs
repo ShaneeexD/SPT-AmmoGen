@@ -51,6 +51,8 @@ for (const itemId of Object.keys(items)) {
     throwType: props.ThrowType || '',
     throwDamMax: props.throwDamMax || 0,
     weight: props.Weight || 0,
+    smokeColor: '',
+    bodyColor: '',
   }
 }
 
@@ -82,6 +84,8 @@ const statLines = sortedStats.map(([id, s]) => {
     `throwType: ${JSON.stringify(s.throwType)}`,
     `throwDamMax: ${s.throwDamMax}`,
     `weight: ${s.weight}`,
+    `smokeColor: ${JSON.stringify(s.smokeColor)}`,
+    `bodyColor: ${JSON.stringify(s.bodyColor)}`,
   ].join(', ')
   return `  '${id}': { ${statLine} },`
 })
@@ -136,6 +140,8 @@ export interface GrenadeTemplateStats {
   throwType: string
   throwDamMax: number
   weight: number
+  smokeColor: string
+  bodyColor: string
 }
 
 export const GRENADE_STATS: Record<string, GrenadeTemplateStats> = {

@@ -2505,6 +2505,74 @@ function GrenadeStatsTab({ grenade, onChange }: { grenade: GrenadeDefinition; on
         )}
       </CollapsibleSection>
 
+      <CollapsibleSection title="Smoke Color" icon={<Bomb size={16} />} defaultOpen={false}>
+        <Field
+          label="Smoke Color"
+          tooltip="Custom hex color for smoke grenades. Requires the AmmoGen Client mod to render in-game."
+        >
+          <div className="flex items-center gap-3">
+            <input
+              type="color"
+              className="w-10 h-10 rounded cursor-pointer bg-transparent border-0 p-0"
+              value={grenade.stats.smokeColor || '#FFFFFF'}
+              onChange={e => updateStat('smokeColor', e.target.value.toUpperCase())}
+            />
+            <input
+              className="input-field font-mono text-sm flex-1"
+              value={grenade.stats.smokeColor}
+              onChange={e => updateStat('smokeColor', e.target.value.toUpperCase())}
+              placeholder="#RRGGBB"
+            />
+            {grenade.stats.smokeColor && (
+              <button
+                className="btn-secondary text-xs px-2"
+                onClick={() => updateStat('smokeColor', '')}
+                title="Clear smoke color"
+              >
+                <X size={14} />
+              </button>
+            )}
+          </div>
+        </Field>
+        <p className="text-xs text-tarkov-text-dim mt-2">
+          Leave blank to use the base grenade's default smoke color. Set a hex value to override it in-game via the AmmoGen Client mod.
+        </p>
+      </CollapsibleSection>
+
+      <CollapsibleSection title="Body Color" icon={<Bomb size={16} />} defaultOpen={false}>
+        <Field
+          label="Body Color"
+          tooltip="Custom hex color for the grenade body once thrown. Requires the AmmoGen Client mod to render in-game."
+        >
+          <div className="flex items-center gap-3">
+            <input
+              type="color"
+              className="w-10 h-10 rounded cursor-pointer bg-transparent border-0 p-0"
+              value={grenade.stats.bodyColor || '#FFFFFF'}
+              onChange={e => updateStat('bodyColor', e.target.value.toUpperCase())}
+            />
+            <input
+              className="input-field font-mono text-sm flex-1"
+              value={grenade.stats.bodyColor}
+              onChange={e => updateStat('bodyColor', e.target.value.toUpperCase())}
+              placeholder="#RRGGBB"
+            />
+            {grenade.stats.bodyColor && (
+              <button
+                className="btn-secondary text-xs px-2"
+                onClick={() => updateStat('bodyColor', '')}
+                title="Clear body color"
+              >
+                <X size={14} />
+              </button>
+            )}
+          </div>
+        </Field>
+        <p className="text-xs text-tarkov-text-dim mt-2">
+          Leave blank to keep the base grenade's default body color. Set a hex value to recolor the grenade body once thrown via the AmmoGen Client mod.
+        </p>
+      </CollapsibleSection>
+
       <CollapsibleSection title="Area Effect Vectors" icon={<Bomb size={16} />} defaultOpen={false}>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {[

@@ -1,3 +1,5 @@
+using System.IO;
+using System.Text.Json;
 using SPTarkov.Server.Core.Models.Common;
 using SPTarkov.Server.Core.Models.Eft.Common;
 using SPTarkov.Server.Core.Models.Eft.Common.Tables;
@@ -22,17 +24,26 @@ public static class GrenadeManager
         IReadOnlyList<GrenadeDefinition> definitions,
         ISptLogger<AmmoGenPlugin> logger)
     {
+        var smokeColors = new Dictionary<string, string>();
+        var bodyColors = new Dictionary<string, string>();
         foreach (var def in definitions)
         {
             try
             {
                 RegisterGrenade(def, customItemService, databaseService, logger);
+                if (!string.IsNullOrWhiteSpace(def.Stats.SmokeColor))
+                    smokeColors[def.Id] = def.Stats.SmokeColor;
+                if (!string.IsNullOrWhiteSpace(def.Stats.BodyColor))
+                    bodyColors[def.Id] = def.Stats.BodyColor;
             }
             catch (Exception ex)
             {
                 logger.LogWithColor($"[AmmoGen] Failed to register grenade '{def.Name}': {ex.Message}", LogTextColor.Red);
             }
         }
+
+        WriteColorConfig(smokeColors, "smoke_colors.json", logger);
+        WriteColorConfig(bodyColors, "body_colors.json", logger);
     }
 
     private static void RegisterGrenade(
@@ -140,5 +151,24 @@ public static class GrenadeManager
             }
         }
         return GrenadeCategoryParentId;
+    }
+
+    private static void WriteColorConfig(Dictionary<string, string> colors, string fileName, ISptLogger<AmmoGenPlugin> logger)
+    {
+        if (colors.Count == 0)
+            return;
+
+        try
+        {
+            var configDir = System.IO.Path.Combine(Directory.GetCurrentDirectory(), "user", "mods", "AmmoGen", "config");
+            Directory.CreateDirectory(configDir);
+            var configPath = System.IO.Path.Combine(configDir, fileName);
+            File.WriteAllText(configPath, JsonSerializer.Serialize(colors, new JsonSerializerOptions { WriteIndented = true }));
+            logger.LogWithColor($"[AmmoGen] Wrote {fileName} for {colors.Count} grenade(s) to {configPath}", LogTextColor.Green);
+        }
+        catch (Exception ex)
+        {
+            logger.LogWithColor($"[AmmoGen] Failed to write {fileName}: {ex.Message}", LogTextColor.Red);
+        }
     }
 }

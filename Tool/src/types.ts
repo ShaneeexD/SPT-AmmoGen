@@ -128,6 +128,8 @@ export interface GrenadeStats {
   throwType: string
   throwDamMax: number
   weight: number
+  smokeColor: string
+  bodyColor: string
 }
 
 export interface AmmoEconomy {
@@ -354,6 +356,8 @@ export function createDefaultGrenade(): GrenadeDefinition {
       throwType: '',
       throwDamMax: 0,
       weight: 0,
+      smokeColor: '',
+      bodyColor: '',
     },
     economy: {
       handbookPriceRoubles: 0,
