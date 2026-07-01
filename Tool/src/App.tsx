@@ -46,12 +46,20 @@ import {
   ValidationError,
   GrenadeDefinition,
   GrenadeStats,
+  FlareDefinition,
+  FlareStats,
+  FlareKind,
+  FLARE_KIND_OPTIONS,
   GRENADE_TEMPLATES,
+  HANDHELD_FLARE_TEMPLATES,
+  CARTRIDGE_TEMPLATES,
   createDefaultGrenade,
+  createDefaultFlare,
 } from './types'
 import { ITEMS, getItemName } from './generated_items'
 import { getAmmoStats, AmmoTemplateStats, TRACER_COLOR_OPTIONS, AMMO_SFX_OPTIONS, CASING_SOUNDS_OPTIONS } from './generated_ammo_stats'
 import { getGrenadeStats, type GrenadeTemplateStats, GRENADE_FRAGMENT_TYPES, GRENADE_EXPLOSION_EFFECT_TYPES, GRENADE_THROW_TYPES } from './generated_grenade_stats'
+import { getFlareStats, getCartridgeStats, FLARE_TYPES, AIRDROP_TEMPLATE_OPTIONS } from './generated_flare_stats'
 import { getAmmoCompatibility } from './generated_ammo_compatibility'
 import { AMMO_BOX_TEMPLATES, getAmmoBoxTemplate } from './generated_ammo_box_templates'
 import { LOOT_CONTAINERS, getLootContainer } from './generated_loot_containers'
@@ -360,6 +368,50 @@ function validatePack(pack: AmmoPackDefinition): ValidationError[] {
     })
   })
 
+  pack.flares.forEach((flare, i) => {
+    const prefix = `flare[${i}]`
+    if (!hex24.test(flare.id)) errors.push({ field: `${prefix}.id`, message: 'ID must be 24 hex chars' })
+    if (!hex24.test(flare.ammoId)) errors.push({ field: `${prefix}.ammoId`, message: 'Ammo ID must be 24 hex chars' })
+    if (!hex24.test(flare.baseTpl)) errors.push({ field: `${prefix}.baseTpl`, message: 'Base template must be 24 hex chars' })
+    if (!hex24.test(flare.ammoBaseTpl)) errors.push({ field: `${prefix}.ammoBaseTpl`, message: 'Ammo base template must be 24 hex chars' })
+    if (!flare.name.trim()) errors.push({ field: `${prefix}.name`, message: 'Name is required' })
+    if (!flare.shortName.trim()) errors.push({ field: `${prefix}.shortName`, message: 'Short name is required' })
+    if (!flare.description.trim()) errors.push({ field: `${prefix}.description`, message: 'Description is required' })
+
+    flare.traders.forEach((trader, j) => {
+      if (!trader.enabled) return
+      const tPrefix = `${prefix}.traders[${j}]`
+      if (!hex24.test(trader.traderId)) errors.push({ field: `${tPrefix}.traderId`, message: 'Trader ID must be 24 hex chars' })
+      if (trader.loyaltyLevel < 1) errors.push({ field: `${tPrefix}.loyaltyLevel`, message: 'Loyalty level must be >= 1' })
+      if (trader.priceRoubles < 0) errors.push({ field: `${tPrefix}.priceRoubles`, message: 'Price cannot be negative' })
+    })
+
+    if (flare.crafting.enabled) {
+      if (flare.crafting.workbenchLevel < 1) errors.push({ field: `${prefix}.crafting.workbenchLevel`, message: 'Workbench level must be >= 1' })
+      if (flare.crafting.craftTimeSeconds < 1) errors.push({ field: `${prefix}.crafting.craftTimeSeconds`, message: 'Craft time must be >= 1' })
+      if (flare.crafting.outputCount < 1) errors.push({ field: `${prefix}.crafting.outputCount`, message: 'Output count must be >= 1' })
+      flare.crafting.requirements.forEach((req, j) => {
+        if (!hex24.test(req.tpl)) errors.push({ field: `${prefix}.crafting.requirements[${j}]`, message: 'Item tpl must be 24 hex chars' })
+        if (req.count < 1) errors.push({ field: `${prefix}.crafting.requirements[${j}]`, message: 'Count must be >= 1' })
+      })
+    }
+
+    if (flare.loot.enabled) {
+      flare.loot.containerIds.forEach((id, j) => {
+        if (!hex24.test(id)) errors.push({ field: `${prefix}.loot.containerIds[${j}]`, message: 'Container ID must be 24 hex chars' })
+      })
+    }
+
+    const nonNegativeFlareStats = [
+      'damage', 'initialSpeed', 'stackMaxSize', 'ammoLifeTimeSec', 'tracerDistance', 'weight', 'misfireChance', 'ricochetChance',
+    ] as const
+    nonNegativeFlareStats.forEach(stat => {
+      if (flare.stats[stat] < 0) {
+        errors.push({ field: `${prefix}.stats.${stat}`, message: `${stat} cannot be negative` })
+      }
+    })
+  })
+
   return errors
 }
 
@@ -398,6 +450,22 @@ function buildExportJson(pack: AmmoPackDefinition): object {
       crafting: grenade.crafting,
       loot: grenade.loot,
     })),
+    flares: pack.flares.map((flare) => ({
+      id: flare.id,
+      ammoId: flare.ammoId,
+      enabled: flare.enabled,
+      baseTpl: flare.baseTpl,
+      ammoBaseTpl: flare.ammoBaseTpl,
+      name: flare.name,
+      shortName: flare.shortName,
+      description: flare.description,
+      ...(flare.handbookParentId ? { handbookParentId: flare.handbookParentId } : {}),
+      stats: flare.stats,
+      economy: flare.economy,
+      traders: flare.traders,
+      crafting: flare.crafting,
+      loot: flare.loot,
+    })),
   }
 }
 
@@ -406,7 +474,7 @@ type Tab = 'identity' | 'stats' | 'economy' | 'trader' | 'crafting' | 'filters' 
 export default function App() {
   const [pack, setPack] = useState<AmmoPackDefinition>(createDefaultPack())
   const [activeIndex, setActiveIndex] = useState(0)
-  const [mode, setMode] = useState<'ammo' | 'grenade'>('ammo')
+  const [mode, setMode] = useState<'ammo' | 'grenade' | 'flare'>('ammo')
   const [errors, setErrors] = useState<ValidationError[]>([])
   const [activeTab, setActiveTab] = useState<Tab>('identity')
   const [showExportSuccess, setShowExportSuccess] = useState(false)
@@ -449,6 +517,26 @@ export default function App() {
     const next = { ...pack, grenades: pack.grenades.filter((_, i) => i !== index) }
     setPack(next)
     if (activeIndex >= next.grenades.length) setActiveIndex(Math.max(0, next.grenades.length - 1))
+    setErrors([])
+  }
+
+  const updateFlare = (index: number, updates: Partial<FlareDefinition>) => {
+    const next = { ...pack, flares: [...pack.flares] }
+    next.flares[index] = { ...next.flares[index], ...updates }
+    setPack(next)
+    setErrors([])
+  }
+
+  const addFlare = () => {
+    setPack({ ...pack, flares: [...pack.flares, createDefaultFlare()] })
+    setActiveIndex(pack.flares.length)
+    setErrors([])
+  }
+
+  const removeFlare = (index: number) => {
+    const next = { ...pack, flares: pack.flares.filter((_, i) => i !== index) }
+    setPack(next)
+    if (activeIndex >= next.flares.length) setActiveIndex(Math.max(0, next.flares.length - 1))
     setErrors([])
   }
 
@@ -566,11 +654,29 @@ export default function App() {
       })
       return normalized
     })
+    const flares = (parsed.flares ?? []).map((f: FlareDefinition) => {
+      const defaults = createDefaultFlare()
+      const normalized: FlareDefinition = { ...defaults, ...f }
+      normalized.stats = { ...defaults.stats, ...f.stats }
+      normalized.traders = normalized.traders.map((t) => {
+        if (t.unlimitedStock === undefined && t.stockCount === 0) {
+          t.unlimitedStock = true
+          t.stockCount = 200
+        }
+        if (t.unlimitedBuyRestriction === undefined && t.buyRestrictionMax === 0) {
+          t.unlimitedBuyRestriction = true
+          t.buyRestrictionMax = 200
+        }
+        return t
+      })
+      return normalized
+    })
     return {
       ...createDefaultPack(),
       ...parsed,
       ammo,
       grenades,
+      flares,
     }
   }
 
@@ -615,10 +721,11 @@ export default function App() {
 
   const activeAmmo = pack.ammo[activeIndex]
   const activeGrenade = pack.grenades[activeIndex]
+  const activeFlare = pack.flares[activeIndex]
 
   const tabs: { id: Tab; label: string; icon: React.ReactNode }[] = [
     { id: 'identity', label: 'Identity', icon: <Shield size={16} /> },
-    { id: 'stats', label: 'Stats', icon: mode === 'ammo' ? <Crosshair size={16} /> : <Bomb size={16} /> },
+    { id: 'stats', label: 'Stats', icon: mode === 'ammo' ? <Crosshair size={16} /> : mode === 'flare' ? <Target size={16} /> : <Bomb size={16} /> },
     { id: 'economy', label: 'Economy', icon: <Star size={16} /> },
     { id: 'trader', label: 'Trader', icon: <Package size={16} /> },
     { id: 'crafting', label: 'Crafting', icon: <Wrench size={16} /> },
@@ -648,7 +755,7 @@ export default function App() {
           <Target className="text-tarkov-accent" size={28} />
           <div>
             <h1 className="text-xl font-bold text-tarkov-accent">AmmoGen Tool</h1>
-            <p className="text-xs text-tarkov-text-dim">SPTarkov 4.0.13 Ammo & Grenade Pack Editor</p>
+            <p className="text-xs text-tarkov-text-dim">SPTarkov 4.0.13 Ammo, Grenade & Flare Pack Editor</p>
           </div>
           <div className="hidden sm:flex items-center bg-tarkov-bg rounded-lg border border-tarkov-border p-1 ml-2">
             <button
@@ -666,6 +773,14 @@ export default function App() {
               }`}
             >
               <Bomb size={14} /> Grenades
+            </button>
+            <button
+              onClick={() => { setMode('flare'); setActiveIndex(0); setActiveTab('identity') }}
+              className={`flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded transition-colors ${
+                mode === 'flare' ? 'bg-tarkov-accent text-white' : 'text-tarkov-text-dim hover:text-tarkov-text'
+              }`}
+            >
+              <Target size={14} /> Flares
             </button>
           </div>
         </div>
@@ -710,7 +825,7 @@ export default function App() {
       {/* Tabs */}
       <nav className="bg-tarkov-surface border-b border-tarkov-border px-6 flex gap-1">
         {tabs.map(tab => {
-          const activeItem = mode === 'ammo' ? activeAmmo : activeGrenade
+          const activeItem = mode === 'ammo' ? activeAmmo : mode === 'flare' ? activeFlare : activeGrenade
           return (
             <button
               key={tab.id}
@@ -731,63 +846,87 @@ export default function App() {
       {/* Item selector */}
       <div className="bg-tarkov-surface border-b border-tarkov-border px-6 py-3">
         <div className="max-w-5xl mx-auto flex flex-col sm:flex-row sm:items-center gap-3">
-          <div className="text-sm text-tarkov-text-dim">{mode === 'ammo' ? 'Ammo' : 'Grenades'}</div>
+          <div className="text-sm text-tarkov-text-dim">{mode === 'ammo' ? 'Ammo' : mode === 'flare' ? 'Flares' : 'Grenades'}</div>
           <div className="flex flex-wrap gap-2 flex-1">
-            {mode === 'ammo'
-              ? pack.ammo.map((ammo, i) => (
-                <button
-                  key={i}
-                  onClick={() => setActiveIndex(i)}
-                  className={`flex items-center gap-1.5 text-sm px-3 py-1.5 rounded border transition-colors ${
-                    activeIndex === i
-                      ? 'bg-tarkov-accent/20 border-tarkov-accent text-tarkov-accent'
-                      : 'bg-tarkov-bg border-tarkov-border text-tarkov-text-dim hover:text-tarkov-text'
-                  }`}
-                >
-                  <Crosshair size={14} />
-                  {ammo.shortName || `Ammo ${i + 1}`}
-                  {pack.ammo.length > 1 && (
-                    <span
-                      className="ml-1 text-tarkov-error hover:text-tarkov-error/80"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        removeAmmo(i)
-                      }}
-                    >
-                      <Trash2 size={14} />
-                    </span>
-                  )}
-                </button>
-              ))
-              : pack.grenades.map((grenade, i) => (
-                <button
-                  key={i}
-                  onClick={() => setActiveIndex(i)}
-                  className={`flex items-center gap-1.5 text-sm px-3 py-1.5 rounded border transition-colors ${
-                    activeIndex === i
-                      ? 'bg-tarkov-accent/20 border-tarkov-accent text-tarkov-accent'
-                      : 'bg-tarkov-bg border-tarkov-border text-tarkov-text-dim hover:text-tarkov-text'
-                  }`}
-                >
-                  <Bomb size={14} />
-                  {grenade.shortName || `Grenade ${i + 1}`}
-                  {pack.grenades.length > 1 && (
-                    <span
-                      className="ml-1 text-tarkov-error hover:text-tarkov-error/80"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        removeGrenade(i)
-                      }}
-                    >
-                      <Trash2 size={14} />
-                    </span>
-                  )}
-                </button>
-              ))}
+            {mode === 'ammo' && pack.ammo.map((ammo, i) => (
+              <button
+                key={i}
+                onClick={() => setActiveIndex(i)}
+                className={`flex items-center gap-1.5 text-sm px-3 py-1.5 rounded border transition-colors ${
+                  activeIndex === i
+                    ? 'bg-tarkov-accent/20 border-tarkov-accent text-tarkov-accent'
+                    : 'bg-tarkov-bg border-tarkov-border text-tarkov-text-dim hover:text-tarkov-text'
+                }`}
+              >
+                <Crosshair size={14} />
+                {ammo.shortName || `Ammo ${i + 1}`}
+                {pack.ammo.length > 1 && (
+                  <span
+                    className="ml-1 text-tarkov-error hover:text-tarkov-error/80"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      removeAmmo(i)
+                    }}
+                  >
+                    <Trash2 size={14} />
+                  </span>
+                )}
+              </button>
+            ))}
+            {mode === 'grenade' && pack.grenades.map((grenade, i) => (
+              <button
+                key={i}
+                onClick={() => setActiveIndex(i)}
+                className={`flex items-center gap-1.5 text-sm px-3 py-1.5 rounded border transition-colors ${
+                  activeIndex === i
+                    ? 'bg-tarkov-accent/20 border-tarkov-accent text-tarkov-accent'
+                    : 'bg-tarkov-bg border-tarkov-border text-tarkov-text-dim hover:text-tarkov-text'
+                }`}
+              >
+                <Bomb size={14} />
+                {grenade.shortName || `Grenade ${i + 1}`}
+                {pack.grenades.length > 1 && (
+                  <span
+                    className="ml-1 text-tarkov-error hover:text-tarkov-error/80"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      removeGrenade(i)
+                    }}
+                  >
+                    <Trash2 size={14} />
+                  </span>
+                )}
+              </button>
+            ))}
+            {mode === 'flare' && pack.flares.map((flare, i) => (
+              <button
+                key={i}
+                onClick={() => setActiveIndex(i)}
+                className={`flex items-center gap-1.5 text-sm px-3 py-1.5 rounded border transition-colors ${
+                  activeIndex === i
+                    ? 'bg-tarkov-accent/20 border-tarkov-accent text-tarkov-accent'
+                    : 'bg-tarkov-bg border-tarkov-border text-tarkov-text-dim hover:text-tarkov-text'
+                }`}
+              >
+                <Target size={14} />
+                {flare.shortName || `Flare ${i + 1}`}
+                {pack.flares.length > 1 && (
+                  <span
+                    className="ml-1 text-tarkov-error hover:text-tarkov-error/80"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      removeFlare(i)
+                    }}
+                  >
+                    <Trash2 size={14} />
+                  </span>
+                )}
+              </button>
+            ))}
           </div>
           <div className="flex items-center gap-3">
-            <button onClick={mode === 'ammo' ? addAmmo : addGrenade} className="btn-secondary text-sm flex items-center gap-1.5">
-              <Plus size={14} /> {mode === 'ammo' ? 'Add Ammo' : 'Add Grenade'}
+            <button onClick={mode === 'ammo' ? addAmmo : mode === 'flare' ? addFlare : addGrenade} className="btn-secondary text-sm flex items-center gap-1.5">
+              <Plus size={14} /> {mode === 'ammo' ? 'Add Ammo' : mode === 'flare' ? 'Add Flare' : 'Add Grenade'}
             </button>
             <a
               href="https://db.sp-tarkov.com/"
@@ -804,7 +943,7 @@ export default function App() {
 
       {/* Content */}
       <main className="flex-1 p-6 max-w-5xl mx-auto w-full">
-        {mode === 'ammo' ? (
+        {mode === 'ammo' && (
           !activeAmmo ? (
             <div className="card text-center text-tarkov-text-dim py-12">
               <Crosshair size={48} className="mx-auto mb-4 text-tarkov-accent/50" />
@@ -824,7 +963,8 @@ export default function App() {
               {activeTab === 'preview' && <PreviewTab pack={pack} activeAmmo={activeAmmo} />}
             </>
           )
-        ) : (
+        )}
+        {mode === 'grenade' && (
           !activeGrenade ? (
             <div className="card text-center text-tarkov-text-dim py-12">
               <Bomb size={48} className="mx-auto mb-4 text-tarkov-accent/50" />
@@ -839,6 +979,25 @@ export default function App() {
               {activeTab === 'trader' && <TraderTab key={activeGrenade.id} traders={activeGrenade.traders} onChange={u => updateGrenade(activeIndex, u)} />}
               {activeTab === 'crafting' && <CraftingTab key={activeGrenade.id} crafting={activeGrenade.crafting} onChange={u => updateGrenade(activeIndex, u)} />}
               {activeTab === 'loot' && <GrenadeLootTab key={activeGrenade.id} grenade={activeGrenade} onChange={u => updateGrenade(activeIndex, u)} />}
+              {activeTab === 'preview' && <PreviewTab pack={pack} activeAmmo={activeAmmo} />}
+            </>
+          )
+        )}
+        {mode === 'flare' && (
+          !activeFlare ? (
+            <div className="card text-center text-tarkov-text-dim py-12">
+              <Target size={48} className="mx-auto mb-4 text-tarkov-accent/50" />
+              <p className="text-lg">No flares defined yet.</p>
+              <p className="text-sm mt-1">Click <span className="text-tarkov-accent">Add Flare</span> to start building your pack.</p>
+            </div>
+          ) : (
+            <>
+              {activeTab === 'identity' && <FlareIdentityTab key={activeFlare.id} pack={pack} setPack={setPack} flare={activeFlare} onChange={u => updateFlare(activeIndex, u)} />}
+              {activeTab === 'stats' && <FlareStatsTab key={activeFlare.id} flare={activeFlare} onChange={u => updateFlare(activeIndex, u)} />}
+              {activeTab === 'economy' && <EconomyTab key={activeFlare.id} economy={activeFlare.economy} onChange={u => updateFlare(activeIndex, { economy: { ...activeFlare.economy, ...u } })} />}
+              {activeTab === 'trader' && <TraderTab key={activeFlare.id} traders={activeFlare.traders} onChange={u => updateFlare(activeIndex, u)} />}
+              {activeTab === 'crafting' && <CraftingTab key={activeFlare.id} crafting={activeFlare.crafting} onChange={u => updateFlare(activeIndex, u)} />}
+              {activeTab === 'loot' && <FlareLootTab key={activeFlare.id} flare={activeFlare} onChange={u => updateFlare(activeIndex, u)} />}
               {activeTab === 'preview' && <PreviewTab pack={pack} activeAmmo={activeAmmo} />}
             </>
           )
@@ -2217,6 +2376,482 @@ function LootTab({ ammo, onChange }: { ammo: AmmoDefinition; onChange: (u: Parti
         itemLabel="Add the generated ammo box to container loot tables"
         disabled={!ammo.ammoBox.enabled}
         disabledHint="enable the ammo box first"
+      />
+    </Section>
+  )
+}
+
+function FlareIdentityTab({ pack, setPack, flare, onChange }: {
+  pack: AmmoPackDefinition
+  setPack: Dispatch<SetStateAction<AmmoPackDefinition>>
+  flare: FlareDefinition
+  onChange: (u: Partial<FlareDefinition>) => void
+}) {
+  return (
+    <div className="space-y-6">
+      <Section title="Pack Identity" icon={<Shield size={18} />}>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <Field label="Pack Name">
+            <input
+              className="input-field"
+              value={pack.name}
+              onChange={e => setPack({ ...pack, name: e.target.value })}
+              placeholder="My Ammo Pack"
+            />
+          </Field>
+          <Field label="Enabled">
+            <div className="mt-2">
+              <Toggle checked={pack.enabled} onChange={v => setPack({ ...pack, enabled: v })} label="Pack enabled" />
+            </div>
+          </Field>
+        </div>
+      </Section>
+
+      <Section title="Flare Identity" icon={<Target size={18} />}>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <Field label={flare.kind === 'handheld' ? 'Handheld Flare ID' : 'Cartridge ID'}>
+            <div className="flex gap-2">
+              <input
+                className="input-field flex-1 font-mono text-sm"
+                value={flare.id}
+                onChange={e => onChange({ id: e.target.value })}
+                placeholder="24-char hex string"
+                maxLength={24}
+              />
+              <button onClick={() => onChange({ id: generateMongoId() })} className="btn-secondary text-xs px-2" title="Generate random ID">
+                <RefreshCw size={14} />
+              </button>
+            </div>
+          </Field>
+
+          {flare.kind === 'handheld' && (
+            <Field label="Internal Cartridge ID">
+              <div className="flex gap-2">
+                <input
+                  className="input-field flex-1 font-mono text-sm"
+                  value={flare.ammoId}
+                  onChange={e => onChange({ ammoId: e.target.value })}
+                  placeholder="24-char hex string"
+                  maxLength={24}
+                />
+                <button onClick={() => onChange({ ammoId: generateMongoId() })} className="btn-secondary text-xs px-2" title="Generate random cartridge ID">
+                  <RefreshCw size={14} />
+                </button>
+              </div>
+            </Field>
+          )}
+
+          <Field label="Enabled">
+            <div className="mt-2">
+              <Toggle checked={flare.enabled} onChange={v => onChange({ enabled: v })} label="Flare enabled" />
+            </div>
+          </Field>
+
+          <Field label="Flare Type" className="md:col-span-2">
+            <select
+              className="input-field"
+              value={flare.kind}
+              onChange={e => {
+                const kind = e.target.value as FlareKind
+                onChange({
+                  kind,
+                  baseTpl: '',
+                  ammoBaseTpl: '',
+                  ammoId: kind === 'handheld' ? generateMongoId() : '',
+                })
+              }}
+            >
+              {FLARE_KIND_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+          </Field>
+
+          <Field
+            label={flare.kind === 'handheld' ? 'Base Handheld Flare Template' : 'Base Cartridge Template'}
+            className="md:col-span-2"
+            tooltip={flare.kind === 'handheld'
+              ? "Existing RSP-30/ROP-30 handheld flare to clone. Selecting one auto-fills the Stats tab and the internal cartridge base template."
+              : "Existing 26x75mm signal cartridge to clone. Selecting one auto-fills the Stats tab. The SP-81 signal pistol's filter will be patched so it can load this cartridge."}
+          >
+            <select
+              className="input-field"
+              value={(() => {
+                const templates = flare.kind === 'handheld' ? HANDHELD_FLARE_TEMPLATES : CARTRIDGE_TEMPLATES
+                return templates.some(t => t.id === flare.baseTpl) ? flare.baseTpl : flare.baseTpl ? '__other__' : ''
+              })()}
+              onChange={e => {
+                const value = e.target.value
+                const getStats = flare.kind === 'handheld' ? getFlareStats : getCartridgeStats
+                if (value === '__other__') {
+                  onChange({ baseTpl: '__other__', compareToFlareId: '', ammoBaseTpl: '' })
+                } else if (value) {
+                  const base = getStats(value)
+                  if (base) {
+                    const { name, shortName, ...baseStats } = base
+                    onChange({
+                      baseTpl: value,
+                      compareToFlareId: '',
+                      ammoBaseTpl: flare.kind === 'handheld' ? base.ammoBaseTpl : '',
+                      stats: baseStats as FlareStats,
+                    })
+                  } else {
+                    onChange({ baseTpl: value, compareToFlareId: '', ammoBaseTpl: '' })
+                  }
+                } else {
+                  onChange({ baseTpl: '', compareToFlareId: '', ammoBaseTpl: '' })
+                }
+              }}
+            >
+              <option value="">{flare.kind === 'handheld' ? 'Select a base handheld flare...' : 'Select a base cartridge...'}</option>
+              {(flare.kind === 'handheld' ? HANDHELD_FLARE_TEMPLATES : CARTRIDGE_TEMPLATES).map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.name} — {t.id}
+                </option>
+              ))}
+              <option value="__other__">Other (custom ID)...</option>
+            </select>
+            {(() => {
+              const templates = flare.kind === 'handheld' ? HANDHELD_FLARE_TEMPLATES : CARTRIDGE_TEMPLATES
+              return (flare.baseTpl === '__other__' || (!!flare.baseTpl && !templates.some(t => t.id === flare.baseTpl))) && (
+                <input
+                  className="input-field mt-2 font-mono text-sm"
+                  value={flare.baseTpl === '__other__' ? '' : flare.baseTpl}
+                  onChange={e => onChange({ baseTpl: e.target.value })}
+                  placeholder={flare.kind === 'handheld' ? 'Enter custom handheld flare template ID' : 'Enter custom cartridge template ID'}
+                />
+              )
+            })()}
+          </Field>
+
+          {flare.kind === 'handheld' && (
+            <Field label="Cartridge Base Template">
+              <input
+                className="input-field font-mono text-sm"
+                value={flare.ammoBaseTpl}
+                onChange={e => onChange({ ammoBaseTpl: e.target.value })}
+                placeholder="Auto-filled from base handheld flare"
+              />
+            </Field>
+          )}
+
+          <Field label="Name">
+            <input
+              className="input-field"
+              value={flare.name}
+              onChange={e => onChange({ name: e.target.value })}
+              placeholder="e.g. Custom Green Flare"
+            />
+          </Field>
+
+          <Field label="Short Name">
+            <input
+              className="input-field"
+              value={flare.shortName}
+              onChange={e => onChange({ shortName: e.target.value })}
+              placeholder="e.g. cGreen"
+            />
+          </Field>
+
+          <Field label="Description" className="md:col-span-2">
+            <textarea
+              className="input-field min-h-[80px] resize-y"
+              rows={3}
+              value={flare.description}
+              onChange={e => onChange({ description: e.target.value })}
+              placeholder="A short description of the flare..."
+            />
+          </Field>
+
+          <Field
+            label="Handbook Parent ID (optional)"
+            tooltip="Handbook category ID for trader/flea sorting. Leave blank and the server will look up the base flare's category automatically."
+          >
+            <input
+              className="input-field font-mono text-sm"
+              value={flare.handbookParentId || ''}
+              onChange={e => onChange({ handbookParentId: e.target.value || undefined })}
+              placeholder="Leave blank to auto-resolve from base template"
+            />
+          </Field>
+        </div>
+      </Section>
+    </div>
+  )
+}
+
+function FlareStatsTab({ flare, onChange }: { flare: FlareDefinition; onChange: (u: Partial<FlareDefinition>) => void }) {
+  const updateStat = <K extends keyof FlareStats>(key: K, value: FlareStats[K]) => {
+    onChange({ stats: { ...flare.stats, [key]: value } })
+  }
+
+  const renderNumberField = (label: string, key: keyof FlareStats, tooltip?: string, step?: number) => (
+    <Field key={key} label={label} tooltip={tooltip}>
+      <input
+        className="input-field font-mono text-sm"
+        type="number"
+        step={step ?? 0.01}
+        value={flare.stats[key] as number}
+        onChange={e => updateStat(key, (parseFloat(e.target.value) || 0) as FlareStats[keyof FlareStats])}
+      />
+    </Field>
+  )
+
+  const renderBooleanField = (label: string, key: keyof FlareStats, tooltip?: string) => (
+    <Field key={key} label={label} tooltip={tooltip}>
+      <Toggle
+        checked={flare.stats[key] as boolean}
+        onChange={v => updateStat(key, v as FlareStats[keyof FlareStats])}
+        label={label}
+      />
+    </Field>
+  )
+
+  const updateFlareType = (index: number, value: string) => {
+    const next = [...flare.stats.flareTypes]
+    next[index] = value
+    updateStat('flareTypes', next)
+  }
+
+  const addFlareType = () => {
+    updateStat('flareTypes', [...flare.stats.flareTypes, ''])
+  }
+
+  const removeFlareType = (index: number) => {
+    const next = flare.stats.flareTypes.filter((_, i) => i !== index)
+    updateStat('flareTypes', next)
+  }
+
+  return (
+    <Section title="Flare Stats" icon={<Target size={18} />}>
+      <div className="rounded-md bg-yellow-900/40 border border-yellow-700/60 p-3 mb-4 text-sm text-yellow-100">
+        <strong>Work in progress:</strong> some parts of the flare tab (especially the special/handheld slot setup) do not fully work in-game yet.
+      </div>
+      <CollapsibleSection title="Projectile" icon={<Target size={16} />} defaultOpen={true}>
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+          {renderNumberField('Damage', 'damage', 'Damage dealt on direct hit.', 1)}
+          {renderNumberField('Initial Speed', 'initialSpeed', 'Muzzle velocity in m/s.', 1)}
+          {renderNumberField('Stack Max Size', 'stackMaxSize', 'Maximum stack size in inventory.', 1)}
+          {renderNumberField('Ammo Life Time', 'ammoLifeTimeSec', 'How long the flare projectile lasts in seconds.', 0.1)}
+          {renderNumberField('Weight', 'weight', 'Cartridge weight in kg.', 0.001)}
+          {renderNumberField('Misfire Chance', 'misfireChance', 'Chance to misfire on fire.', 0.01)}
+          {renderNumberField('Ricochet Chance', 'ricochetChance', 'Chance to ricochet on impact.', 0.01)}
+          {renderNumberField('Tracer Distance', 'tracerDistance', 'Visible tracer length.', 0.01)}
+        </div>
+      </CollapsibleSection>
+
+      <CollapsibleSection title="Visual" icon={<Target size={16} />} defaultOpen={false}>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {renderBooleanField('Tracer', 'tracer', 'Whether the flare leaves a visible tracer.')}
+          <Field label="Tracer Color">
+            <select
+              className="input-field"
+              value={flare.stats.tracerColor || ''}
+              onChange={e => updateStat('tracerColor', e.target.value)}
+            >
+              <option value="">None / default</option>
+              {TRACER_COLOR_OPTIONS.map(c => (
+                <option key={c} value={c}>{c}</option>
+              ))}
+              <option value="__custom__">Custom...</option>
+            </select>
+            {flare.stats.tracerColor === '__custom__' && (
+              <input
+                className="input-field mt-2"
+                value=""
+                onChange={e => updateStat('tracerColor', e.target.value)}
+                placeholder="Enter custom tracer color"
+              />
+            )}
+          </Field>
+          <Field label="Background Color">
+            <input
+              className="input-field"
+              value={flare.stats.backgroundColor}
+              onChange={e => updateStat('backgroundColor', e.target.value)}
+              placeholder="e.g. yellow, red, green, blue"
+            />
+          </Field>
+          <Field label="Ammo Type">
+            <input
+              className="input-field"
+              value={flare.stats.ammoType}
+              onChange={e => updateStat('ammoType', e.target.value)}
+              placeholder="e.g. bullet"
+            />
+          </Field>
+          <Field label="Casing Sounds">
+            <input
+              className="input-field"
+              value={flare.stats.casingSounds}
+              onChange={e => updateStat('casingSounds', e.target.value)}
+              placeholder="e.g. shotgun_big"
+            />
+          </Field>
+        </div>
+      </CollapsibleSection>
+
+      <CollapsibleSection title="Flare Color" icon={<Target size={16} />} defaultOpen={false}>
+        <Field
+          label="Flare Color"
+          tooltip="Custom hex color for the flare light and particle emission. Requires the AmmoGen Client mod to render in-game."
+        >
+          <div className="flex items-center gap-3">
+            <input
+              type="color"
+              className="w-10 h-10 rounded cursor-pointer bg-transparent border-0 p-0"
+              value={flare.stats.flareColor || '#FFFFFF'}
+              onChange={e => updateStat('flareColor', e.target.value.toUpperCase())}
+            />
+            <input
+              className="input-field font-mono text-sm flex-1"
+              value={flare.stats.flareColor}
+              onChange={e => updateStat('flareColor', e.target.value.toUpperCase())}
+              placeholder="#RRGGBB"
+            />
+            {flare.stats.flareColor && (
+              <button
+                className="btn-secondary text-xs px-2"
+                onClick={() => updateStat('flareColor', '')}
+                title="Clear flare color"
+              >
+                <X size={14} />
+              </button>
+            )}
+          </div>
+        </Field>
+        <p className="text-xs text-tarkov-text-dim mt-2">
+          Leave blank to use the base flare's default color. Set a hex value to override it in-game via the AmmoGen Client mod.
+        </p>
+      </CollapsibleSection>
+
+      <CollapsibleSection title="Flare Behavior" icon={<Target size={16} />} defaultOpen={true}>
+        <div className="grid grid-cols-1 gap-4">
+          <Field label="Flare Types" tooltip="What the flare does when fired. Common values: ExitActivate, Airdrop, CallArtilleryOnMyself, Light, Quest.">
+            <div className="flex flex-col gap-2">
+              {flare.stats.flareTypes.map((type, i) => (
+                <div key={i} className="flex items-center gap-2">
+                  <select
+                    className="input-field text-sm"
+                    value={FLARE_TYPES.includes(type) ? type : '__custom__'}
+                    onChange={e => {
+                      const value = e.target.value
+                      if (value === '__custom__') {
+                        updateFlareType(i, '')
+                      } else {
+                        updateFlareType(i, value)
+                      }
+                    }}
+                  >
+                    <option value="">Select type...</option>
+                    {FLARE_TYPES.map(t => (
+                      <option key={t} value={t}>{t}</option>
+                    ))}
+                    <option value="__custom__">Custom...</option>
+                  </select>
+                  {(!FLARE_TYPES.includes(type) || type === '') && (
+                    <input
+                      className="input-field text-sm flex-1"
+                      value={type}
+                      onChange={e => updateFlareType(i, e.target.value)}
+                      placeholder="Custom flare type"
+                    />
+                  )}
+                  <button className="btn-secondary text-xs px-2" onClick={() => removeFlareType(i)} title="Remove flare type">
+                    <Trash2 size={14} />
+                  </button>
+                </div>
+              ))}
+              <button className="btn-secondary text-xs px-2 self-start flex items-center gap-1" onClick={addFlareType}>
+                <Plus size={14} /> Add Flare Type
+              </button>
+            </div>
+          </Field>
+
+          <Field label="Airdrop Template ID" tooltip="If FlareTypes includes 'Airdrop', this is the airdrop crate template that will be spawned.">
+            <select
+              className="input-field font-mono text-sm"
+              value={AIRDROP_TEMPLATE_OPTIONS.some(t => t.id === flare.stats.airDropTemplateId) ? flare.stats.airDropTemplateId : flare.stats.airDropTemplateId ? '__other__' : ''}
+              onChange={e => {
+                const value = e.target.value
+                if (value === '__other__') {
+                  updateStat('airDropTemplateId', '__other__')
+                } else {
+                  updateStat('airDropTemplateId', value)
+                }
+              }}
+            >
+              <option value="">Select airdrop crate...</option>
+              {AIRDROP_TEMPLATE_OPTIONS.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.name} — {t.id}
+                </option>
+              ))}
+              <option value="__other__">Other (custom ID)...</option>
+            </select>
+            {(flare.stats.airDropTemplateId === '__other__' || (!!flare.stats.airDropTemplateId && !AIRDROP_TEMPLATE_OPTIONS.some(t => t.id === flare.stats.airDropTemplateId))) && (
+              <input
+                className="input-field mt-2 font-mono text-sm"
+                value={flare.stats.airDropTemplateId === '__other__' ? '' : flare.stats.airDropTemplateId}
+                onChange={e => updateStat('airDropTemplateId', e.target.value)}
+                placeholder="Enter custom airdrop template ID"
+              />
+            )}
+          </Field>
+        </div>
+      </CollapsibleSection>
+
+      {flare.kind === 'handheld' && (
+        <CollapsibleSection title="Weapon Slot" icon={<Target size={16} />} defaultOpen={false}>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Field label="Weapon Class" tooltip="EFT weapon class. 'specialWeapon' allows the handheld flare to be equipped in the special slot.">
+              <select
+                className="input-field"
+                value={flare.stats.weapClass || '__custom__'}
+                onChange={e => {
+                  const value = e.target.value
+                  updateStat('weapClass', value === '__custom__' ? '' : value)
+                }}
+              >
+                <option value="specialWeapon">specialWeapon (special slot)</option>
+                <option value="pistol">pistol</option>
+                <option value="smg">smg</option>
+                <option value="shotgun">shotgun</option>
+                <option value="assaultRifle">assaultRifle</option>
+                <option value="assaultCarbine">assaultCarbine</option>
+                <option value="machinegun">machinegun</option>
+                <option value="marksmanRifle">marksmanRifle</option>
+                <option value="sniperRifle">sniperRifle</option>
+                <option value="grenadeLauncher">grenadeLauncher</option>
+                <option value="__custom__">Custom...</option>
+              </select>
+              {(!flare.stats.weapClass || !['specialWeapon', 'pistol', 'smg', 'shotgun', 'assaultRifle', 'assaultCarbine', 'machinegun', 'marksmanRifle', 'sniperRifle', 'grenadeLauncher'].includes(flare.stats.weapClass)) && (
+                <input
+                  className="input-field mt-2"
+                  value={flare.stats.weapClass}
+                  onChange={e => updateStat('weapClass', e.target.value)}
+                  placeholder="Enter custom weapon class"
+                />
+              )}
+            </Field>
+            {renderBooleanField('Special Slot Only', 'isSpecialSlotOnly', 'If true, the handheld flare can only be placed in the special slot.')}
+          </div>
+        </CollapsibleSection>
+      )}
+    </Section>
+  )
+}
+
+function FlareLootTab({ flare, onChange }: { flare: FlareDefinition; onChange: (u: Partial<FlareDefinition>) => void }) {
+  return (
+    <Section title="Loot Table Injection" icon={<MapPin size={18} />}>
+      <LootEntryEditor
+        title="Flare Loot"
+        loot={flare.loot}
+        onChange={loot => onChange({ loot: { ...flare.loot, ...loot } })}
+        itemLabel="Add this flare to container loot tables"
       />
     </Section>
   )

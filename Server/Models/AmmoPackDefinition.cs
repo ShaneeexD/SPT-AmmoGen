@@ -17,6 +17,9 @@ public class AmmoPackDefinition
 
     [JsonPropertyName("grenades")]
     public List<GrenadeDefinition> Grenades { get; set; } = [];
+
+    [JsonPropertyName("flares")]
+    public List<FlareDefinition> Flares { get; set; } = [];
 }
 
 public class AmmoDefinition
@@ -281,5 +284,46 @@ public class SmokeSettingsConfig
     [JsonPropertyName("smokeFillSize")] public double SmokeFillSize { get; set; }
     [JsonPropertyName("smokeSizeOverTime")] public List<SmokeSizeKeyframe> SmokeSizeOverTime { get; set; } = [];
     [JsonPropertyName("smokeStartSpeed")] public List<SmokeSpeedRange> SmokeStartSpeed { get; set; } = [];
+}
+
+public class FlareDefinition
+{
+    [JsonPropertyName("id")] public string Id { get; set; } = string.Empty;
+    [JsonPropertyName("ammoId")] public string AmmoId { get; set; } = string.Empty;
+    [JsonPropertyName("kind")] public string Kind { get; set; } = "handheld";
+    [JsonPropertyName("enabled")] public bool Enabled { get; set; } = true;
+    [JsonPropertyName("baseTpl")] public string BaseTpl { get; set; } = string.Empty;
+    [JsonPropertyName("ammoBaseTpl")] public string AmmoBaseTpl { get; set; } = string.Empty;
+    [JsonPropertyName("name")] public string Name { get; set; } = string.Empty;
+    [JsonPropertyName("shortName")] public string ShortName { get; set; } = string.Empty;
+    [JsonPropertyName("description")] public string Description { get; set; } = string.Empty;
+    [JsonPropertyName("handbookParentId")] public string? HandbookParentId { get; set; }
+    [JsonPropertyName("stats")] public FlareStats Stats { get; set; } = new();
+    [JsonPropertyName("economy")] public AmmoEconomy Economy { get; set; } = new();
+    [JsonPropertyName("traders")] public List<TraderEntry> Traders { get; set; } = [];
+    [JsonPropertyName("crafting")] public CraftingEntry Crafting { get; set; } = new();
+    [JsonPropertyName("loot")] public LootEntry Loot { get; set; } = new();
+}
+
+public class FlareStats
+{
+    [JsonPropertyName("damage")] public int Damage { get; set; }
+    [JsonPropertyName("initialSpeed")] public int InitialSpeed { get; set; }
+    [JsonPropertyName("stackMaxSize")] public int StackMaxSize { get; set; }
+    [JsonPropertyName("ammoLifeTimeSec")] public double AmmoLifeTimeSec { get; set; }
+    [JsonPropertyName("tracer")] public bool Tracer { get; set; } = true;
+    [JsonPropertyName("tracerColor")] public string TracerColor { get; set; } = string.Empty;
+    [JsonPropertyName("tracerDistance")] public double TracerDistance { get; set; }
+    [JsonPropertyName("backgroundColor")] public string BackgroundColor { get; set; } = string.Empty;
+    [JsonPropertyName("flareColor")] public string FlareColor { get; set; } = string.Empty;
+    [JsonPropertyName("weight")] public double Weight { get; set; }
+    [JsonPropertyName("misfireChance")] public double MisfireChance { get; set; }
+    [JsonPropertyName("ricochetChance")] public double RicochetChance { get; set; }
+    [JsonPropertyName("flareTypes")] public List<string> FlareTypes { get; set; } = [];
+    [JsonPropertyName("airDropTemplateId")] public string AirDropTemplateId { get; set; } = string.Empty;
+    [JsonPropertyName("casingSounds")] public string CasingSounds { get; set; } = string.Empty;
+    [JsonPropertyName("ammoType")] public string AmmoType { get; set; } = string.Empty;
+    [JsonPropertyName("weapClass")] public string WeapClass { get; set; } = string.Empty;
+    [JsonPropertyName("isSpecialSlotOnly")] public bool IsSpecialSlotOnly { get; set; }
 }
 

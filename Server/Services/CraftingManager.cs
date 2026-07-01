@@ -15,6 +15,7 @@ public static class CraftingManager
         DatabaseService databaseService,
         IReadOnlyList<AmmoDefinition> definitions,
         IReadOnlyList<GrenadeDefinition> grenades,
+        IReadOnlyList<FlareDefinition> flares,
         ISptLogger<AmmoGenPlugin> logger)
     {
         var hideout = databaseService.GetHideout();
@@ -53,6 +54,21 @@ public static class CraftingManager
             catch (Exception ex)
             {
                 logger.LogWithColor($"[AmmoGen] Failed to add crafting recipe for grenade '{def.Name}': {ex.Message}", LogTextColor.Red);
+            }
+        }
+
+        foreach (var def in flares)
+        {
+            if (!def.Crafting.Enabled)
+                continue;
+
+            try
+            {
+                AddRecipe(def.Id, def.Name, def.Crafting, productions, logger);
+            }
+            catch (Exception ex)
+            {
+                logger.LogWithColor($"[AmmoGen] Failed to add crafting recipe for flare '{def.Name}': {ex.Message}", LogTextColor.Red);
             }
         }
     }

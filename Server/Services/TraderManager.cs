@@ -16,6 +16,7 @@ public static class TraderManager
         DatabaseService databaseService,
         IReadOnlyList<AmmoDefinition> definitions,
         IReadOnlyList<GrenadeDefinition> grenades,
+        IReadOnlyList<FlareDefinition> flares,
         ISptLogger<AmmoGenPlugin> logger)
     {
         var traders = databaseService.GetTraders();
@@ -86,6 +87,26 @@ public static class TraderManager
                 catch (Exception ex)
                 {
                     logger.LogWithColor($"[AmmoGen] Failed to add trader entry for grenade '{def.Name}' / '{traderEntry.TraderId}': {ex.Message}", LogTextColor.Red);
+                }
+            }
+        }
+
+        foreach (var def in flares)
+        {
+            foreach (var traderEntry in def.Traders)
+            {
+                if (!traderEntry.Enabled)
+                    continue;
+
+                try
+                {
+                    // For flares the weapon template *is* the handheld flare (RSP-30 style).
+                    // The cartridge is internal; the player buys and uses the handheld item.
+                    AddToTrader(def.Id, def.Name, traderEntry, traders, logger);
+                }
+                catch (Exception ex)
+                {
+                    logger.LogWithColor($"[AmmoGen] Failed to add trader entry for flare '{def.Name}' / '{traderEntry.TraderId}': {ex.Message}", LogTextColor.Red);
                 }
             }
         }

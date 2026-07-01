@@ -30,6 +30,7 @@ public static class LootInjector
         DatabaseService databaseService,
         IReadOnlyList<AmmoDefinition> definitions,
         IReadOnlyList<GrenadeDefinition> grenades,
+        IReadOnlyList<FlareDefinition> flares,
         ISptLogger<AmmoGenPlugin> logger,
         bool debug = false)
     {
@@ -41,10 +42,10 @@ public static class LootInjector
         }
 
         var locationDictionary = locations.GetDictionary();
-        var processedDefinitions = BuildInjectionDefinitions(definitions, grenades, logger);
+        var processedDefinitions = BuildInjectionDefinitions(definitions, grenades, flares, logger);
         if (processedDefinitions.Count == 0)
         {
-            logger.LogWithColor("[AmmoGen] No ammo or grenade definitions have loot injection enabled, skipping.", LogTextColor.Gray);
+            logger.LogWithColor("[AmmoGen] No ammo, grenade, or flare definitions have loot injection enabled, skipping.", LogTextColor.Gray);
             return;
         }
 
@@ -72,6 +73,7 @@ public static class LootInjector
     private static List<LootInjectionDefinition> BuildInjectionDefinitions(
         IReadOnlyList<AmmoDefinition> definitions,
         IReadOnlyList<GrenadeDefinition> grenades,
+        IReadOnlyList<FlareDefinition> flares,
         ISptLogger<AmmoGenPlugin> logger)
     {
         var result = new List<LootInjectionDefinition>();
@@ -115,6 +117,19 @@ public static class LootInjector
                 {
                     result.Add(new LootInjectionDefinition(
                         $"{def.Name} (grenade)", def.Loot.ContainerIds, [def.Id], probability));
+                }
+            }
+        }
+
+        foreach (var def in flares)
+        {
+            if (def.Loot.Enabled && def.Loot.ContainerIds.Count > 0)
+            {
+                var probability = RarityProbabilities.GetValueOrDefault(def.Loot.Rarity, 5000);
+                if (probability > 0)
+                {
+                    result.Add(new LootInjectionDefinition(
+                        $"{def.Name} (flare)", def.Loot.ContainerIds, [def.Id], probability));
                 }
             }
         }

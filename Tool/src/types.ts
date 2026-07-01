@@ -3,6 +3,54 @@ export interface AmmoPackDefinition {
   name: string
   ammo: AmmoDefinition[]
   grenades: GrenadeDefinition[]
+  flares: FlareDefinition[]
+}
+
+export type FlareKind = 'handheld' | 'cartridge'
+
+export const FLARE_KIND_OPTIONS: { value: FlareKind; label: string }[] = [
+  { value: 'handheld', label: 'Handheld flare (RSP-30/ROP-30 style)' },
+  { value: 'cartridge', label: 'Signal pistol cartridge (SP-81)' },
+]
+
+export interface FlareDefinition {
+  id: string
+  ammoId: string
+  kind: FlareKind
+  enabled: boolean
+  baseTpl: string
+  ammoBaseTpl: string
+  compareToFlareId?: string
+  name: string
+  shortName: string
+  description: string
+  handbookParentId?: string
+  stats: FlareStats
+  economy: AmmoEconomy
+  traders: TraderEntry[]
+  crafting: CraftingEntry
+  loot: LootEntry
+}
+
+export interface FlareStats {
+  damage: number
+  initialSpeed: number
+  stackMaxSize: number
+  ammoLifeTimeSec: number
+  tracer: boolean
+  tracerColor: string
+  tracerDistance: number
+  backgroundColor: string
+  flareColor: string
+  weight: number
+  misfireChance: number
+  ricochetChance: number
+  flareTypes: string[]
+  airDropTemplateId: string
+  casingSounds: string
+  ammoType: string
+  weapClass: string
+  isSpecialSlotOnly: boolean
 }
 
 export interface AmmoDefinition {
@@ -246,6 +294,8 @@ export const VANILLA_TRADERS = [
 export { AMMO_TEMPLATES, type AmmoTemplate } from './generated_ammo_templates'
 export { GRENADE_TEMPLATES, type GrenadeTemplate } from './generated_grenade_templates'
 export { GRENADE_STATS, type GrenadeTemplateStats } from './generated_grenade_stats'
+export { HANDHELD_FLARE_TEMPLATES, CARTRIDGE_TEMPLATES, type FlareTemplate } from './generated_flare_templates'
+export { FLARE_STATS, CARTRIDGE_STATS, type FlareTemplateStats } from './generated_flare_stats'
 
 export const RARITY_OPTIONS = ['Common', 'Rare', 'SuperRare', 'NotExists']
 
@@ -410,12 +460,62 @@ export function createDefaultGrenade(): GrenadeDefinition {
   }
 }
 
+export function createDefaultFlare(): FlareDefinition {
+  return {
+    id: generateMongoId(),
+    ammoId: generateMongoId(),
+    kind: 'handheld',
+    enabled: true,
+    baseTpl: '',
+    ammoBaseTpl: '',
+    compareToFlareId: '',
+    name: '',
+    shortName: '',
+    description: '',
+    stats: {
+      damage: 0,
+      initialSpeed: 0,
+      stackMaxSize: 0,
+      ammoLifeTimeSec: 0,
+      tracer: true,
+      tracerColor: '',
+      tracerDistance: 0,
+      backgroundColor: '',
+      flareColor: '',
+      weight: 0,
+      misfireChance: 0,
+      ricochetChance: 0,
+      flareTypes: [],
+      airDropTemplateId: '',
+      casingSounds: '',
+      ammoType: '',
+      weapClass: 'specialWeapon',
+      isSpecialSlotOnly: false,
+    },
+    economy: {
+      handbookPriceRoubles: 0,
+      fleaPriceRoubles: 0,
+      rarityPvE: 'Rare',
+    },
+    traders: [createDefaultTraderEntry()],
+    crafting: {
+      enabled: true,
+      workbenchLevel: 2,
+      craftTimeSeconds: 10800,
+      outputCount: 1,
+      requirements: [],
+    },
+    loot: createDefaultLootEntry(),
+  }
+}
+
 export function createDefaultPack(): AmmoPackDefinition {
   return {
     enabled: true,
     name: 'My Ammo Pack',
     ammo: [createDefaultAmmo()],
     grenades: [],
+    flares: [],
   }
 }
 
