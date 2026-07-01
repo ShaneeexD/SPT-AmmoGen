@@ -664,7 +664,7 @@ export default function App() {
   )
 }
 
-function Field({ label, children, className = '', tooltip }: { label: string; children: React.ReactNode; className?: string; tooltip?: string }) {
+function Field({ label, children, className = '', tooltip }: { label: string; children: React.ReactNode; className?: string; tooltip?: React.ReactNode }) {
   return (
     <div className={className}>
       <label className="label flex items-center gap-1.5">
@@ -1033,18 +1033,73 @@ function StatsTab({ ammo, onChange }: { ammo: AmmoDefinition; onChange: (u: Part
               <option value="true">Yes</option>
             </select>
           </Field>
-          <Field label="Tracer Color" tooltip="Color key for the tracer effect. Pick from the values used by base ammo templates.">
+          <Field
+            label="Tracer Color"
+            tooltip={
+              <span>
+                Preset color keys used by base ammo, or a custom hex color. Custom colors require the{' '}
+                <a
+                  href="https://forge.sp-tarkov.com/mod/1090/color-converter-api"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-tarkov-accent underline hover:text-tarkov-accent/80"
+                  onClick={e => e.stopPropagation()}
+                >
+                  ColorConverterAPI
+                </a>{' '}
+                mod.
+              </span>
+            }
+          >
             <select
               className="input-field"
-              value={ammo.stats.tracerColor}
-              onChange={e => onChange({ stats: { ...ammo.stats, tracerColor: e.target.value } })}
+              value={TRACER_COLOR_OPTIONS.includes(ammo.stats.tracerColor) ? ammo.stats.tracerColor : ammo.stats.tracerColor ? '__CUSTOM__' : ''}
+              onChange={e => {
+                const value = e.target.value
+                if (value === '__CUSTOM__') {
+                  onChange({ stats: { ...ammo.stats, tracerColor: '#FF0000' } })
+                } else {
+                  onChange({ stats: { ...ammo.stats, tracerColor: value } })
+                }
+              }}
             >
               <option value="">None / Default</option>
               {TRACER_COLOR_OPTIONS.map(c => (
                 <option key={c} value={c}>{c}</option>
               ))}
+              <option value="__CUSTOM__">Custom (requires ColorConverterAPI mod)</option>
             </select>
           </Field>
+          {ammo.stats.tracerColor && !TRACER_COLOR_OPTIONS.includes(ammo.stats.tracerColor) && (
+            <Field
+              label="Custom Tracer Color"
+              tooltip={
+                <span>
+                  Hex color (#RRGGBB). Custom colors require the{' '}
+                  <a
+                    href="https://forge.sp-tarkov.com/mod/1090/color-converter-api"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-tarkov-accent underline hover:text-tarkov-accent/80"
+                    onClick={e => e.stopPropagation()}
+                  >
+                    ColorConverterAPI
+                  </a>{' '}
+                  mod to render in-game.
+                </span>
+              }
+            >
+              <div className="flex items-center gap-3">
+                <input
+                  type="color"
+                  className="w-10 h-10 rounded cursor-pointer bg-transparent border-0 p-0"
+                  value={ammo.stats.tracerColor}
+                  onChange={e => onChange({ stats: { ...ammo.stats, tracerColor: e.target.value.toUpperCase() } })}
+                />
+                <span className="text-xs font-mono text-tarkov-text-dim">{ammo.stats.tracerColor}</span>
+              </div>
+            </Field>
+          )}
           {renderNumberField('tracerDistance')}
         </div>
       </CollapsibleSection>
