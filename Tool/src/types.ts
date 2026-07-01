@@ -130,6 +130,26 @@ export interface GrenadeStats {
   weight: number
   smokeColor: string
   bodyColor: string
+  smokeRadius: number
+  smokeDuration: number
+  smokeFillSize: number
+  smokeSizeOverTime: SmokeSizeKeyframe[]
+  smokeStartSpeed: SmokeSpeedRange[]
+  overrideSmokeRadius: boolean
+  overrideSmokeDuration: boolean
+  overrideSmokeFillSize: boolean
+  overrideSmokeSizeOverTime: boolean
+  overrideSmokeStartSpeed: boolean
+}
+
+export interface SmokeSizeKeyframe {
+  time: number
+  value: number
+}
+
+export interface SmokeSpeedRange {
+  x: number
+  y: number
 }
 
 export interface AmmoEconomy {
@@ -358,6 +378,16 @@ export function createDefaultGrenade(): GrenadeDefinition {
       weight: 0,
       smokeColor: '',
       bodyColor: '',
+      smokeRadius: 0,
+      smokeDuration: 0,
+      smokeFillSize: 0,
+      smokeSizeOverTime: [],
+      smokeStartSpeed: [],
+      overrideSmokeRadius: false,
+      overrideSmokeDuration: false,
+      overrideSmokeFillSize: false,
+      overrideSmokeSizeOverTime: false,
+      overrideSmokeStartSpeed: false,
     },
     economy: {
       handbookPriceRoubles: 0,

@@ -248,5 +248,36 @@ public class GrenadeStats
     [JsonPropertyName("weight")] public double Weight { get; set; }
     [JsonPropertyName("smokeColor")] public string SmokeColor { get; set; } = string.Empty;
     [JsonPropertyName("bodyColor")] public string BodyColor { get; set; } = string.Empty;
+    [JsonPropertyName("smokeRadius")] public double SmokeRadius { get; set; }
+    [JsonPropertyName("smokeDuration")] public double SmokeDuration { get; set; }
+    [JsonPropertyName("smokeFillSize")] public double SmokeFillSize { get; set; }
+    [JsonPropertyName("smokeSizeOverTime")] public List<SmokeSizeKeyframe> SmokeSizeOverTime { get; set; } = [];
+    [JsonPropertyName("smokeStartSpeed")] public List<SmokeSpeedRange> SmokeStartSpeed { get; set; } = [];
+    [JsonPropertyName("overrideSmokeRadius")] public bool OverrideSmokeRadius { get; set; }
+    [JsonPropertyName("overrideSmokeDuration")] public bool OverrideSmokeDuration { get; set; }
+    [JsonPropertyName("overrideSmokeFillSize")] public bool OverrideSmokeFillSize { get; set; }
+    [JsonPropertyName("overrideSmokeSizeOverTime")] public bool OverrideSmokeSizeOverTime { get; set; }
+    [JsonPropertyName("overrideSmokeStartSpeed")] public bool OverrideSmokeStartSpeed { get; set; }
+}
+
+public class SmokeSizeKeyframe
+{
+    [JsonPropertyName("time")] public float Time { get; set; }
+    [JsonPropertyName("value")] public float Value { get; set; }
+}
+
+public class SmokeSpeedRange
+{
+    [JsonPropertyName("x")] public float X { get; set; }
+    [JsonPropertyName("y")] public float Y { get; set; }
+}
+
+public class SmokeSettingsConfig
+{
+    [JsonPropertyName("smokeRadius")] public double SmokeRadius { get; set; }
+    [JsonPropertyName("smokeDuration")] public double SmokeDuration { get; set; }
+    [JsonPropertyName("smokeFillSize")] public double SmokeFillSize { get; set; }
+    [JsonPropertyName("smokeSizeOverTime")] public List<SmokeSizeKeyframe> SmokeSizeOverTime { get; set; } = [];
+    [JsonPropertyName("smokeStartSpeed")] public List<SmokeSpeedRange> SmokeStartSpeed { get; set; } = [];
 }
 

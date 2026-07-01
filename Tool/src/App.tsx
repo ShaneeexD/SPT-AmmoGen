@@ -2373,6 +2373,38 @@ function GrenadeStatsTab({ grenade, onChange }: { grenade: GrenadeDefinition; on
     onChange({ stats: { ...grenade.stats, [key]: { ...v, [axis]: value } } })
   }
 
+  const updateSmokeKeyframe = (index: number, field: 'time' | 'value', value: number) => {
+    const keyframes = [...grenade.stats.smokeSizeOverTime]
+    keyframes[index] = { ...keyframes[index], [field]: value }
+    onChange({ stats: { ...grenade.stats, smokeSizeOverTime: keyframes } })
+  }
+
+  const addSmokeKeyframe = () => {
+    onChange({ stats: { ...grenade.stats, smokeSizeOverTime: [...grenade.stats.smokeSizeOverTime, { time: 0, value: 0 }] } })
+  }
+
+  const removeSmokeKeyframe = (index: number) => {
+    const keyframes = [...grenade.stats.smokeSizeOverTime]
+    keyframes.splice(index, 1)
+    onChange({ stats: { ...grenade.stats, smokeSizeOverTime: keyframes } })
+  }
+
+  const updateSmokeSpeedRange = (index: number, field: 'x' | 'y', value: number) => {
+    const ranges = [...grenade.stats.smokeStartSpeed]
+    ranges[index] = { ...ranges[index], [field]: value }
+    onChange({ stats: { ...grenade.stats, smokeStartSpeed: ranges } })
+  }
+
+  const addSmokeSpeedRange = () => {
+    onChange({ stats: { ...grenade.stats, smokeStartSpeed: [...grenade.stats.smokeStartSpeed, { x: 0, y: 0 }] } })
+  }
+
+  const removeSmokeSpeedRange = (index: number) => {
+    const ranges = [...grenade.stats.smokeStartSpeed]
+    ranges.splice(index, 1)
+    onChange({ stats: { ...grenade.stats, smokeStartSpeed: ranges } })
+  }
+
   const renderNumberField = (label: string, key: keyof GrenadeStats, tooltip?: string, step?: number) => (
     <Field key={key} label={label} tooltip={tooltip}>
       <input
@@ -2384,6 +2416,36 @@ function GrenadeStatsTab({ grenade, onChange }: { grenade: GrenadeDefinition; on
       />
     </Field>
   )
+
+  const renderToggleableNumberField = (
+    label: string,
+    valueKey: keyof GrenadeStats,
+    overrideKey: keyof GrenadeStats,
+    tooltip?: string,
+    step?: number,
+  ) => {
+    const enabled = grenade.stats[overrideKey] as boolean
+    return (
+      <Field key={valueKey} label={label} tooltip={tooltip}>
+        <div className="flex items-center gap-3">
+          <input
+            type="checkbox"
+            checked={enabled}
+            onChange={e => updateStat(overrideKey, e.target.checked as GrenadeStats[keyof GrenadeStats])}
+            title="Override base value"
+          />
+          <input
+            className="input-field font-mono text-sm flex-1"
+            type="number"
+            step={step ?? 0.01}
+            disabled={!enabled}
+            value={grenade.stats[valueKey] as number}
+            onChange={e => updateStat(valueKey, (parseFloat(e.target.value) || 0) as GrenadeStats[keyof GrenadeStats])}
+          />
+        </div>
+      </Field>
+    )
+  }
 
   const renderBooleanField = (label: string, key: keyof GrenadeStats, tooltip?: string) => (
     <Field key={key} label={label} tooltip={tooltip}>
@@ -2570,6 +2632,102 @@ function GrenadeStatsTab({ grenade, onChange }: { grenade: GrenadeDefinition; on
         </Field>
         <p className="text-xs text-tarkov-text-dim mt-2">
           Leave blank to keep the base grenade's default body color. Set a hex value to recolor the grenade body once thrown via the AmmoGen Client mod.
+        </p>
+      </CollapsibleSection>
+
+      <CollapsibleSection title="Smoke Settings" icon={<Bomb size={16} />} defaultOpen={false}>
+        {renderToggleableNumberField('Smoke Radius', 'smokeRadius', 'overrideSmokeRadius', 'Multiplier for the smoke cloud size. 1 = default. Requires AmmoGen Client.', 0.1)}
+        {renderToggleableNumberField('Smoke Duration', 'smokeDuration', 'overrideSmokeDuration', 'How long the smoke emission lasts in seconds. 90 = default. Requires AmmoGen Client.', 1)}
+        {renderToggleableNumberField('Smoke Fill Size', 'smokeFillSize', 'overrideSmokeFillSize', 'Initial fill size for the smoke area. 3.5 = default. Requires AmmoGen Client.', 0.1)}
+
+        <Field label="Smoke Size Over Time" tooltip="Animation curve keyframes controlling smoke radius over time. Disabled by default; enable to override the base curve.">
+          <div className="flex flex-col gap-2">
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={grenade.stats.overrideSmokeSizeOverTime}
+                onChange={e => updateStat('overrideSmokeSizeOverTime', e.target.checked)}
+              />
+              Override base size curve
+            </label>
+            {grenade.stats.overrideSmokeSizeOverTime && (
+              <div className="flex flex-col gap-2">
+                {grenade.stats.smokeSizeOverTime.map((kf, i) => (
+                  <div key={i} className="flex items-center gap-2">
+                    <input
+                      type="number"
+                      step={0.01}
+                      className="input-field font-mono text-sm w-24"
+                      value={kf.time}
+                      onChange={e => updateSmokeKeyframe(i, 'time', parseFloat(e.target.value) || 0)}
+                      placeholder="Time"
+                    />
+                    <input
+                      type="number"
+                      step={0.01}
+                      className="input-field font-mono text-sm w-24"
+                      value={kf.value}
+                      onChange={e => updateSmokeKeyframe(i, 'value', parseFloat(e.target.value) || 0)}
+                      placeholder="Value"
+                    />
+                    <button className="btn-secondary text-xs px-2" onClick={() => removeSmokeKeyframe(i)} title="Remove keyframe">
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
+                ))}
+                <button className="btn-secondary text-xs px-2 self-start flex items-center gap-1" onClick={addSmokeKeyframe}>
+                  <Plus size={14} /> Add Keyframe
+                </button>
+              </div>
+            )}
+          </div>
+        </Field>
+
+        <Field label="Smoke Start Speed" tooltip="Particle speed ranges. Disabled by default; enable to override the base values.">
+          <div className="flex flex-col gap-2">
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={grenade.stats.overrideSmokeStartSpeed}
+                onChange={e => updateStat('overrideSmokeStartSpeed', e.target.checked)}
+              />
+              Override base start speed
+            </label>
+            {grenade.stats.overrideSmokeStartSpeed && (
+              <div className="flex flex-col gap-2">
+                {grenade.stats.smokeStartSpeed.map((range, i) => (
+                  <div key={i} className="flex items-center gap-2">
+                    <input
+                      type="number"
+                      step={0.1}
+                      className="input-field font-mono text-sm w-24"
+                      value={range.x}
+                      onChange={e => updateSmokeSpeedRange(i, 'x', parseFloat(e.target.value) || 0)}
+                      placeholder="Min"
+                    />
+                    <input
+                      type="number"
+                      step={0.1}
+                      className="input-field font-mono text-sm w-24"
+                      value={range.y}
+                      onChange={e => updateSmokeSpeedRange(i, 'y', parseFloat(e.target.value) || 0)}
+                      placeholder="Max"
+                    />
+                    <button className="btn-secondary text-xs px-2" onClick={() => removeSmokeSpeedRange(i)} title="Remove range">
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
+                ))}
+                <button className="btn-secondary text-xs px-2 self-start flex items-center gap-1" onClick={addSmokeSpeedRange}>
+                  <Plus size={14} /> Add Range
+                </button>
+              </div>
+            )}
+          </div>
+        </Field>
+
+        <p className="text-xs text-tarkov-text-dim mt-2">
+          Toggle an option to override that base value. Untoggled options are not written to the pack, so the grenade keeps its original behavior. Requires the AmmoGen Client mod.
         </p>
       </CollapsibleSection>
 

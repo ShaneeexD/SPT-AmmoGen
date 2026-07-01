@@ -53,6 +53,16 @@ for (const itemId of Object.keys(items)) {
     weight: props.Weight || 0,
     smokeColor: '',
     bodyColor: '',
+    smokeRadius: 0,
+    smokeDuration: 0,
+    smokeFillSize: 0,
+    smokeSizeOverTime: [],
+    smokeStartSpeed: [],
+    overrideSmokeRadius: false,
+    overrideSmokeDuration: false,
+    overrideSmokeFillSize: false,
+    overrideSmokeSizeOverTime: false,
+    overrideSmokeStartSpeed: false,
   }
 }
 
@@ -86,6 +96,16 @@ const statLines = sortedStats.map(([id, s]) => {
     `weight: ${s.weight}`,
     `smokeColor: ${JSON.stringify(s.smokeColor)}`,
     `bodyColor: ${JSON.stringify(s.bodyColor)}`,
+    `smokeRadius: ${s.smokeRadius}`,
+    `smokeDuration: ${s.smokeDuration}`,
+    `smokeFillSize: ${s.smokeFillSize}`,
+    `smokeSizeOverTime: ${JSON.stringify(s.smokeSizeOverTime)}`,
+    `smokeStartSpeed: ${JSON.stringify(s.smokeStartSpeed)}`,
+    `overrideSmokeRadius: ${s.overrideSmokeRadius}`,
+    `overrideSmokeDuration: ${s.overrideSmokeDuration}`,
+    `overrideSmokeFillSize: ${s.overrideSmokeFillSize}`,
+    `overrideSmokeSizeOverTime: ${s.overrideSmokeSizeOverTime}`,
+    `overrideSmokeStartSpeed: ${s.overrideSmokeStartSpeed}`,
   ].join(', ')
   return `  '${id}': { ${statLine} },`
 })
@@ -142,6 +162,26 @@ export interface GrenadeTemplateStats {
   weight: number
   smokeColor: string
   bodyColor: string
+  smokeRadius: number
+  smokeDuration: number
+  smokeFillSize: number
+  smokeSizeOverTime: SmokeSizeKeyframe[]
+  smokeStartSpeed: SmokeSpeedRange[]
+  overrideSmokeRadius: boolean
+  overrideSmokeDuration: boolean
+  overrideSmokeFillSize: boolean
+  overrideSmokeSizeOverTime: boolean
+  overrideSmokeStartSpeed: boolean
+}
+
+export interface SmokeSizeKeyframe {
+  time: number
+  value: number
+}
+
+export interface SmokeSpeedRange {
+  x: number
+  y: number
 }
 
 export const GRENADE_STATS: Record<string, GrenadeTemplateStats> = {

@@ -26,6 +26,7 @@ public static class GrenadeManager
     {
         var smokeColors = new Dictionary<string, string>();
         var bodyColors = new Dictionary<string, string>();
+        var smokeSettings = new Dictionary<string, SmokeSettingsConfig>();
         foreach (var def in definitions)
         {
             try
@@ -35,6 +36,22 @@ public static class GrenadeManager
                     smokeColors[def.Id] = def.Stats.SmokeColor;
                 if (!string.IsNullOrWhiteSpace(def.Stats.BodyColor))
                     bodyColors[def.Id] = def.Stats.BodyColor;
+
+                var settings = new SmokeSettingsConfig();
+                if (def.Stats.OverrideSmokeRadius)
+                    settings.SmokeRadius = def.Stats.SmokeRadius;
+                if (def.Stats.OverrideSmokeDuration)
+                    settings.SmokeDuration = def.Stats.SmokeDuration;
+                if (def.Stats.OverrideSmokeFillSize)
+                    settings.SmokeFillSize = def.Stats.SmokeFillSize;
+                if (def.Stats.OverrideSmokeSizeOverTime)
+                    settings.SmokeSizeOverTime = def.Stats.SmokeSizeOverTime;
+                if (def.Stats.OverrideSmokeStartSpeed)
+                    settings.SmokeStartSpeed = def.Stats.SmokeStartSpeed;
+
+                if (settings.SmokeRadius != 0 || settings.SmokeDuration != 0 || settings.SmokeFillSize != 0 ||
+                    settings.SmokeSizeOverTime.Count > 0 || settings.SmokeStartSpeed.Count > 0)
+                    smokeSettings[def.Id] = settings;
             }
             catch (Exception ex)
             {
@@ -44,6 +61,7 @@ public static class GrenadeManager
 
         WriteColorConfig(smokeColors, "smoke_colors.json", logger);
         WriteColorConfig(bodyColors, "body_colors.json", logger);
+        WriteSmokeSettingsConfig(smokeSettings, logger);
     }
 
     private static void RegisterGrenade(
@@ -169,6 +187,25 @@ public static class GrenadeManager
         catch (Exception ex)
         {
             logger.LogWithColor($"[AmmoGen] Failed to write {fileName}: {ex.Message}", LogTextColor.Red);
+        }
+    }
+
+    private static void WriteSmokeSettingsConfig(Dictionary<string, SmokeSettingsConfig> settings, ISptLogger<AmmoGenPlugin> logger)
+    {
+        if (settings.Count == 0)
+            return;
+
+        try
+        {
+            var configDir = System.IO.Path.Combine(Directory.GetCurrentDirectory(), "user", "mods", "AmmoGen", "config");
+            Directory.CreateDirectory(configDir);
+            var configPath = System.IO.Path.Combine(configDir, "smoke_settings.json");
+            File.WriteAllText(configPath, JsonSerializer.Serialize(settings, new JsonSerializerOptions { WriteIndented = true }));
+            logger.LogWithColor($"[AmmoGen] Wrote smoke_settings.json for {settings.Count} grenade(s) to {configPath}", LogTextColor.Green);
+        }
+        catch (Exception ex)
+        {
+            logger.LogWithColor($"[AmmoGen] Failed to write smoke_settings.json: {ex.Message}", LogTextColor.Red);
         }
     }
 }
