@@ -833,12 +833,12 @@ export default function App() {
             </div>
           ) : (
             <>
-              {activeTab === 'identity' && <GrenadeIdentityTab pack={pack} setPack={setPack} grenade={activeGrenade} onChange={u => updateGrenade(activeIndex, u)} />}
-              {activeTab === 'stats' && <GrenadeStatsTab grenade={activeGrenade} onChange={u => updateGrenade(activeIndex, u)} />}
-              {activeTab === 'economy' && <EconomyTab economy={activeGrenade.economy} onChange={u => updateGrenade(activeIndex, { economy: { ...activeGrenade.economy, ...u } })} />}
-              {activeTab === 'trader' && <TraderTab traders={activeGrenade.traders} onChange={u => updateGrenade(activeIndex, u)} />}
-              {activeTab === 'crafting' && <CraftingTab crafting={activeGrenade.crafting} onChange={u => updateGrenade(activeIndex, u)} />}
-              {activeTab === 'loot' && <GrenadeLootTab grenade={activeGrenade} onChange={u => updateGrenade(activeIndex, u)} />}
+              {activeTab === 'identity' && <GrenadeIdentityTab key={activeGrenade.id} pack={pack} setPack={setPack} grenade={activeGrenade} onChange={u => updateGrenade(activeIndex, u)} />}
+              {activeTab === 'stats' && <GrenadeStatsTab key={activeGrenade.id} grenade={activeGrenade} onChange={u => updateGrenade(activeIndex, u)} />}
+              {activeTab === 'economy' && <EconomyTab key={activeGrenade.id} economy={activeGrenade.economy} onChange={u => updateGrenade(activeIndex, { economy: { ...activeGrenade.economy, ...u } })} />}
+              {activeTab === 'trader' && <TraderTab key={activeGrenade.id} traders={activeGrenade.traders} onChange={u => updateGrenade(activeIndex, u)} />}
+              {activeTab === 'crafting' && <CraftingTab key={activeGrenade.id} crafting={activeGrenade.crafting} onChange={u => updateGrenade(activeIndex, u)} />}
+              {activeTab === 'loot' && <GrenadeLootTab key={activeGrenade.id} grenade={activeGrenade} onChange={u => updateGrenade(activeIndex, u)} />}
               {activeTab === 'preview' && <PreviewTab pack={pack} activeAmmo={activeAmmo} />}
             </>
           )
@@ -2551,9 +2551,11 @@ function GrenadeStatsTab({ grenade, onChange }: { grenade: GrenadeDefinition; on
           {renderNumberField('Explosion Delay', 'explDelay', 'Delay before the grenade explodes after trigger.')}
           {renderNumberField('Min Time To Contact Explode', 'minTimeToContactExplode', 'Minimum time before contact explosion can occur.')}
           {renderNumberField('Strength', 'strength', 'Max damage per fragment.', 1)}
+          {renderNumberField('Min Fragment Damage', 'minFragmentDamage', 'Minimum damage a single fragment can deal.', 0.1)}
           {renderNumberField('Throw Damage Max', 'throwDamMax', 'Maximum damage dealt on direct throw impact.')}
           {renderNumberField('Weight', 'weight', 'Grenade weight in kg.')}
           {renderBooleanField('Play Fuze Sound', 'playFuzeSound', 'Whether the fuze sound is audible before detonation.')}
+          {renderBooleanField('Can Plant On Ground', 'canPlantOnGround', 'Whether the grenade can be planted on the ground as a tripwire mine.')}
         </div>
       </CollapsibleSection>
 

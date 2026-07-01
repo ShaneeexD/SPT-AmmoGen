@@ -48,6 +48,8 @@ for (const itemId of Object.keys(items)) {
     minTimeToContactExplode: props.MinTimeToContactExplode ?? -1,
     playFuzeSound: props.PlayFuzeSound ?? true,
     strength: props.Strength || 0,
+    minFragmentDamage: props.MinFragmentDamage || 0,
+    canPlantOnGround: props.CanPlantOnGround || false,
     throwType: props.ThrowType || '',
     throwDamMax: props.throwDamMax || 0,
     weight: props.Weight || 0,
@@ -91,6 +93,8 @@ const statLines = sortedStats.map(([id, s]) => {
     `minTimeToContactExplode: ${s.minTimeToContactExplode}`,
     `playFuzeSound: ${s.playFuzeSound}`,
     `strength: ${s.strength}`,
+    `minFragmentDamage: ${s.minFragmentDamage}`,
+    `canPlantOnGround: ${s.canPlantOnGround}`,
     `throwType: ${JSON.stringify(s.throwType)}`,
     `throwDamMax: ${s.throwDamMax}`,
     `weight: ${s.weight}`,
@@ -157,6 +161,8 @@ export interface GrenadeTemplateStats {
   minTimeToContactExplode: number
   playFuzeSound: boolean
   strength: number
+  minFragmentDamage: number
+  canPlantOnGround: boolean
   throwType: string
   throwDamMax: number
   weight: number

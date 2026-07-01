@@ -125,6 +125,8 @@ export interface GrenadeStats {
   minTimeToContactExplode: number
   playFuzeSound: boolean
   strength: number
+  minFragmentDamage: number
+  canPlantOnGround: boolean
   throwType: string
   throwDamMax: number
   weight: number
@@ -373,6 +375,8 @@ export function createDefaultGrenade(): GrenadeDefinition {
       minTimeToContactExplode: -1,
       playFuzeSound: true,
       strength: 0,
+      minFragmentDamage: 0,
+      canPlantOnGround: false,
       throwType: '',
       throwDamMax: 0,
       weight: 0,

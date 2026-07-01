@@ -147,6 +147,13 @@ public static class GrenadeManager
             if (items.TryGetValue(def.Id, out var tpl) && tpl.Properties != null)
             {
                 tpl.Properties.RarityPvE = def.Economy.RarityPvE;
+
+                // SPT's TemplateItemProperties does not expose these fields directly, so set them via reflection
+                // if the underlying cloned template has them.
+                if (def.Stats.MinFragmentDamage > 0)
+                    SetPropertyOrField(tpl.Properties, "MinFragmentDamage", (float)def.Stats.MinFragmentDamage);
+                if (def.Stats.CanPlantOnGround)
+                    SetPropertyOrField(tpl.Properties, "CanPlantOnGround", true);
             }
         }
         else
@@ -155,6 +162,20 @@ public static class GrenadeManager
                 $"[AmmoGen] CreateItemFromClone reported failure for grenade '{def.Name}': {string.Join(", ", result.Errors ?? [])}",
                 LogTextColor.Yellow);
         }
+    }
+
+    private static void SetPropertyOrField(object target, string name, object value)
+    {
+        var type = target.GetType();
+        var prop = type.GetProperty(name, System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
+        if (prop != null && prop.CanWrite)
+        {
+            prop.SetValue(target, value);
+            return;
+        }
+        var field = type.GetField(name, System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
+        if (field != null)
+            field.SetValue(target, value);
     }
 
     private static string ResolveHandbookParent(DatabaseService databaseService, string baseTpl)

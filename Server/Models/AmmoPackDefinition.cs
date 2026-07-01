@@ -243,6 +243,8 @@ public class GrenadeStats
     [JsonPropertyName("minTimeToContactExplode")] public double MinTimeToContactExplode { get; set; } = -1;
     [JsonPropertyName("playFuzeSound")] public bool PlayFuzeSound { get; set; } = true;
     [JsonPropertyName("strength")] public int Strength { get; set; }
+    [JsonPropertyName("minFragmentDamage")] public double MinFragmentDamage { get; set; }
+    [JsonPropertyName("canPlantOnGround")] public bool CanPlantOnGround { get; set; }
     [JsonPropertyName("throwType")] public string ThrowType { get; set; } = string.Empty;
     [JsonPropertyName("throwDamMax")] public double ThrowDamMax { get; set; }
     [JsonPropertyName("weight")] public double Weight { get; set; }
