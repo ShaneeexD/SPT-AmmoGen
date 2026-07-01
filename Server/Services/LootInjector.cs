@@ -29,6 +29,7 @@ public static class LootInjector
     public static void InjectAll(
         DatabaseService databaseService,
         IReadOnlyList<AmmoDefinition> definitions,
+        IReadOnlyList<GrenadeDefinition> grenades,
         ISptLogger<AmmoGenPlugin> logger,
         bool debug = false)
     {
@@ -40,10 +41,10 @@ public static class LootInjector
         }
 
         var locationDictionary = locations.GetDictionary();
-        var processedDefinitions = BuildInjectionDefinitions(definitions, logger);
+        var processedDefinitions = BuildInjectionDefinitions(definitions, grenades, logger);
         if (processedDefinitions.Count == 0)
         {
-            logger.LogWithColor("[AmmoGen] No ammo definitions have loot injection enabled, skipping.", LogTextColor.Gray);
+            logger.LogWithColor("[AmmoGen] No ammo or grenade definitions have loot injection enabled, skipping.", LogTextColor.Gray);
             return;
         }
 
@@ -57,7 +58,7 @@ public static class LootInjector
         }
 
         logger.LogWithColor(
-            $"[AmmoGen] Registered loot injection transformer for {locationCount} location(s) covering {processedDefinitions.Count} ammo definition(s).",
+            $"[AmmoGen] Registered loot injection transformer for {locationCount} location(s) covering {processedDefinitions.Count} item definition(s).",
             LogTextColor.Green);
 
         foreach (var def in processedDefinitions)
@@ -70,6 +71,7 @@ public static class LootInjector
 
     private static List<LootInjectionDefinition> BuildInjectionDefinitions(
         IReadOnlyList<AmmoDefinition> definitions,
+        IReadOnlyList<GrenadeDefinition> grenades,
         ISptLogger<AmmoGenPlugin> logger)
     {
         var result = new List<LootInjectionDefinition>();
@@ -100,6 +102,19 @@ public static class LootInjector
                 {
                     result.Add(new LootInjectionDefinition(
                         $"{def.Name} (ammo box)", def.AmmoBoxLoot.ContainerIds, [def.AmmoBox.Id], probability));
+                }
+            }
+        }
+
+        foreach (var def in grenades)
+        {
+            if (def.Loot.Enabled && def.Loot.ContainerIds.Count > 0)
+            {
+                var probability = RarityProbabilities.GetValueOrDefault(def.Loot.Rarity, 5000);
+                if (probability > 0)
+                {
+                    result.Add(new LootInjectionDefinition(
+                        $"{def.Name} (grenade)", def.Loot.ContainerIds, [def.Id], probability));
                 }
             }
         }

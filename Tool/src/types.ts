@@ -2,6 +2,7 @@ export interface AmmoPackDefinition {
   enabled: boolean
   name: string
   ammo: AmmoDefinition[]
+  grenades: GrenadeDefinition[]
 }
 
 export interface AmmoDefinition {
@@ -21,6 +22,22 @@ export interface AmmoDefinition {
   ammoBox: AmmoBoxEntry
   ammoLoot: LootEntry
   ammoBoxLoot: LootEntry
+}
+
+export interface GrenadeDefinition {
+  id: string
+  enabled: boolean
+  baseTpl: string
+  compareToGrenadeId?: string
+  name: string
+  shortName: string
+  description: string
+  handbookParentId?: string
+  stats: GrenadeStats
+  economy: AmmoEconomy
+  traders: TraderEntry[]
+  crafting: CraftingEntry
+  loot: LootEntry
 }
 
 export interface Vector3 {
@@ -92,6 +109,25 @@ export interface AmmoStats {
   armorDistanceDistanceDamage: Vector3
   contusion: Vector3
   blindness: Vector3
+}
+
+export interface GrenadeStats {
+  minExplosionDistance: number
+  maxExplosionDistance: number
+  fragmentsCount: number
+  fragmentType: string
+  explosionEffectType: string
+  armorDistanceDistanceDamage: Vector3
+  contusion: Vector3
+  blindness: Vector3
+  contusionDistance: number
+  explDelay: number
+  minTimeToContactExplode: number
+  playFuzeSound: boolean
+  strength: number
+  throwType: string
+  throwDamMax: number
+  weight: number
 }
 
 export interface AmmoEconomy {
@@ -184,6 +220,8 @@ export const VANILLA_TRADERS = [
 ]
 
 export { AMMO_TEMPLATES, type AmmoTemplate } from './generated_ammo_templates'
+export { GRENADE_TEMPLATES, type GrenadeTemplate } from './generated_grenade_templates'
+export { GRENADE_STATS, type GrenadeTemplateStats } from './generated_grenade_stats'
 
 export const RARITY_OPTIONS = ['Common', 'Rare', 'SuperRare', 'NotExists']
 
@@ -290,11 +328,56 @@ export function createDefaultAmmo(): AmmoDefinition {
   }
 }
 
+export function createDefaultGrenade(): GrenadeDefinition {
+  return {
+    id: generateMongoId(),
+    enabled: true,
+    baseTpl: '',
+    compareToGrenadeId: '',
+    name: '',
+    shortName: '',
+    description: '',
+    stats: {
+      minExplosionDistance: 0,
+      maxExplosionDistance: 0,
+      fragmentsCount: 0,
+      fragmentType: '',
+      explosionEffectType: '',
+      armorDistanceDistanceDamage: createDefaultVector3(),
+      contusion: createDefaultVector3(),
+      blindness: createDefaultVector3(),
+      contusionDistance: 0,
+      explDelay: 0,
+      minTimeToContactExplode: -1,
+      playFuzeSound: true,
+      strength: 0,
+      throwType: '',
+      throwDamMax: 0,
+      weight: 0,
+    },
+    economy: {
+      handbookPriceRoubles: 0,
+      fleaPriceRoubles: 0,
+      rarityPvE: 'Rare',
+    },
+    traders: [createDefaultTraderEntry()],
+    crafting: {
+      enabled: true,
+      workbenchLevel: 2,
+      craftTimeSeconds: 10800,
+      outputCount: 1,
+      requirements: [],
+    },
+    loot: createDefaultLootEntry(),
+  }
+}
+
 export function createDefaultPack(): AmmoPackDefinition {
   return {
     enabled: true,
     name: 'My Ammo Pack',
     ammo: [createDefaultAmmo()],
+    grenades: [],
   }
 }
 

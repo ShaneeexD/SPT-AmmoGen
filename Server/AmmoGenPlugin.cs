@@ -58,28 +58,34 @@ public class AmmoGenPlugin(
 
             logger.LogWithColor($"[AmmoGen] Found {packs.Count} ammo pack(s). Processing...", LogTextColor.Cyan);
 
-            var definitions = packs.SelectMany(p => p.Definition.Ammo).ToList();
-            var enabledDefinitions = definitions.Where(d => d.Enabled).ToList();
+            var ammoDefinitions = packs.SelectMany(p => p.Definition.Ammo).ToList();
+            var enabledAmmo = ammoDefinitions.Where(d => d.Enabled).ToList();
+            var grenadeDefinitions = packs.SelectMany(p => p.Definition.Grenades).ToList();
+            var enabledGrenades = grenadeDefinitions.Where(d => d.Enabled).ToList();
 
-            logger.LogWithColor($"[AmmoGen] Loaded {definitions.Count} ammo definition(s), {enabledDefinitions.Count} enabled.", LogTextColor.Cyan);
+            logger.LogWithColor($"[AmmoGen] Loaded {ammoDefinitions.Count} ammo definition(s), {enabledAmmo.Count} enabled.", LogTextColor.Cyan);
+            logger.LogWithColor($"[AmmoGen] Loaded {grenadeDefinitions.Count} grenade definition(s), {enabledGrenades.Count} enabled.", LogTextColor.Cyan);
 
             // Register ammo items into the database via cloning
-            AmmoManager.RegisterAll(customItemService, databaseService, enabledDefinitions, logger);
+            AmmoManager.RegisterAll(customItemService, databaseService, enabledAmmo, logger);
+
+            // Register grenade items into the database via cloning
+            GrenadeManager.RegisterAll(customItemService, databaseService, enabledGrenades, logger);
 
             // Patch magazine and weapon filters so the new ammo can be loaded
-            FilterPatcher.PatchAll(databaseService, enabledDefinitions, logger);
+            FilterPatcher.PatchAll(databaseService, enabledAmmo, logger);
 
             // Add enabled ammo to vanilla traders
-            TraderManager.RegisterAll(databaseService, enabledDefinitions, logger);
+            TraderManager.RegisterAll(databaseService, enabledAmmo, enabledGrenades, logger);
 
             // Add workbench crafting recipes
-            CraftingManager.RegisterAll(databaseService, enabledDefinitions, logger);
+            CraftingManager.RegisterAll(databaseService, enabledAmmo, enabledGrenades, logger);
 
-            // Inject ammo into container loot tables
-            LootInjector.InjectAll(databaseService, enabledDefinitions, logger, config.Debug);
+            // Inject items into container loot tables
+            LootInjector.InjectAll(databaseService, enabledAmmo, enabledGrenades, logger, config.Debug);
 
             logger.LogWithColor("[AmmoGen] ====================================", LogTextColor.Cyan);
-            logger.LogWithColor($"[AmmoGen] Done! Registered {enabledDefinitions.Count} custom ammo type(s).", LogTextColor.Green);
+            logger.LogWithColor($"[AmmoGen] Done! Registered {enabledAmmo.Count} custom ammo type(s) and {enabledGrenades.Count} custom grenade type(s).", LogTextColor.Green);
             logger.LogWithColor("[AmmoGen] ====================================", LogTextColor.Cyan);
         }
         catch (Exception ex)

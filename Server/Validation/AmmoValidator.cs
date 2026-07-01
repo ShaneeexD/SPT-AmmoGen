@@ -14,17 +14,19 @@ public static class AmmoValidator
         if (string.IsNullOrWhiteSpace(pack.Name))
             errors.Add($"Pack '{fileName}': 'name' is required.");
 
-        if (pack.Ammo == null || pack.Ammo.Count == 0)
+        if ((pack.Ammo == null || pack.Ammo.Count == 0) && (pack.Grenades == null || pack.Grenades.Count == 0))
         {
-            errors.Add($"Pack '{fileName}': at least one ammo entry is required.");
+            errors.Add($"Pack '{fileName}': at least one ammo or grenade entry is required.");
             return errors;
         }
 
         var seenIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var ammoList = pack.Ammo ?? [];
+        var grenadeList = pack.Grenades ?? [];
 
-        for (var i = 0; i < pack.Ammo.Count; i++)
+        for (var i = 0; i < ammoList.Count; i++)
         {
-            var ammo = pack.Ammo[i];
+            var ammo = ammoList[i];
             var prefix = $"Ammo[{i}]";
 
             if (string.IsNullOrWhiteSpace(ammo.Id))
@@ -197,6 +199,118 @@ public static class AmmoValidator
             foreach (var weapon in ammo.Filters.PatchWeapons)
                 if (string.IsNullOrWhiteSpace(weapon) || !Hex24.IsMatch(weapon))
                     errors.Add($"{prefix}: filter weapon id '{weapon}' must be a 24-character hex string.");
+        }
+
+        for (var i = 0; i < grenadeList.Count; i++)
+        {
+            var grenade = grenadeList[i];
+            var prefix = $"Grenade[{i}]";
+
+            if (string.IsNullOrWhiteSpace(grenade.Id))
+            {
+                errors.Add($"{prefix}: 'id' is required.");
+            }
+            else if (!Hex24.IsMatch(grenade.Id))
+            {
+                errors.Add($"{prefix}: 'id' must be a 24-character hex string.");
+            }
+            else if (!seenIds.Add(grenade.Id))
+            {
+                errors.Add($"{prefix}: duplicate id '{grenade.Id}'.");
+            }
+
+            if (string.IsNullOrWhiteSpace(grenade.BaseTpl) || !Hex24.IsMatch(grenade.BaseTpl))
+                errors.Add($"{prefix}: 'baseTpl' must be a 24-character hex string.");
+
+            if (string.IsNullOrWhiteSpace(grenade.Name))
+                errors.Add($"{prefix}: 'name' is required.");
+
+            if (string.IsNullOrWhiteSpace(grenade.ShortName))
+                errors.Add($"{prefix}: 'shortName' is required.");
+
+            if (string.IsNullOrWhiteSpace(grenade.Description))
+                errors.Add($"{prefix}: 'description' is required.");
+
+            ValidateLootEntry(grenade.Loot, "loot", prefix, errors);
+
+            if (grenade.Economy.HandbookPriceRoubles < 0)
+                errors.Add($"{prefix}: 'economy.handbookPriceRoubles' cannot be negative.");
+
+            if (grenade.Economy.FleaPriceRoubles < 0)
+                errors.Add($"{prefix}: 'economy.fleaPriceRoubles' cannot be negative.");
+
+            if (grenade.Stats.MinExplosionDistance < 0)
+                errors.Add($"{prefix}: 'stats.minExplosionDistance' cannot be negative.");
+
+            if (grenade.Stats.MaxExplosionDistance < 0)
+                errors.Add($"{prefix}: 'stats.maxExplosionDistance' cannot be negative.");
+
+            if (grenade.Stats.ContusionDistance < 0)
+                errors.Add($"{prefix}: 'stats.contusionDistance' cannot be negative.");
+
+            if (grenade.Stats.ExplDelay < 0)
+                errors.Add($"{prefix}: 'stats.explDelay' cannot be negative.");
+
+            // minTimeToContactExplode can be negative (-1 means disabled) for impact-fuze grenades like VOG.
+
+            if (grenade.Stats.Strength < 0)
+                errors.Add($"{prefix}: 'stats.strength' cannot be negative.");
+
+            if (grenade.Stats.ThrowDamMax < 0)
+                errors.Add($"{prefix}: 'stats.throwDamMax' cannot be negative.");
+
+            if (grenade.Stats.Weight < 0)
+                errors.Add($"{prefix}: 'stats.weight' cannot be negative.");
+
+            if (grenade.Stats.ArmorDistanceDistanceDamage.X < 0 || grenade.Stats.ArmorDistanceDistanceDamage.Y < 0 || grenade.Stats.ArmorDistanceDistanceDamage.Z < 0)
+                errors.Add($"{prefix}: 'stats.armorDistanceDistanceDamage' components cannot be negative.");
+
+            if (grenade.Stats.Contusion.X < 0 || grenade.Stats.Contusion.Y < 0 || grenade.Stats.Contusion.Z < 0)
+                errors.Add($"{prefix}: 'stats.contusion' components cannot be negative.");
+
+            if (grenade.Stats.Blindness.X < 0 || grenade.Stats.Blindness.Y < 0 || grenade.Stats.Blindness.Z < 0)
+                errors.Add($"{prefix}: 'stats.blindness' components cannot be negative.");
+
+            for (var j = 0; j < grenade.Traders.Count; j++)
+            {
+                var trader = grenade.Traders[j];
+                if (!trader.Enabled)
+                    continue;
+
+                var tPrefix = $"{prefix}.traders[{j}]";
+                if (string.IsNullOrWhiteSpace(trader.TraderId) || !Hex24.IsMatch(trader.TraderId))
+                    errors.Add($"{tPrefix}: 'traderId' must be a 24-character hex string.");
+
+                if (trader.LoyaltyLevel < 1)
+                    errors.Add($"{tPrefix}: 'loyaltyLevel' must be >= 1.");
+
+                if (trader.PriceRoubles < 0)
+                    errors.Add($"{tPrefix}: 'priceRoubles' cannot be negative.");
+
+                if (trader.StockCount < 0)
+                    errors.Add($"{tPrefix}: 'stockCount' cannot be negative.");
+            }
+
+            if (grenade.Crafting.Enabled)
+            {
+                if (grenade.Crafting.WorkbenchLevel < 1)
+                    errors.Add($"{prefix}: 'crafting.workbenchLevel' must be >= 1.");
+
+                if (grenade.Crafting.CraftTimeSeconds < 1)
+                    errors.Add($"{prefix}: 'crafting.craftTimeSeconds' must be >= 1.");
+
+                if (grenade.Crafting.OutputCount < 1)
+                    errors.Add($"{prefix}: 'crafting.outputCount' must be >= 1.");
+
+                for (var j = 0; j < grenade.Crafting.Requirements.Count; j++)
+                {
+                    var req = grenade.Crafting.Requirements[j];
+                    if (string.IsNullOrWhiteSpace(req.Tpl) || !Hex24.IsMatch(req.Tpl))
+                        errors.Add($"{prefix}.crafting.requirements[{j}]: 'tpl' must be a 24-character hex string.");
+                    if (req.Count < 1)
+                        errors.Add($"{prefix}.crafting.requirements[{j}]: 'count' must be >= 1.");
+                }
+            }
         }
 
         return errors;

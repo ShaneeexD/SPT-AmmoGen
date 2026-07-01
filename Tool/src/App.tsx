@@ -23,14 +23,17 @@ import {
   Box,
   MapPin,
   ChevronDown,
+  Bomb,
 } from 'lucide-react'
 import {
   AmmoDefinition,
   AmmoPackDefinition,
   AmmoStats,
+  AmmoEconomy,
   Vector3,
   AmmoBoxEntry,
   LootEntry,
+  CraftingEntry,
   AMMO_TEMPLATES,
   createDefaultAmmo,
   createDefaultLootEntry,
@@ -41,9 +44,14 @@ import {
   TraderEntry,
   VANILLA_TRADERS,
   ValidationError,
+  GrenadeDefinition,
+  GrenadeStats,
+  GRENADE_TEMPLATES,
+  createDefaultGrenade,
 } from './types'
 import { ITEMS, getItemName } from './generated_items'
 import { getAmmoStats, AmmoTemplateStats, TRACER_COLOR_OPTIONS, AMMO_SFX_OPTIONS, CASING_SOUNDS_OPTIONS } from './generated_ammo_stats'
+import { getGrenadeStats, type GrenadeTemplateStats, GRENADE_FRAGMENT_TYPES, GRENADE_EXPLOSION_EFFECT_TYPES, GRENADE_THROW_TYPES } from './generated_grenade_stats'
 import { getAmmoCompatibility } from './generated_ammo_compatibility'
 import { AMMO_BOX_TEMPLATES, getAmmoBoxTemplate } from './generated_ammo_box_templates'
 import { LOOT_CONTAINERS, getLootContainer } from './generated_loot_containers'
@@ -299,6 +307,59 @@ function validatePack(pack: AmmoPackDefinition): ValidationError[] {
     })
   })
 
+  pack.grenades.forEach((grenade, i) => {
+    const prefix = `grenade[${i}]`
+    if (!hex24.test(grenade.id)) errors.push({ field: `${prefix}.id`, message: 'ID must be 24 hex chars' })
+    if (!hex24.test(grenade.baseTpl)) errors.push({ field: `${prefix}.baseTpl`, message: 'Base template must be 24 hex chars' })
+    if (!grenade.name.trim()) errors.push({ field: `${prefix}.name`, message: 'Name is required' })
+    if (!grenade.shortName.trim()) errors.push({ field: `${prefix}.shortName`, message: 'Short name is required' })
+    if (!grenade.description.trim()) errors.push({ field: `${prefix}.description`, message: 'Description is required' })
+
+    grenade.traders.forEach((trader, j) => {
+      if (!trader.enabled) return
+      const tPrefix = `${prefix}.traders[${j}]`
+      if (!hex24.test(trader.traderId)) errors.push({ field: `${tPrefix}.traderId`, message: 'Trader ID must be 24 hex chars' })
+      if (trader.loyaltyLevel < 1) errors.push({ field: `${tPrefix}.loyaltyLevel`, message: 'Loyalty level must be >= 1' })
+      if (trader.priceRoubles < 0) errors.push({ field: `${tPrefix}.priceRoubles`, message: 'Price cannot be negative' })
+    })
+
+    if (grenade.crafting.enabled) {
+      if (grenade.crafting.workbenchLevel < 1) errors.push({ field: `${prefix}.crafting.workbenchLevel`, message: 'Workbench level must be >= 1' })
+      if (grenade.crafting.craftTimeSeconds < 1) errors.push({ field: `${prefix}.crafting.craftTimeSeconds`, message: 'Craft time must be >= 1' })
+      if (grenade.crafting.outputCount < 1) errors.push({ field: `${prefix}.crafting.outputCount`, message: 'Output count must be >= 1' })
+      grenade.crafting.requirements.forEach((req, j) => {
+        if (!hex24.test(req.tpl)) errors.push({ field: `${prefix}.crafting.requirements[${j}]`, message: 'Item tpl must be 24 hex chars' })
+        if (req.count < 1) errors.push({ field: `${prefix}.crafting.requirements[${j}]`, message: 'Count must be >= 1' })
+      })
+    }
+
+    if (grenade.loot.enabled) {
+      grenade.loot.containerIds.forEach((id, j) => {
+        if (!hex24.test(id)) errors.push({ field: `${prefix}.loot.containerIds[${j}]`, message: 'Container ID must be 24 hex chars' })
+      })
+    }
+
+    const nonNegativeGrenadeStats = [
+      'minExplosionDistance', 'maxExplosionDistance', 'contusionDistance', 'explDelay',
+      'strength', 'throwDamMax', 'weight',
+    ] as const
+    nonNegativeGrenadeStats.forEach(stat => {
+      if (grenade.stats[stat] < 0) {
+        errors.push({ field: `${prefix}.stats.${stat}`, message: `${stat} cannot be negative` })
+      }
+    })
+    if (grenade.stats.fragmentsCount < 0) {
+      errors.push({ field: `${prefix}.stats.fragmentsCount`, message: 'Fragments count cannot be negative' })
+    }
+
+    ;['armorDistanceDistanceDamage', 'contusion', 'blindness'].forEach(key => {
+      const v = grenade.stats[key as keyof GrenadeStats] as Vector3
+      if (v.x < 0 || v.y < 0 || v.z < 0) {
+        errors.push({ field: `${prefix}.stats.${key}`, message: `${key} components cannot be negative` })
+      }
+    })
+  })
+
   return errors
 }
 
@@ -323,6 +384,20 @@ function buildExportJson(pack: AmmoPackDefinition): object {
       ammoLoot: ammo.ammoLoot,
       ammoBoxLoot: ammo.ammoBoxLoot,
     })),
+    grenades: pack.grenades.map((grenade) => ({
+      id: grenade.id,
+      enabled: grenade.enabled,
+      baseTpl: grenade.baseTpl,
+      name: grenade.name,
+      shortName: grenade.shortName,
+      description: grenade.description,
+      ...(grenade.handbookParentId ? { handbookParentId: grenade.handbookParentId } : {}),
+      stats: grenade.stats,
+      economy: grenade.economy,
+      traders: grenade.traders,
+      crafting: grenade.crafting,
+      loot: grenade.loot,
+    })),
   }
 }
 
@@ -331,6 +406,7 @@ type Tab = 'identity' | 'stats' | 'economy' | 'trader' | 'crafting' | 'filters' 
 export default function App() {
   const [pack, setPack] = useState<AmmoPackDefinition>(createDefaultPack())
   const [activeIndex, setActiveIndex] = useState(0)
+  const [mode, setMode] = useState<'ammo' | 'grenade'>('ammo')
   const [errors, setErrors] = useState<ValidationError[]>([])
   const [activeTab, setActiveTab] = useState<Tab>('identity')
   const [showExportSuccess, setShowExportSuccess] = useState(false)
@@ -353,6 +429,26 @@ export default function App() {
     const next = { ...pack, ammo: pack.ammo.filter((_, i) => i !== index) }
     setPack(next)
     if (activeIndex >= next.ammo.length) setActiveIndex(Math.max(0, next.ammo.length - 1))
+    setErrors([])
+  }
+
+  const updateGrenade = (index: number, updates: Partial<GrenadeDefinition>) => {
+    const next = { ...pack, grenades: [...pack.grenades] }
+    next.grenades[index] = { ...next.grenades[index], ...updates }
+    setPack(next)
+    setErrors([])
+  }
+
+  const addGrenade = () => {
+    setPack({ ...pack, grenades: [...pack.grenades, createDefaultGrenade()] })
+    setActiveIndex(pack.grenades.length)
+    setErrors([])
+  }
+
+  const removeGrenade = (index: number) => {
+    const next = { ...pack, grenades: pack.grenades.filter((_, i) => i !== index) }
+    setPack(next)
+    if (activeIndex >= next.grenades.length) setActiveIndex(Math.max(0, next.grenades.length - 1))
     setErrors([])
   }
 
@@ -453,10 +549,28 @@ export default function App() {
       }
       return normalized
     })
+    const grenades = (parsed.grenades ?? []).map((g: GrenadeDefinition) => {
+      const defaults = createDefaultGrenade()
+      const normalized: GrenadeDefinition = { ...defaults, ...g }
+      normalized.stats = { ...defaults.stats, ...g.stats }
+      normalized.traders = normalized.traders.map((t) => {
+        if (t.unlimitedStock === undefined && t.stockCount === 0) {
+          t.unlimitedStock = true
+          t.stockCount = 200
+        }
+        if (t.unlimitedBuyRestriction === undefined && t.buyRestrictionMax === 0) {
+          t.unlimitedBuyRestriction = true
+          t.buyRestrictionMax = 200
+        }
+        return t
+      })
+      return normalized
+    })
     return {
       ...createDefaultPack(),
       ...parsed,
       ammo,
+      grenades,
     }
   }
 
@@ -500,15 +614,18 @@ export default function App() {
   }
 
   const activeAmmo = pack.ammo[activeIndex]
+  const activeGrenade = pack.grenades[activeIndex]
 
   const tabs: { id: Tab; label: string; icon: React.ReactNode }[] = [
     { id: 'identity', label: 'Identity', icon: <Shield size={16} /> },
-    { id: 'stats', label: 'Stats', icon: <Crosshair size={16} /> },
+    { id: 'stats', label: 'Stats', icon: mode === 'ammo' ? <Crosshair size={16} /> : <Bomb size={16} /> },
     { id: 'economy', label: 'Economy', icon: <Star size={16} /> },
     { id: 'trader', label: 'Trader', icon: <Package size={16} /> },
     { id: 'crafting', label: 'Crafting', icon: <Wrench size={16} /> },
-    { id: 'filters', label: 'Filters', icon: <Filter size={16} /> },
-    { id: 'ammobox', label: 'Ammo Box', icon: <Box size={16} /> },
+    ...(mode === 'ammo' ? [
+      { id: 'filters' as Tab, label: 'Filters', icon: <Filter size={16} /> },
+      { id: 'ammobox' as Tab, label: 'Ammo Box', icon: <Box size={16} /> },
+    ] : []),
     { id: 'loot', label: 'Loot', icon: <MapPin size={16} /> },
     { id: 'preview', label: 'JSON Preview', icon: <FileJson size={16} /> },
   ]
@@ -531,7 +648,25 @@ export default function App() {
           <Target className="text-tarkov-accent" size={28} />
           <div>
             <h1 className="text-xl font-bold text-tarkov-accent">AmmoGen Tool</h1>
-            <p className="text-xs text-tarkov-text-dim">SPTarkov 4.0.13 Ammo Pack Editor</p>
+            <p className="text-xs text-tarkov-text-dim">SPTarkov 4.0.13 Ammo & Grenade Pack Editor</p>
+          </div>
+          <div className="hidden sm:flex items-center bg-tarkov-bg rounded-lg border border-tarkov-border p-1 ml-2">
+            <button
+              onClick={() => { setMode('ammo'); setActiveIndex(0); setActiveTab('identity') }}
+              className={`flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded transition-colors ${
+                mode === 'ammo' ? 'bg-tarkov-accent text-white' : 'text-tarkov-text-dim hover:text-tarkov-text'
+              }`}
+            >
+              <Crosshair size={14} /> Ammo
+            </button>
+            <button
+              onClick={() => { setMode('grenade'); setActiveIndex(0); setActiveTab('identity') }}
+              className={`flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded transition-colors ${
+                mode === 'grenade' ? 'bg-tarkov-accent text-white' : 'text-tarkov-text-dim hover:text-tarkov-text'
+              }`}
+            >
+              <Bomb size={14} /> Grenades
+            </button>
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -574,56 +709,85 @@ export default function App() {
 
       {/* Tabs */}
       <nav className="bg-tarkov-surface border-b border-tarkov-border px-6 flex gap-1">
-        {tabs.map(tab => (
-          <button
-            key={tab.id}
-            onClick={() => activeAmmo && setActiveTab(tab.id)}
-            disabled={!activeAmmo}
-            className={`flex items-center gap-1.5 px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
-              activeTab === tab.id
-                ? 'border-tarkov-accent text-tarkov-accent'
-                : 'border-transparent text-tarkov-text-dim hover:text-tarkov-text'
-            } ${!activeAmmo ? 'opacity-50 cursor-not-allowed' : ''}`}
-          >
-            {tab.icon} {tab.label}
-          </button>
-        ))}
+        {tabs.map(tab => {
+          const activeItem = mode === 'ammo' ? activeAmmo : activeGrenade
+          return (
+            <button
+              key={tab.id}
+              onClick={() => activeItem && setActiveTab(tab.id)}
+              disabled={!activeItem}
+              className={`flex items-center gap-1.5 px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
+                activeTab === tab.id
+                  ? 'border-tarkov-accent text-tarkov-accent'
+                  : 'border-transparent text-tarkov-text-dim hover:text-tarkov-text'
+              } ${!activeItem ? 'opacity-50 cursor-not-allowed' : ''}`}
+            >
+              {tab.icon} {tab.label}
+            </button>
+          )
+        })}
       </nav>
 
-      {/* Ammo selector */}
+      {/* Item selector */}
       <div className="bg-tarkov-surface border-b border-tarkov-border px-6 py-3">
         <div className="max-w-5xl mx-auto flex flex-col sm:flex-row sm:items-center gap-3">
-          <div className="text-sm text-tarkov-text-dim">Ammo</div>
+          <div className="text-sm text-tarkov-text-dim">{mode === 'ammo' ? 'Ammo' : 'Grenades'}</div>
           <div className="flex flex-wrap gap-2 flex-1">
-            {pack.ammo.map((ammo, i) => (
-              <button
-                key={i}
-                onClick={() => setActiveIndex(i)}
-                className={`flex items-center gap-1.5 text-sm px-3 py-1.5 rounded border transition-colors ${
-                  activeIndex === i
-                    ? 'bg-tarkov-accent/20 border-tarkov-accent text-tarkov-accent'
-                    : 'bg-tarkov-bg border-tarkov-border text-tarkov-text-dim hover:text-tarkov-text'
-                }`}
-              >
-                <Crosshair size={14} />
-                {ammo.shortName || `Ammo ${i + 1}`}
-                {pack.ammo.length > 1 && (
-                  <span
-                    className="ml-1 text-tarkov-error hover:text-tarkov-error/80"
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      removeAmmo(i)
-                    }}
-                  >
-                    <Trash2 size={14} />
-                  </span>
-                )}
-              </button>
-            ))}
+            {mode === 'ammo'
+              ? pack.ammo.map((ammo, i) => (
+                <button
+                  key={i}
+                  onClick={() => setActiveIndex(i)}
+                  className={`flex items-center gap-1.5 text-sm px-3 py-1.5 rounded border transition-colors ${
+                    activeIndex === i
+                      ? 'bg-tarkov-accent/20 border-tarkov-accent text-tarkov-accent'
+                      : 'bg-tarkov-bg border-tarkov-border text-tarkov-text-dim hover:text-tarkov-text'
+                  }`}
+                >
+                  <Crosshair size={14} />
+                  {ammo.shortName || `Ammo ${i + 1}`}
+                  {pack.ammo.length > 1 && (
+                    <span
+                      className="ml-1 text-tarkov-error hover:text-tarkov-error/80"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        removeAmmo(i)
+                      }}
+                    >
+                      <Trash2 size={14} />
+                    </span>
+                  )}
+                </button>
+              ))
+              : pack.grenades.map((grenade, i) => (
+                <button
+                  key={i}
+                  onClick={() => setActiveIndex(i)}
+                  className={`flex items-center gap-1.5 text-sm px-3 py-1.5 rounded border transition-colors ${
+                    activeIndex === i
+                      ? 'bg-tarkov-accent/20 border-tarkov-accent text-tarkov-accent'
+                      : 'bg-tarkov-bg border-tarkov-border text-tarkov-text-dim hover:text-tarkov-text'
+                  }`}
+                >
+                  <Bomb size={14} />
+                  {grenade.shortName || `Grenade ${i + 1}`}
+                  {pack.grenades.length > 1 && (
+                    <span
+                      className="ml-1 text-tarkov-error hover:text-tarkov-error/80"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        removeGrenade(i)
+                      }}
+                    >
+                      <Trash2 size={14} />
+                    </span>
+                  )}
+                </button>
+              ))}
           </div>
           <div className="flex items-center gap-3">
-            <button onClick={addAmmo} className="btn-secondary text-sm flex items-center gap-1.5">
-              <Plus size={14} /> Add Ammo
+            <button onClick={mode === 'ammo' ? addAmmo : addGrenade} className="btn-secondary text-sm flex items-center gap-1.5">
+              <Plus size={14} /> {mode === 'ammo' ? 'Add Ammo' : 'Add Grenade'}
             </button>
             <a
               href="https://db.sp-tarkov.com/"
@@ -640,24 +804,44 @@ export default function App() {
 
       {/* Content */}
       <main className="flex-1 p-6 max-w-5xl mx-auto w-full">
-        {!activeAmmo ? (
-          <div className="card text-center text-tarkov-text-dim py-12">
-            <Crosshair size={48} className="mx-auto mb-4 text-tarkov-accent/50" />
-            <p className="text-lg">No ammo defined yet.</p>
-            <p className="text-sm mt-1">Click <span className="text-tarkov-accent">Add Ammo</span> to start building your pack.</p>
-          </div>
+        {mode === 'ammo' ? (
+          !activeAmmo ? (
+            <div className="card text-center text-tarkov-text-dim py-12">
+              <Crosshair size={48} className="mx-auto mb-4 text-tarkov-accent/50" />
+              <p className="text-lg">No ammo defined yet.</p>
+              <p className="text-sm mt-1">Click <span className="text-tarkov-accent">Add Ammo</span> to start building your pack.</p>
+            </div>
+          ) : (
+            <>
+              {activeTab === 'identity' && <IdentityTab pack={pack} setPack={setPack} ammo={activeAmmo} onChange={u => updateAmmo(activeIndex, u)} />}
+              {activeTab === 'stats' && <StatsTab ammo={activeAmmo} onChange={u => updateAmmo(activeIndex, u)} />}
+              {activeTab === 'economy' && <EconomyTab economy={activeAmmo.economy} onChange={u => updateAmmo(activeIndex, { economy: { ...activeAmmo.economy, ...u } })} />}
+              {activeTab === 'trader' && <TraderTab traders={activeAmmo.traders} onChange={u => updateAmmo(activeIndex, u)} />}
+              {activeTab === 'crafting' && <CraftingTab crafting={activeAmmo.crafting} onChange={u => updateAmmo(activeIndex, u)} />}
+              {activeTab === 'filters' && <FiltersTab ammo={activeAmmo} onChange={u => updateAmmo(activeIndex, u)} />}
+              {activeTab === 'ammobox' && <AmmoBoxTab ammo={activeAmmo} onChange={u => updateAmmo(activeIndex, u)} />}
+              {activeTab === 'loot' && <LootTab ammo={activeAmmo} onChange={u => updateAmmo(activeIndex, u)} />}
+              {activeTab === 'preview' && <PreviewTab pack={pack} activeAmmo={activeAmmo} />}
+            </>
+          )
         ) : (
-          <>
-            {activeTab === 'identity' && <IdentityTab pack={pack} setPack={setPack} ammo={activeAmmo} onChange={u => updateAmmo(activeIndex, u)} />}
-            {activeTab === 'stats' && <StatsTab ammo={activeAmmo} onChange={u => updateAmmo(activeIndex, u)} />}
-            {activeTab === 'economy' && <EconomyTab ammo={activeAmmo} onChange={u => updateAmmo(activeIndex, u)} />}
-            {activeTab === 'trader' && <TraderTab ammo={activeAmmo} onChange={u => updateAmmo(activeIndex, u)} />}
-            {activeTab === 'crafting' && <CraftingTab ammo={activeAmmo} onChange={u => updateAmmo(activeIndex, u)} />}
-            {activeTab === 'filters' && <FiltersTab ammo={activeAmmo} onChange={u => updateAmmo(activeIndex, u)} />}
-            {activeTab === 'ammobox' && <AmmoBoxTab ammo={activeAmmo} onChange={u => updateAmmo(activeIndex, u)} />}
-            {activeTab === 'loot' && <LootTab ammo={activeAmmo} onChange={u => updateAmmo(activeIndex, u)} />}
-            {activeTab === 'preview' && <PreviewTab pack={pack} activeAmmo={activeAmmo} />}
-          </>
+          !activeGrenade ? (
+            <div className="card text-center text-tarkov-text-dim py-12">
+              <Bomb size={48} className="mx-auto mb-4 text-tarkov-accent/50" />
+              <p className="text-lg">No grenades defined yet.</p>
+              <p className="text-sm mt-1">Click <span className="text-tarkov-accent">Add Grenade</span> to start building your pack.</p>
+            </div>
+          ) : (
+            <>
+              {activeTab === 'identity' && <GrenadeIdentityTab pack={pack} setPack={setPack} grenade={activeGrenade} onChange={u => updateGrenade(activeIndex, u)} />}
+              {activeTab === 'stats' && <GrenadeStatsTab grenade={activeGrenade} onChange={u => updateGrenade(activeIndex, u)} />}
+              {activeTab === 'economy' && <EconomyTab economy={activeGrenade.economy} onChange={u => updateGrenade(activeIndex, { economy: { ...activeGrenade.economy, ...u } })} />}
+              {activeTab === 'trader' && <TraderTab traders={activeGrenade.traders} onChange={u => updateGrenade(activeIndex, u)} />}
+              {activeTab === 'crafting' && <CraftingTab crafting={activeGrenade.crafting} onChange={u => updateGrenade(activeIndex, u)} />}
+              {activeTab === 'loot' && <GrenadeLootTab grenade={activeGrenade} onChange={u => updateGrenade(activeIndex, u)} />}
+              {activeTab === 'preview' && <PreviewTab pack={pack} activeAmmo={activeAmmo} />}
+            </>
+          )
         )}
       </main>
     </div>
@@ -1279,7 +1463,7 @@ function StatsTab({ ammo, onChange }: { ammo: AmmoDefinition; onChange: (u: Part
   )
 }
 
-function EconomyTab({ ammo, onChange }: { ammo: AmmoDefinition; onChange: (u: Partial<AmmoDefinition>) => void }) {
+function EconomyTab({ economy, onChange }: { economy: AmmoEconomy; onChange: (u: Partial<AmmoEconomy>) => void }) {
   return (
     <Section title="Economy" icon={<Star size={18} />}>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -1287,10 +1471,10 @@ function EconomyTab({ ammo, onChange }: { ammo: AmmoDefinition; onChange: (u: Pa
           <input
             className="input-field"
             type="number"
-            value={ammo.economy.handbookPriceRoubles}
+            value={economy.handbookPriceRoubles}
             onChange={e =>
               onChange({
-                economy: { ...ammo.economy, handbookPriceRoubles: parseInt(e.target.value, 10) || 0 },
+                handbookPriceRoubles: parseInt(e.target.value, 10) || 0,
               })
             }
           />
@@ -1299,10 +1483,10 @@ function EconomyTab({ ammo, onChange }: { ammo: AmmoDefinition; onChange: (u: Pa
           <input
             className="input-field"
             type="number"
-            value={ammo.economy.fleaPriceRoubles}
+            value={economy.fleaPriceRoubles}
             onChange={e =>
               onChange({
-                economy: { ...ammo.economy, fleaPriceRoubles: parseInt(e.target.value, 10) || 0 },
+                fleaPriceRoubles: parseInt(e.target.value, 10) || 0,
               })
             }
           />
@@ -1310,10 +1494,10 @@ function EconomyTab({ ammo, onChange }: { ammo: AmmoDefinition; onChange: (u: Pa
         <Field label="Rarity PvE" tooltip="Spawn rarity for PvE containers and loot tables.">
           <select
             className="input-field"
-            value={ammo.economy.rarityPvE}
+            value={economy.rarityPvE}
             onChange={e =>
               onChange({
-                economy: { ...ammo.economy, rarityPvE: e.target.value },
+                rarityPvE: e.target.value,
               })
             }
           >
@@ -1327,25 +1511,25 @@ function EconomyTab({ ammo, onChange }: { ammo: AmmoDefinition; onChange: (u: Pa
   )
 }
 
-function TraderTab({ ammo, onChange }: { ammo: AmmoDefinition; onChange: (u: Partial<AmmoDefinition>) => void }) {
+function TraderTab({ traders, onChange }: { traders: TraderEntry[]; onChange: (u: { traders: TraderEntry[] }) => void }) {
   const updateTrader = (index: number, updates: Partial<TraderEntry>) => {
-    const next = [...ammo.traders]
+    const next = [...traders]
     next[index] = { ...next[index], ...updates }
     onChange({ traders: next })
   }
 
   const addTrader = () => {
-    onChange({ traders: [...ammo.traders, createDefaultTraderEntry()] })
+    onChange({ traders: [...traders, createDefaultTraderEntry()] })
   }
 
   const removeTrader = (index: number) => {
-    onChange({ traders: ammo.traders.filter((_, i) => i !== index) })
+    onChange({ traders: traders.filter((_, i) => i !== index) })
   }
 
   return (
     <Section title="Vanilla Traders" icon={<Package size={18} />}>
       <div className="space-y-4">
-        {ammo.traders.map((trader, i) => (
+        {traders.map((trader, i) => (
           <div key={i} className="bg-tarkov-bg border border-tarkov-border rounded-lg p-4">
             <div className="flex items-center justify-between mb-4">
               <Toggle
@@ -1353,7 +1537,7 @@ function TraderTab({ ammo, onChange }: { ammo: AmmoDefinition; onChange: (u: Par
                 onChange={v => updateTrader(i, { enabled: v })}
                 label={`Trader ${i + 1}`}
               />
-              {ammo.traders.length > 1 && (
+              {traders.length > 1 && (
                 <button className="btn-danger text-xs flex items-center gap-1" onClick={() => removeTrader(i)}>
                   <Trash2 size={14} /> Remove
                 </button>
@@ -1362,7 +1546,7 @@ function TraderTab({ ammo, onChange }: { ammo: AmmoDefinition; onChange: (u: Par
 
             {trader.enabled && (
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <Field label="Trader" tooltip="Vanilla trader that sells this ammo.">
+                <Field label="Trader" tooltip="Vanilla trader that sells this item.">
                   <select
                     className="input-field"
                     value={trader.traderId}
@@ -1432,30 +1616,30 @@ function TraderTab({ ammo, onChange }: { ammo: AmmoDefinition; onChange: (u: Par
   )
 }
 
-function CraftingTab({ ammo, onChange }: { ammo: AmmoDefinition; onChange: (u: Partial<AmmoDefinition>) => void }) {
+function CraftingTab({ crafting, onChange }: { crafting: CraftingEntry; onChange: (u: { crafting: CraftingEntry }) => void }) {
   return (
     <Section title="Workbench Crafting" icon={<Wrench size={18} />}>
       <div className="mb-4">
         <Toggle
-          checked={ammo.crafting.enabled}
-          onChange={v => onChange({ crafting: { ...ammo.crafting, enabled: v } })}
+          checked={crafting.enabled}
+          onChange={v => onChange({ crafting: { ...crafting, enabled: v } })}
           label="Add workbench craft"
         />
       </div>
 
-      {ammo.crafting.enabled && (
+      {crafting.enabled && (
         <>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-            <Field label="Workbench Level" tooltip="Hideout workbench level required to craft this ammo.">
+            <Field label="Workbench Level" tooltip="Hideout workbench level required to craft this item.">
               <input
                 className="input-field"
                 type="number"
                 min={1}
                 max={3}
-                value={ammo.crafting.workbenchLevel}
+                value={crafting.workbenchLevel}
                 onChange={e =>
                   onChange({
-                    crafting: { ...ammo.crafting, workbenchLevel: parseInt(e.target.value, 10) || 1 },
+                    crafting: { ...crafting, workbenchLevel: parseInt(e.target.value, 10) || 1 },
                   })
                 }
               />
@@ -1464,22 +1648,22 @@ function CraftingTab({ ammo, onChange }: { ammo: AmmoDefinition; onChange: (u: P
               <input
                 className="input-field"
                 type="number"
-                value={ammo.crafting.craftTimeSeconds}
+                value={crafting.craftTimeSeconds}
                 onChange={e =>
                   onChange({
-                    crafting: { ...ammo.crafting, craftTimeSeconds: parseInt(e.target.value, 10) || 0 },
+                    crafting: { ...crafting, craftTimeSeconds: parseInt(e.target.value, 10) || 0 },
                   })
                 }
               />
             </Field>
-            <Field label="Output Count" tooltip="Number of rounds produced per craft completion.">
+            <Field label="Output Count" tooltip="Number of items produced per craft completion.">
               <input
                 className="input-field"
                 type="number"
-                value={ammo.crafting.outputCount}
+                value={crafting.outputCount}
                 onChange={e =>
                   onChange({
-                    crafting: { ...ammo.crafting, outputCount: parseInt(e.target.value, 10) || 0 },
+                    crafting: { ...crafting, outputCount: parseInt(e.target.value, 10) || 0 },
                   })
                 }
               />
@@ -1488,15 +1672,15 @@ function CraftingTab({ ammo, onChange }: { ammo: AmmoDefinition; onChange: (u: P
 
           <div>
             <label className="label">Requirements</label>
-            {ammo.crafting.requirements.map((req, i) => (
+            {crafting.requirements.map((req, i) => (
               <div key={i} className="flex gap-2 mb-2 items-start">
                 <div className="flex-1 flex flex-col gap-1">
                   <SearchableSelect
                     value={req.tpl}
                     onChange={id => {
-                      const next = [...ammo.crafting.requirements]
+                      const next = [...crafting.requirements]
                       next[i] = { ...next[i], tpl: id }
-                      onChange({ crafting: { ...ammo.crafting, requirements: next } })
+                      onChange({ crafting: { ...crafting, requirements: next } })
                     }}
                     placeholder="Search item name..."
                   />
@@ -1510,16 +1694,16 @@ function CraftingTab({ ammo, onChange }: { ammo: AmmoDefinition; onChange: (u: P
                   placeholder="Count"
                   value={req.count}
                   onChange={e => {
-                    const next = [...ammo.crafting.requirements]
+                    const next = [...crafting.requirements]
                     next[i] = { ...next[i], count: parseInt(e.target.value, 10) || 0 }
-                    onChange({ crafting: { ...ammo.crafting, requirements: next } })
+                    onChange({ crafting: { ...crafting, requirements: next } })
                   }}
                 />
                 <button
                   className="btn-danger"
                   onClick={() => {
-                    const next = ammo.crafting.requirements.filter((_, idx) => idx !== i)
-                    onChange({ crafting: { ...ammo.crafting, requirements: next } })
+                    const next = crafting.requirements.filter((_, idx) => idx !== i)
+                    onChange({ crafting: { ...crafting, requirements: next } })
                   }}
                 >
                   <Trash2 size={16} />
@@ -1531,8 +1715,8 @@ function CraftingTab({ ammo, onChange }: { ammo: AmmoDefinition; onChange: (u: P
               onClick={() =>
                 onChange({
                   crafting: {
-                    ...ammo.crafting,
-                    requirements: [...ammo.crafting.requirements, { tpl: '', count: 1 }],
+                    ...crafting,
+                    requirements: [...crafting.requirements, { tpl: '', count: 1 }],
                   },
                 })
               }
@@ -2033,6 +2217,398 @@ function LootTab({ ammo, onChange }: { ammo: AmmoDefinition; onChange: (u: Parti
         itemLabel="Add the generated ammo box to container loot tables"
         disabled={!ammo.ammoBox.enabled}
         disabledHint="enable the ammo box first"
+      />
+    </Section>
+  )
+}
+
+function GrenadeIdentityTab({ pack, setPack, grenade, onChange }: {
+  pack: AmmoPackDefinition
+  setPack: Dispatch<SetStateAction<AmmoPackDefinition>>
+  grenade: GrenadeDefinition
+  onChange: (u: Partial<GrenadeDefinition>) => void
+}) {
+  return (
+    <div className="space-y-6">
+      <Section title="Pack Identity" icon={<Shield size={18} />}>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <Field label="Pack Name">
+            <input
+              className="input-field"
+              value={pack.name}
+              onChange={e => setPack({ ...pack, name: e.target.value })}
+              placeholder="My Ammo Pack"
+            />
+          </Field>
+          <Field label="Enabled">
+            <div className="mt-2">
+              <Toggle checked={pack.enabled} onChange={v => setPack({ ...pack, enabled: v })} label="Pack enabled" />
+            </div>
+          </Field>
+        </div>
+      </Section>
+
+      <Section title="Grenade Identity" icon={<Bomb size={18} />}>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <Field label="Grenade ID">
+            <div className="flex gap-2">
+              <input
+                className="input-field flex-1 font-mono text-sm"
+                value={grenade.id}
+                onChange={e => onChange({ id: e.target.value })}
+                placeholder="24-char hex string"
+                maxLength={24}
+              />
+              <button onClick={() => onChange({ id: generateMongoId() })} className="btn-secondary text-xs px-2" title="Generate random ID">
+                <RefreshCw size={14} />
+              </button>
+            </div>
+          </Field>
+
+          <Field label="Enabled">
+            <div className="mt-2">
+              <Toggle checked={grenade.enabled} onChange={v => onChange({ enabled: v })} label="Grenade enabled" />
+            </div>
+          </Field>
+
+          <Field
+            label="Base Grenade Template"
+            className="md:col-span-2"
+            tooltip="Existing grenade item to clone. Selecting one auto-fills the Stats tab with the base grenade's values. Choose 'Other' to enter a custom template ID from a mod."
+          >
+            <select
+              className="input-field"
+              value={GRENADE_TEMPLATES.some(t => t.id === grenade.baseTpl) ? grenade.baseTpl : grenade.baseTpl ? '__other__' : ''}
+              onChange={e => {
+                const value = e.target.value
+                if (value === '__other__') {
+                  onChange({ baseTpl: '__other__', compareToGrenadeId: '' })
+                } else if (value) {
+                  const base = getGrenadeStats(value)
+                  if (base) {
+                    const { name, shortName, ...baseStats } = base
+                    onChange({
+                      baseTpl: value,
+                      compareToGrenadeId: '',
+                      stats: baseStats as GrenadeStats,
+                    })
+                  } else {
+                    onChange({ baseTpl: value, compareToGrenadeId: '' })
+                  }
+                } else {
+                  onChange({ baseTpl: '', compareToGrenadeId: '' })
+                }
+              }}
+            >
+              <option value="">Select a base grenade...</option>
+              {GRENADE_TEMPLATES.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.name} — {t.id}
+                </option>
+              ))}
+              <option value="__other__">Other (custom ID)...</option>
+            </select>
+            {(grenade.baseTpl === '__other__' || (!!grenade.baseTpl && !GRENADE_TEMPLATES.some(t => t.id === grenade.baseTpl))) && (
+              <input
+                className="input-field mt-2 font-mono text-sm"
+                value={grenade.baseTpl === '__other__' ? '' : grenade.baseTpl}
+                onChange={e => onChange({ baseTpl: e.target.value })}
+                placeholder="Enter custom grenade template ID"
+              />
+            )}
+          </Field>
+
+          <Field label="Name">
+            <input
+              className="input-field"
+              value={grenade.name}
+              onChange={e => onChange({ name: e.target.value })}
+              placeholder="e.g. Custom F-1"
+            />
+          </Field>
+
+          <Field label="Short Name">
+            <input
+              className="input-field"
+              value={grenade.shortName}
+              onChange={e => onChange({ shortName: e.target.value })}
+              placeholder="e.g. cF-1"
+            />
+          </Field>
+
+          <Field label="Description" className="md:col-span-2">
+            <textarea
+              className="input-field min-h-[80px] resize-y"
+              rows={3}
+              value={grenade.description}
+              onChange={e => onChange({ description: e.target.value })}
+              placeholder="A short description of the grenade..."
+            />
+          </Field>
+
+          <Field
+            label="Handbook Parent ID (optional)"
+            tooltip="Handbook category ID for trader/flea sorting. Leave blank and the server will look up the base grenade's category automatically."
+          >
+            <input
+              className="input-field font-mono text-sm"
+              value={grenade.handbookParentId || ''}
+              onChange={e => onChange({ handbookParentId: e.target.value || undefined })}
+              placeholder="Leave blank to auto-resolve from base template"
+            />
+          </Field>
+        </div>
+      </Section>
+    </div>
+  )
+}
+
+function GrenadeStatsTab({ grenade, onChange }: { grenade: GrenadeDefinition; onChange: (u: Partial<GrenadeDefinition>) => void }) {
+  const updateStat = <K extends keyof GrenadeStats>(key: K, value: GrenadeStats[K]) => {
+    onChange({ stats: { ...grenade.stats, [key]: value } })
+  }
+
+  const updateVector3 = (key: keyof GrenadeStats, axis: 'x' | 'y' | 'z', value: number) => {
+    const v = grenade.stats[key] as Vector3
+    onChange({ stats: { ...grenade.stats, [key]: { ...v, [axis]: value } } })
+  }
+
+  const renderNumberField = (label: string, key: keyof GrenadeStats, tooltip?: string, step?: number) => (
+    <Field key={key} label={label} tooltip={tooltip}>
+      <input
+        className="input-field font-mono text-sm"
+        type="number"
+        step={step ?? 0.01}
+        value={grenade.stats[key] as number}
+        onChange={e => updateStat(key, (parseFloat(e.target.value) || 0) as GrenadeStats[keyof GrenadeStats])}
+      />
+    </Field>
+  )
+
+  const renderBooleanField = (label: string, key: keyof GrenadeStats, tooltip?: string) => (
+    <Field key={key} label={label} tooltip={tooltip}>
+      <select
+        className="input-field"
+        value={grenade.stats[key] ? 'true' : 'false'}
+        onChange={e => updateStat(key, (e.target.value === 'true') as GrenadeStats[keyof GrenadeStats])}
+      >
+        <option value="false">No</option>
+        <option value="true">Yes</option>
+      </select>
+    </Field>
+  )
+
+  const renderSelectWithCustom = (
+    label: string,
+    value: string,
+    options: string[],
+    onChange: (v: string) => void,
+    tooltip?: string,
+  ) => {
+    const isCustom = value && !options.includes(value)
+    return (
+      <Field label={label} tooltip={tooltip}>
+        <select
+          className="input-field"
+          value={isCustom ? '__CUSTOM__' : value || ''}
+          onChange={e => {
+            const selected = e.target.value
+            if (selected === '__CUSTOM__') {
+              onChange('')
+            } else {
+              onChange(selected)
+            }
+          }}
+        >
+          <option value="">None / Default</option>
+          {options.map(opt => (
+            <option key={opt} value={opt}>{opt}</option>
+          ))}
+          <option value="__CUSTOM__">Custom...</option>
+        </select>
+        {isCustom && (
+          <input
+            className="input-field mt-2 font-mono text-sm"
+            value={value}
+            onChange={e => onChange(e.target.value)}
+            placeholder={`Enter custom ${label.toLowerCase()}`}
+          />
+        )}
+      </Field>
+    )
+  }
+
+  const base = grenade.baseTpl ? getGrenadeStats(grenade.baseTpl) : undefined
+
+  const statNames: Record<string, string> = {
+    minExplosionDistance: 'Min Explosion Distance',
+    maxExplosionDistance: 'Max Explosion Distance',
+    fragmentsCount: 'Fragments Count',
+    contusionDistance: 'Contusion Distance',
+    explDelay: 'Explosion Delay',
+    minTimeToContactExplode: 'Min Time To Contact Explode',
+    strength: 'Strength',
+    throwDamMax: 'Throw Damage Max',
+    weight: 'Weight',
+  }
+
+  const allNumericStats = [
+    'minExplosionDistance', 'maxExplosionDistance', 'fragmentsCount', 'contusionDistance',
+    'explDelay', 'minTimeToContactExplode', 'strength', 'throwDamMax', 'weight',
+  ] as const
+
+  return (
+    <Section title="Grenade Stats" icon={<Bomb size={18} />}>
+      <CollapsibleSection title="Explosion" icon={<Bomb size={16} />} defaultOpen={true}>
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+          {renderNumberField('Min Explosion Distance', 'minExplosionDistance', 'Minimum distance at which the explosion deals damage.')}
+          {renderNumberField('Max Explosion Distance', 'maxExplosionDistance', 'Maximum distance at which the explosion deals damage.')}
+          {renderNumberField('Fragments Count', 'fragmentsCount', 'Number of fragments generated on explosion.', 1)}
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+          {renderSelectWithCustom(
+            'Fragment Type',
+            grenade.stats.fragmentType,
+            GRENADE_FRAGMENT_TYPES,
+            v => updateStat('fragmentType', v),
+            'Fragment type identifier used by the explosion. Pick from the values used by base grenade templates, or enter a custom ID.'
+          )}
+          {renderSelectWithCustom(
+            'Explosion Effect Type',
+            grenade.stats.explosionEffectType,
+            GRENADE_EXPLOSION_EFFECT_TYPES,
+            v => updateStat('explosionEffectType', v),
+            'Explosion effect type identifier. Pick from the values used by base grenade templates, or enter a custom value.'
+          )}
+        </div>
+      </CollapsibleSection>
+
+      <CollapsibleSection title="Effects" icon={<Bomb size={16} />} defaultOpen={false}>
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+          {renderNumberField('Contusion Distance', 'contusionDistance', 'Distance at which contusion is applied.')}
+          {renderNumberField('Explosion Delay', 'explDelay', 'Delay before the grenade explodes after trigger.')}
+          {renderNumberField('Min Time To Contact Explode', 'minTimeToContactExplode', 'Minimum time before contact explosion can occur.')}
+          {renderNumberField('Strength', 'strength', 'Throw strength / arm force required.', 1)}
+          {renderNumberField('Throw Damage Max', 'throwDamMax', 'Maximum damage dealt on direct throw impact.')}
+          {renderNumberField('Weight', 'weight', 'Grenade weight in kg.')}
+          {renderBooleanField('Play Fuze Sound', 'playFuzeSound', 'Whether the fuze sound is audible before detonation.')}
+        </div>
+      </CollapsibleSection>
+
+      <CollapsibleSection title="Throw" icon={<Bomb size={16} />} defaultOpen={false}>
+        {renderSelectWithCustom(
+          'Throw Type',
+          grenade.stats.throwType,
+          GRENADE_THROW_TYPES,
+          v => updateStat('throwType', v),
+          'Grenade throwing type / classification. Pick from the values used by base grenade templates, or enter a custom value.'
+        )}
+      </CollapsibleSection>
+
+      <CollapsibleSection title="Area Effect Vectors" icon={<Bomb size={16} />} defaultOpen={false}>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {[
+            { key: 'armorDistanceDistanceDamage', label: 'Armor Distance Damage', tooltip: 'Damage falloff over distance against armor.' },
+            { key: 'contusion', label: 'Contusion', tooltip: 'Contusion effect intensity vector.' },
+            { key: 'blindness', label: 'Blindness', tooltip: 'Blindness effect intensity vector.' },
+          ].map(({ key, label, tooltip }) => (
+            <Field key={key} label={label} tooltip={tooltip}>
+              <div className="grid grid-cols-3 gap-2">
+                {(['x', 'y', 'z'] as const).map(axis => (
+                  <input
+                    key={axis}
+                    className="input-field font-mono text-sm"
+                    type="number"
+                    step={0.01}
+                    value={(grenade.stats[key as keyof GrenadeStats] as Vector3)[axis]}
+                    onChange={e => updateVector3(key as keyof GrenadeStats, axis, parseFloat(e.target.value) || 0)}
+                    placeholder={axis.toUpperCase()}
+                  />
+                ))}
+              </div>
+            </Field>
+          ))}
+        </div>
+      </CollapsibleSection>
+
+      {grenade.baseTpl && (
+      <CollapsibleSection title="Base Grenade Comparison" icon={<Bomb size={16} />} defaultOpen={false}>
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4">
+          <div className="flex flex-col md:flex-row md:items-center gap-2">
+            <span className="text-xs text-tarkov-text-dim">Compare to:</span>
+            <select
+              className="input-field text-sm py-1"
+              value={(() => {
+                if (!grenade.compareToGrenadeId) return grenade.baseTpl
+                if (GRENADE_TEMPLATES.some(t => t.id === grenade.compareToGrenadeId)) return grenade.compareToGrenadeId
+                return '__other__'
+              })()}
+              onChange={e => {
+                const value = e.target.value
+                if (value === '__other__') {
+                  onChange({ compareToGrenadeId: '__other__' })
+                } else if (value === grenade.baseTpl) {
+                  onChange({ compareToGrenadeId: '' })
+                } else {
+                  onChange({ compareToGrenadeId: value })
+                }
+              }}
+            >
+              <option value={grenade.baseTpl}>Original clone ({getGrenadeStats(grenade.baseTpl)?.name || grenade.baseTpl})</option>
+              {GRENADE_TEMPLATES.filter(t => t.id !== grenade.baseTpl).map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.name}
+                </option>
+              ))}
+              <option value="__other__">Other (custom ID)...</option>
+            </select>
+            {(grenade.compareToGrenadeId === '__other__' || (!!grenade.compareToGrenadeId && grenade.compareToGrenadeId !== grenade.baseTpl && !GRENADE_TEMPLATES.some(t => t.id === grenade.compareToGrenadeId))) && (
+              <input
+                className="input-field text-sm py-1 font-mono"
+                value={grenade.compareToGrenadeId === '__other__' ? '' : grenade.compareToGrenadeId}
+                onChange={e => onChange({ compareToGrenadeId: e.target.value })}
+                placeholder="Enter custom grenade ID to compare"
+              />
+            )}
+          </div>
+        </div>
+        {base ? (
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+            {allNumericStats.map((stat) => {
+              const custom = grenade.stats[stat as keyof GrenadeStats] as number
+              const original = base[stat as keyof GrenadeTemplateStats] as number
+              const diff = custom - original
+              const diffClass = diff > 0 ? 'text-tarkov-success' : diff < 0 ? 'text-tarkov-error' : 'text-tarkov-text-dim'
+              const diffText = diff === 0 ? '=' : diff > 0 ? `+${diff}` : `${diff}`
+              return (
+                <div key={stat} className="flex flex-col bg-tarkov-surface border border-tarkov-border rounded p-2">
+                  <span className="text-tarkov-text-dim text-xs">{statNames[stat]}</span>
+                  <div className="flex items-baseline gap-2">
+                    <span className="font-medium text-tarkov-text">{custom}</span>
+                    <span className="text-xs text-tarkov-text-dim">/ {original}</span>
+                  </div>
+                  <span className={`text-xs font-medium ${diffClass}`}>{diffText}</span>
+                </div>
+              )
+            })}
+          </div>
+        ) : (
+          <div className="text-sm text-tarkov-text-dim">Comparison grenade not found.</div>
+        )}
+      </CollapsibleSection>
+      )}
+    </Section>
+  )
+}
+
+function GrenadeLootTab({ grenade, onChange }: { grenade: GrenadeDefinition; onChange: (u: Partial<GrenadeDefinition>) => void }) {
+  return (
+    <Section title="Loot Table Injection" icon={<MapPin size={18} />}>
+      <LootEntryEditor
+        title="Grenade Loot"
+        loot={grenade.loot}
+        onChange={loot => onChange({ loot: { ...grenade.loot, ...loot } })}
+        itemLabel="Add this grenade to container loot tables"
       />
     </Section>
   )

@@ -15,6 +15,7 @@ public static class TraderManager
     public static void RegisterAll(
         DatabaseService databaseService,
         IReadOnlyList<AmmoDefinition> definitions,
+        IReadOnlyList<GrenadeDefinition> grenades,
         ISptLogger<AmmoGenPlugin> logger)
     {
         var traders = databaseService.GetTraders();
@@ -67,6 +68,24 @@ public static class TraderManager
                 catch (Exception ex)
                 {
                     logger.LogWithColor($"[AmmoGen] Failed to add ammo box trader entry for '{def.AmmoBox.Name}' / '{traderEntry.TraderId}': {ex.Message}", LogTextColor.Red);
+                }
+            }
+        }
+
+        foreach (var def in grenades)
+        {
+            foreach (var traderEntry in def.Traders)
+            {
+                if (!traderEntry.Enabled)
+                    continue;
+
+                try
+                {
+                    AddToTrader(def.Id, def.Name, traderEntry, traders, logger);
+                }
+                catch (Exception ex)
+                {
+                    logger.LogWithColor($"[AmmoGen] Failed to add trader entry for grenade '{def.Name}' / '{traderEntry.TraderId}': {ex.Message}", LogTextColor.Red);
                 }
             }
         }

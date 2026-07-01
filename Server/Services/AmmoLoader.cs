@@ -93,7 +93,7 @@ public class AmmoLoader(ISptLogger<AmmoLoader> logger, ModHelper modHelper)
                 return null;
             }
 
-            logger.LogWithColor($"[AmmoGen] Loaded pack '{pack.Name}' from '{fileName}' ({pack.Ammo.Count} ammo)", LogTextColor.Green);
+            logger.LogWithColor($"[AmmoGen] Loaded pack '{pack.Name}' from '{fileName}' ({pack.Ammo.Count} ammo, {pack.Grenades.Count} grenades)", LogTextColor.Green);
             return new LoadedPack(pack, jsonFilePath, packFolder);
         }
         catch (JsonException ex)

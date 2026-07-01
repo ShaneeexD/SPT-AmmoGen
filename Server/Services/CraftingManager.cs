@@ -14,6 +14,7 @@ public static class CraftingManager
     public static void RegisterAll(
         DatabaseService databaseService,
         IReadOnlyList<AmmoDefinition> definitions,
+        IReadOnlyList<GrenadeDefinition> grenades,
         ISptLogger<AmmoGenPlugin> logger)
     {
         var hideout = databaseService.GetHideout();
@@ -32,17 +33,34 @@ public static class CraftingManager
 
             try
             {
-                AddRecipe(def, productions, logger);
+                AddRecipe(def.Id, def.Name, def.Crafting, productions, logger);
             }
             catch (Exception ex)
             {
                 logger.LogWithColor($"[AmmoGen] Failed to add crafting recipe for '{def.Name}': {ex.Message}", LogTextColor.Red);
             }
         }
+
+        foreach (var def in grenades)
+        {
+            if (!def.Crafting.Enabled)
+                continue;
+
+            try
+            {
+                AddRecipe(def.Id, def.Name, def.Crafting, productions, logger);
+            }
+            catch (Exception ex)
+            {
+                logger.LogWithColor($"[AmmoGen] Failed to add crafting recipe for grenade '{def.Name}': {ex.Message}", LogTextColor.Red);
+            }
+        }
     }
 
     private static void AddRecipe(
-        AmmoDefinition def,
+        string itemId,
+        string itemName,
+        CraftingEntry crafting,
         List<HideoutProduction> productions,
         ISptLogger<AmmoGenPlugin> logger)
     {
@@ -52,11 +70,11 @@ public static class CraftingManager
             {
                 Type = "Area",
                 AreaType = (int)HideoutAreas.Workbench,
-                RequiredLevel = def.Crafting.WorkbenchLevel,
+                RequiredLevel = crafting.WorkbenchLevel,
             }
         };
 
-        foreach (var req in def.Crafting.Requirements)
+        foreach (var req in crafting.Requirements)
         {
             requirements.Add(new Requirement
             {
@@ -67,21 +85,20 @@ public static class CraftingManager
             });
         }
 
-        var recipeId = def.Id;
-        if (productions.Any(p => p.Id == recipeId))
+        if (productions.Any(p => p.Id == itemId))
         {
-            logger.LogWithColor($"[AmmoGen] Skipping crafting recipe for {def.Name}: a recipe with ID '{recipeId}' already exists.", LogTextColor.Yellow);
+            logger.LogWithColor($"[AmmoGen] Skipping crafting recipe for {itemName}: a recipe with ID '{itemId}' already exists.", LogTextColor.Yellow);
             return;
         }
 
         var recipe = new HideoutProduction
         {
-            Id = new MongoId(recipeId),
+            Id = new MongoId(itemId),
             AreaType = HideoutAreas.Workbench,
             Requirements = requirements,
-            ProductionTime = def.Crafting.CraftTimeSeconds,
-            EndProduct = new MongoId(def.Id),
-            Count = def.Crafting.OutputCount,
+            ProductionTime = crafting.CraftTimeSeconds,
+            EndProduct = new MongoId(itemId),
+            Count = crafting.OutputCount,
             ProductionLimitCount = 0,
             NeedFuelForAllProductionTime = false,
             Locked = false,
@@ -90,6 +107,6 @@ public static class CraftingManager
         };
 
         productions.Add(recipe);
-        logger.LogWithColor($"[AmmoGen] Added crafting recipe for {def.Name} (Workbench L{def.Crafting.WorkbenchLevel}, {def.Crafting.OutputCount} rounds)", LogTextColor.Green);
+        logger.LogWithColor($"[AmmoGen] Added crafting recipe for {itemName} (Workbench L{crafting.WorkbenchLevel}, {crafting.OutputCount} items)", LogTextColor.Green);
     }
 }

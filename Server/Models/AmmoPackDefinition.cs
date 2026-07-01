@@ -14,6 +14,9 @@ public class AmmoPackDefinition
 
     [JsonPropertyName("ammo")]
     public List<AmmoDefinition> Ammo { get; set; } = [];
+
+    [JsonPropertyName("grenades")]
+    public List<GrenadeDefinition> Grenades { get; set; } = [];
 }
 
 public class AmmoDefinition
@@ -208,3 +211,40 @@ public class LootEntry
     [JsonPropertyName("containerIds")] public List<string> ContainerIds { get; set; } = [];
     [JsonPropertyName("rarity")] public string Rarity { get; set; } = "Rare";
 }
+
+public class GrenadeDefinition
+{
+    [JsonPropertyName("id")] public string Id { get; set; } = string.Empty;
+    [JsonPropertyName("enabled")] public bool Enabled { get; set; } = true;
+    [JsonPropertyName("baseTpl")] public string BaseTpl { get; set; } = string.Empty;
+    [JsonPropertyName("name")] public string Name { get; set; } = string.Empty;
+    [JsonPropertyName("shortName")] public string ShortName { get; set; } = string.Empty;
+    [JsonPropertyName("description")] public string Description { get; set; } = string.Empty;
+    [JsonPropertyName("handbookParentId")] public string? HandbookParentId { get; set; }
+    [JsonPropertyName("stats")] public GrenadeStats Stats { get; set; } = new();
+    [JsonPropertyName("economy")] public AmmoEconomy Economy { get; set; } = new();
+    [JsonPropertyName("traders")] public List<TraderEntry> Traders { get; set; } = [];
+    [JsonPropertyName("crafting")] public CraftingEntry Crafting { get; set; } = new();
+    [JsonPropertyName("loot")] public LootEntry Loot { get; set; } = new();
+}
+
+public class GrenadeStats
+{
+    [JsonPropertyName("minExplosionDistance")] public double MinExplosionDistance { get; set; }
+    [JsonPropertyName("maxExplosionDistance")] public double MaxExplosionDistance { get; set; }
+    [JsonPropertyName("fragmentsCount")] public int FragmentsCount { get; set; }
+    [JsonPropertyName("fragmentType")] public string FragmentType { get; set; } = string.Empty;
+    [JsonPropertyName("explosionEffectType")] public string ExplosionEffectType { get; set; } = string.Empty;
+    [JsonPropertyName("armorDistanceDistanceDamage")] public Vector3 ArmorDistanceDistanceDamage { get; set; } = new();
+    [JsonPropertyName("contusion")] public Vector3 Contusion { get; set; } = new();
+    [JsonPropertyName("blindness")] public Vector3 Blindness { get; set; } = new();
+    [JsonPropertyName("contusionDistance")] public double ContusionDistance { get; set; }
+    [JsonPropertyName("explDelay")] public double ExplDelay { get; set; }
+    [JsonPropertyName("minTimeToContactExplode")] public double MinTimeToContactExplode { get; set; } = -1;
+    [JsonPropertyName("playFuzeSound")] public bool PlayFuzeSound { get; set; } = true;
+    [JsonPropertyName("strength")] public int Strength { get; set; }
+    [JsonPropertyName("throwType")] public string ThrowType { get; set; } = string.Empty;
+    [JsonPropertyName("throwDamMax")] public double ThrowDamMax { get; set; }
+    [JsonPropertyName("weight")] public double Weight { get; set; }
+}
+
