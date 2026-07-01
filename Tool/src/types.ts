@@ -23,6 +23,16 @@ export interface AmmoDefinition {
   ammoBoxLoot: LootEntry
 }
 
+export interface Vector3 {
+  x: number
+  y: number
+  z: number
+}
+
+export function createDefaultVector3(): Vector3 {
+  return { x: 0, y: 0, z: 0 }
+}
+
 export interface AmmoStats {
   damage: number
   penetration: number
@@ -35,6 +45,53 @@ export interface AmmoStats {
   heavyBleedingDelta: number
   durabilityBurnModificator: number
   ballisticCoeficient: number
+
+  // Projectile / flight
+  projectileCount: number
+  ricochetChance: number
+  fragmentationChance: number
+  penetrationDamageMod: number
+  penetrationChanceObstacle: number
+  ammoLifeTimeSec: number
+  bulletMassGram: number
+  bulletDiameterMilimeters: number
+
+  // Malfunctions / durability
+  misfireChance: number
+  malfMisfireChance: number
+  malfFeedChance: number
+  heatFactor: number
+  staminaBurnPerDamage: number
+
+  // Tracer
+  tracer: boolean
+  tracerColor: string
+  tracerDistance: number
+
+  // Audio / visual
+  ammoSfx: string
+  casingSounds: string
+
+  // Explosive / grenade rounds
+  fuzeArmTimeSec: number
+  minExplosionDistance: number
+  maxExplosionDistance: number
+  fragmentsCount: number
+  fragmentType: string
+  explosionType: string
+  explosionStrength: number
+  showHitEffectOnExplode: boolean
+
+  // Light-and-sound rounds
+  isLightAndSoundShot: boolean
+  lightAndSoundShotAngle: number
+  lightAndSoundShotSelfContusionTime: number
+  lightAndSoundShotSelfContusionStrength: number
+
+  // Vector3 effect fields
+  armorDistanceDistanceDamage: Vector3
+  contusion: Vector3
+  blindness: Vector3
 }
 
 export interface AmmoEconomy {
@@ -164,6 +221,39 @@ export function createDefaultAmmo(): AmmoDefinition {
       heavyBleedingDelta: 0,
       durabilityBurnModificator: 1,
       ballisticCoeficient: 1,
+      projectileCount: 0,
+      ricochetChance: 0,
+      fragmentationChance: 0,
+      penetrationDamageMod: 0,
+      penetrationChanceObstacle: 0,
+      ammoLifeTimeSec: 0,
+      bulletMassGram: 0,
+      bulletDiameterMilimeters: 0,
+      misfireChance: 0,
+      malfMisfireChance: 0,
+      malfFeedChance: 0,
+      heatFactor: 1,
+      staminaBurnPerDamage: 0,
+      tracer: false,
+      tracerColor: '',
+      tracerDistance: 0,
+      ammoSfx: '',
+      casingSounds: '',
+      fuzeArmTimeSec: 0,
+      minExplosionDistance: 0,
+      maxExplosionDistance: 0,
+      fragmentsCount: 0,
+      fragmentType: '',
+      explosionType: '',
+      explosionStrength: 0,
+      showHitEffectOnExplode: false,
+      isLightAndSoundShot: false,
+      lightAndSoundShotAngle: 0,
+      lightAndSoundShotSelfContusionTime: 0,
+      lightAndSoundShotSelfContusionStrength: 0,
+      armorDistanceDistanceDamage: createDefaultVector3(),
+      contusion: createDefaultVector3(),
+      blindness: createDefaultVector3(),
     },
     economy: {
       handbookPriceRoubles: 0,

@@ -80,6 +80,60 @@ public class AmmoStats
     [JsonPropertyName("heavyBleedingDelta")] public double HeavyBleedingDelta { get; set; }
     [JsonPropertyName("durabilityBurnModificator")] public double DurabilityBurnModificator { get; set; } = 1;
     [JsonPropertyName("ballisticCoeficient")] public double BallisticCoeficient { get; set; } = 1;
+
+    // Projectile / flight
+    [JsonPropertyName("projectileCount")] public int ProjectileCount { get; set; }
+    [JsonPropertyName("ricochetChance")] public double RicochetChance { get; set; }
+    [JsonPropertyName("fragmentationChance")] public double FragmentationChance { get; set; }
+    [JsonPropertyName("penetrationDamageMod")] public double PenetrationDamageMod { get; set; }
+    [JsonPropertyName("penetrationChanceObstacle")] public double PenetrationChanceObstacle { get; set; }
+    [JsonPropertyName("ammoLifeTimeSec")] public double AmmoLifeTimeSec { get; set; }
+    [JsonPropertyName("bulletMassGram")] public double BulletMassGram { get; set; }
+    [JsonPropertyName("bulletDiameterMilimeters")] public double BulletDiameterMilimeters { get; set; }
+
+    // Malfunctions / durability
+    [JsonPropertyName("misfireChance")] public double MisfireChance { get; set; }
+    [JsonPropertyName("malfMisfireChance")] public double MalfMisfireChance { get; set; }
+    [JsonPropertyName("malfFeedChance")] public double MalfFeedChance { get; set; }
+    [JsonPropertyName("heatFactor")] public double HeatFactor { get; set; } = 1;
+    [JsonPropertyName("staminaBurnPerDamage")] public double StaminaBurnPerDamage { get; set; }
+
+    // Tracer
+    [JsonPropertyName("tracer")] public bool Tracer { get; set; }
+    [JsonPropertyName("tracerColor")] public string TracerColor { get; set; } = string.Empty;
+    [JsonPropertyName("tracerDistance")] public double TracerDistance { get; set; }
+
+    // Audio / visual
+    [JsonPropertyName("ammoSfx")] public string AmmoSfx { get; set; } = string.Empty;
+    [JsonPropertyName("casingSounds")] public string CasingSounds { get; set; } = string.Empty;
+
+    // Explosive / grenade rounds
+    [JsonPropertyName("fuzeArmTimeSec")] public double FuzeArmTimeSec { get; set; }
+    [JsonPropertyName("minExplosionDistance")] public double MinExplosionDistance { get; set; }
+    [JsonPropertyName("maxExplosionDistance")] public double MaxExplosionDistance { get; set; }
+    [JsonPropertyName("fragmentsCount")] public int FragmentsCount { get; set; }
+    [JsonPropertyName("fragmentType")] public string FragmentType { get; set; } = string.Empty;
+    [JsonPropertyName("explosionType")] public string ExplosionType { get; set; } = string.Empty;
+    [JsonPropertyName("explosionStrength")] public double ExplosionStrength { get; set; }
+    [JsonPropertyName("showHitEffectOnExplode")] public bool ShowHitEffectOnExplode { get; set; }
+
+    // Light-and-sound rounds (flash/CS)
+    [JsonPropertyName("isLightAndSoundShot")] public bool IsLightAndSoundShot { get; set; }
+    [JsonPropertyName("lightAndSoundShotAngle")] public double LightAndSoundShotAngle { get; set; }
+    [JsonPropertyName("lightAndSoundShotSelfContusionTime")] public double LightAndSoundShotSelfContusionTime { get; set; }
+    [JsonPropertyName("lightAndSoundShotSelfContusionStrength")] public double LightAndSoundShotSelfContusionStrength { get; set; }
+
+    // Vector3 effect fields
+    [JsonPropertyName("armorDistanceDistanceDamage")] public Vector3 ArmorDistanceDistanceDamage { get; set; } = new();
+    [JsonPropertyName("contusion")] public Vector3 Contusion { get; set; } = new();
+    [JsonPropertyName("blindness")] public Vector3 Blindness { get; set; } = new();
+}
+
+public class Vector3
+{
+    [JsonPropertyName("x")] public float X { get; set; }
+    [JsonPropertyName("y")] public float Y { get; set; }
+    [JsonPropertyName("z")] public float Z { get; set; }
 }
 
 public class AmmoEconomy

@@ -22,10 +22,13 @@ import {
   HelpCircle,
   Box,
   MapPin,
+  ChevronDown,
 } from 'lucide-react'
 import {
   AmmoDefinition,
   AmmoPackDefinition,
+  AmmoStats,
+  Vector3,
   AmmoBoxEntry,
   LootEntry,
   AMMO_TEMPLATES,
@@ -40,7 +43,7 @@ import {
   ValidationError,
 } from './types'
 import { ITEMS, getItemName } from './generated_items'
-import { getAmmoStats } from './generated_ammo_stats'
+import { getAmmoStats, AmmoTemplateStats, TRACER_COLOR_OPTIONS, AMMO_SFX_OPTIONS, CASING_SOUNDS_OPTIONS } from './generated_ammo_stats'
 import { getAmmoCompatibility } from './generated_ammo_compatibility'
 import { AMMO_BOX_TEMPLATES, getAmmoBoxTemplate } from './generated_ammo_box_templates'
 import { LOOT_CONTAINERS, getLootContainer } from './generated_loot_containers'
@@ -264,6 +267,36 @@ function validatePack(pack: AmmoPackDefinition): ValidationError[] {
     if (ammo.stats.ballisticCoeficient < 0) {
       errors.push({ field: `${prefix}.stats.ballisticCoeficient`, message: 'Ballistic coefficient cannot be negative' })
     }
+
+    const nonNegativeStats = [
+      'ricochetChance', 'fragmentationChance', 'penetrationChanceObstacle', 'misfireChance',
+      'malfMisfireChance', 'malfFeedChance', 'heatFactor', 'staminaBurnPerDamage',
+      'bulletMassGram', 'bulletDiameterMilimeters', 'tracerDistance', 'fuzeArmTimeSec',
+      'minExplosionDistance', 'maxExplosionDistance', 'explosionStrength', 'lightAndSoundShotAngle',
+      'lightAndSoundShotSelfContusionTime', 'lightAndSoundShotSelfContusionStrength',
+    ] as const
+    nonNegativeStats.forEach(stat => {
+      if (ammo.stats[stat] < 0) {
+        errors.push({ field: `${prefix}.stats.${stat}`, message: `${stat} cannot be negative` })
+      }
+    })
+
+    if (ammo.stats.projectileCount < 0) {
+      errors.push({ field: `${prefix}.stats.projectileCount`, message: 'Projectile count cannot be negative' })
+    }
+    if (ammo.stats.fragmentsCount < 0) {
+      errors.push({ field: `${prefix}.stats.fragmentsCount`, message: 'Fragments count cannot be negative' })
+    }
+    if (ammo.stats.ammoLifeTimeSec < 0) {
+      errors.push({ field: `${prefix}.stats.ammoLifeTimeSec`, message: 'Ammo life time cannot be negative' })
+    }
+
+    ;['armorDistanceDistanceDamage', 'contusion', 'blindness'].forEach(key => {
+      const v = ammo.stats[key as keyof AmmoStats] as Vector3
+      if (v.x < 0 || v.y < 0 || v.z < 0) {
+        errors.push({ field: `${prefix}.stats.${key}`, message: `${key} components cannot be negative` })
+      }
+    })
   })
 
   return errors
@@ -661,6 +694,34 @@ function Section({ title, icon, children }: { title: string; icon: React.ReactNo
   )
 }
 
+function CollapsibleSection({ title, icon, defaultOpen = true, children }: { title: string; icon: React.ReactNode; defaultOpen?: boolean; children: React.ReactNode }) {
+  const [open, setOpen] = useState(defaultOpen)
+  const [overflowVisible, setOverflowVisible] = useState(defaultOpen)
+  useEffect(() => {
+    if (open) {
+      const timer = setTimeout(() => setOverflowVisible(true), 200)
+      return () => clearTimeout(timer)
+    } else {
+      setOverflowVisible(false)
+    }
+  }, [open])
+  return (
+    <div className="border-b border-tarkov-border/50 py-4 last:border-b-0 last:pb-0">
+      <button
+        type="button"
+        className="w-full flex items-center justify-between text-sm font-semibold text-tarkov-accent hover:text-tarkov-accent/80 transition-colors"
+        onClick={() => setOpen(v => !v)}
+      >
+        <span className="flex items-center gap-2">{icon} {title}</span>
+        <ChevronDown size={18} className={`transition-transform duration-200 ${open ? 'rotate-180' : ''}`} />
+      </button>
+      <div className={`transition-all duration-200 ${open ? 'max-h-[2000px] opacity-100 mt-3' : 'max-h-0 opacity-0'} ${overflowVisible ? 'overflow-visible' : 'overflow-hidden'}`}>
+        {children}
+      </div>
+    </div>
+  )
+}
+
 function Toggle({ checked, onChange, label }: { checked: boolean; onChange: (v: boolean) => void; label?: string }) {
   return (
     <label className="toggle flex items-center gap-2 cursor-pointer">
@@ -736,22 +797,11 @@ function IdentityTab({ pack, setPack, ammo, onChange }: {
                 } else if (value) {
                   const base = getAmmoStats(value)
                   if (base) {
+                    const { name, shortName, ...baseStats } = base
                     onChange({
                       baseTpl: value,
                       compareToAmmoId: '',
-                      stats: {
-                        damage: base.damage,
-                        penetration: base.penetration,
-                        armorDamage: base.armorDamage,
-                        initialSpeed: base.initialSpeed,
-                        ammoAccr: base.ammoAccr,
-                        ammoRec: base.ammoRec,
-                        stackMaxSize: base.stackMaxSize,
-                        lightBleedingDelta: base.lightBleedingDelta,
-                        heavyBleedingDelta: base.heavyBleedingDelta,
-                        durabilityBurnModificator: base.durabilityBurnModificator,
-                        ballisticCoeficient: base.ballisticCoeficient,
-                      },
+                      stats: baseStats as AmmoStats,
                     })
                   } else {
                     onChange({ baseTpl: value, compareToAmmoId: '' })
@@ -853,6 +903,28 @@ function StatsTab({ ammo, onChange }: { ammo: AmmoDefinition; onChange: (u: Part
     heavyBleedingDelta: 'Heavy Bleed Chance',
     durabilityBurnModificator: 'Durability Burn',
     ballisticCoeficient: 'Ballistic Coefficient',
+    projectileCount: 'Projectile Count',
+    ricochetChance: 'Ricochet Chance',
+    fragmentationChance: 'Fragmentation Chance',
+    penetrationDamageMod: 'Penetration Damage Mod',
+    penetrationChanceObstacle: 'Penetration Chance (Obstacle)',
+    ammoLifeTimeSec: 'Ammo Life Time (sec)',
+    bulletMassGram: 'Bullet Mass (g)',
+    bulletDiameterMilimeters: 'Bullet Diameter (mm)',
+    misfireChance: 'Misfire Chance',
+    malfMisfireChance: 'Malf. Misfire Chance',
+    malfFeedChance: 'Malf. Feed Chance',
+    heatFactor: 'Heat Factor',
+    staminaBurnPerDamage: 'Stamina Burn / Damage',
+    tracerDistance: 'Tracer Distance',
+    fuzeArmTimeSec: 'Fuze Arm Time (sec)',
+    minExplosionDistance: 'Min Explosion Distance',
+    maxExplosionDistance: 'Max Explosion Distance',
+    fragmentsCount: 'Fragments Count',
+    explosionStrength: 'Explosion Strength',
+    lightAndSoundShotAngle: 'Flash/Sound Angle',
+    lightAndSoundShotSelfContusionTime: 'Self Contusion Time',
+    lightAndSoundShotSelfContusionStrength: 'Self Contusion Strength',
   }
   const statTooltips: Record<string, string> = {
     damage: 'Hit damage dealt to unarmored body parts.',
@@ -866,36 +938,225 @@ function StatsTab({ ammo, onChange }: { ammo: AmmoDefinition; onChange: (u: Part
     heavyBleedingDelta: 'Chance to cause heavy bleeding on hit (0-1). 0 leaves the base ammo value unchanged.',
     durabilityBurnModificator: 'Multiplier for weapon durability burn per shot. 1 is the base ammo value; 0 disables durability burn.',
     ballisticCoeficient: 'Ballistic coefficient (G1). Lower values drop faster; higher values retain velocity better.',
+    projectileCount: 'Number of projectiles fired per shot (1 for normal, higher for buckshot).',
+    ricochetChance: 'Probability of ricocheting off hard surfaces.',
+    fragmentationChance: 'Probability of fragmenting on impact.',
+    penetrationDamageMod: 'Damage retained after penetrating armor.',
+    penetrationChanceObstacle: 'Chance to penetrate thin obstacles and barriers.',
+    ammoLifeTimeSec: 'How long the projectile stays in the world before being removed.',
+    bulletMassGram: 'Projectile mass in grams.',
+    bulletDiameterMilimeters: 'Projectile diameter in millimeters.',
+    misfireChance: 'Chance of a single misfire on fire.',
+    malfMisfireChance: 'Chance contribution to weapon misfire malfunction.',
+    malfFeedChance: 'Chance contribution to weapon feed malfunction.',
+    heatFactor: 'Multiplier for barrel heat generated per shot.',
+    staminaBurnPerDamage: 'Stamina drained per point of damage dealt.',
+    tracerDistance: 'Distance over which the tracer effect is visible.',
+    fuzeArmTimeSec: 'Time before an explosive round arms after firing.',
+    minExplosionDistance: 'Minimum distance at which the explosion deals damage.',
+    maxExplosionDistance: 'Maximum radius of the explosion.',
+    fragmentsCount: 'Number of fragments released on explosion.',
+    explosionStrength: 'Raw power of the explosion.',
+    lightAndSoundShotAngle: 'Cone angle for flash/sound effect.',
+    lightAndSoundShotSelfContusionTime: 'Duration of self-contusion from firing a flash/sound round.',
+    lightAndSoundShotSelfContusionStrength: 'Strength of self-contusion from firing a flash/sound round.',
   }
   const compareToId = ammo.compareToAmmoId === '__other__' ? ammo.baseTpl : (ammo.compareToAmmoId || ammo.baseTpl)
   const base = getAmmoStats(compareToId)
 
+  const coreStats = ['damage', 'penetration', 'armorDamage', 'initialSpeed', 'ammoAccr', 'ammoRec', 'stackMaxSize', 'lightBleedingDelta', 'heavyBleedingDelta', 'durabilityBurnModificator', 'ballisticCoeficient']
+  const projectileStats = ['projectileCount', 'ricochetChance', 'fragmentationChance', 'penetrationDamageMod', 'penetrationChanceObstacle', 'ammoLifeTimeSec', 'bulletMassGram', 'bulletDiameterMilimeters']
+  const malfunctionStats = ['misfireChance', 'malfMisfireChance', 'malfFeedChance', 'heatFactor', 'staminaBurnPerDamage']
+  const explosiveStats = ['fuzeArmTimeSec', 'minExplosionDistance', 'maxExplosionDistance', 'fragmentsCount', 'explosionStrength']
+  const lightSoundStats = ['lightAndSoundShotAngle', 'lightAndSoundShotSelfContusionTime', 'lightAndSoundShotSelfContusionStrength']
+  const allNumericStats = [...coreStats, ...projectileStats, ...malfunctionStats, 'tracerDistance', ...explosiveStats, ...lightSoundStats]
+
+  const stepForStat = (stat: string): string | number => {
+    if (stat === 'lightBleedingDelta' || stat === 'heavyBleedingDelta' || stat === 'ricochetChance' || stat === 'fragmentationChance' || stat === 'penetrationChanceObstacle' || stat === 'misfireChance' || stat === 'malfMisfireChance' || stat === 'malfFeedChance' || stat === 'staminaBurnPerDamage' || stat === 'heatFactor') return 0.01
+    if (stat === 'ballisticCoeficient' || stat === 'penetrationDamageMod' || stat === 'bulletMassGram' || stat === 'bulletDiameterMilimeters') return 0.001
+    if (stat === 'fuzeArmTimeSec' || stat === 'minExplosionDistance' || stat === 'maxExplosionDistance' || stat === 'tracerDistance' || stat === 'ammoLifeTimeSec' || stat === 'lightAndSoundShotSelfContusionTime' || stat === 'explosionStrength') return 0.1
+    return 1
+  }
+
+  const updateStat = (stat: string, value: number) => onChange({ stats: { ...ammo.stats, [stat]: value } })
+
+  const renderNumberField = (stat: string) => (
+    <Field key={stat} label={statNames[stat]} tooltip={statTooltips[stat]}>
+      <input
+        className="input-field"
+        type="number"
+        step={stepForStat(stat)}
+        value={ammo.stats[stat as keyof AmmoStats] as number}
+        onChange={e => updateStat(stat, parseFloat(e.target.value) || 0)}
+      />
+    </Field>
+  )
+
+  const updateVector3 = (key: 'armorDistanceDistanceDamage' | 'contusion' | 'blindness', axis: 'x' | 'y' | 'z', value: number) => {
+    onChange({
+      stats: {
+        ...ammo.stats,
+        [key]: { ...ammo.stats[key], [axis]: value },
+      },
+    })
+  }
+
   return (
     <Section title="Ammo Stats" icon={<Crosshair size={18} />}>
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-        {(['damage', 'penetration', 'armorDamage', 'initialSpeed', 'ammoAccr', 'ammoRec', 'stackMaxSize', 'lightBleedingDelta', 'heavyBleedingDelta', 'durabilityBurnModificator', 'ballisticCoeficient'] as const).map((stat) => (
-          <Field key={stat} label={statNames[stat]} tooltip={statTooltips[stat]}>
-            <input
+      <CollapsibleSection title="Core Stats" icon={<Crosshair size={16} />}>
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+          {coreStats.map(renderNumberField)}
+        </div>
+      </CollapsibleSection>
+
+      <CollapsibleSection title="Projectile & Flight" icon={<Crosshair size={16} />} defaultOpen={false}>
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+          {projectileStats.map(renderNumberField)}
+        </div>
+      </CollapsibleSection>
+
+      <CollapsibleSection title="Malfunctions & Durability" icon={<Crosshair size={16} />} defaultOpen={false}>
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+          {malfunctionStats.map(renderNumberField)}
+        </div>
+      </CollapsibleSection>
+
+      <CollapsibleSection title="Tracer" icon={<Crosshair size={16} />} defaultOpen={false}>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <Field label="Tracer" tooltip="Whether the round leaves a tracer trail.">
+            <select
               className="input-field"
-              type="number"
-              step={stat === 'lightBleedingDelta' || stat === 'heavyBleedingDelta' ? 0.01 : stat === 'ballisticCoeficient' ? 0.001 : 1}
-              value={ammo.stats[stat]}
-              onChange={e =>
-                onChange({
-                  stats: { ...ammo.stats, [stat]: parseFloat(e.target.value) || 0 },
-                })
-              }
+              value={ammo.stats.tracer ? 'true' : 'false'}
+              onChange={e => onChange({ stats: { ...ammo.stats, tracer: e.target.value === 'true' } })}
+            >
+              <option value="false">No</option>
+              <option value="true">Yes</option>
+            </select>
+          </Field>
+          <Field label="Tracer Color" tooltip="Color key for the tracer effect. Pick from the values used by base ammo templates.">
+            <select
+              className="input-field"
+              value={ammo.stats.tracerColor}
+              onChange={e => onChange({ stats: { ...ammo.stats, tracerColor: e.target.value } })}
+            >
+              <option value="">None / Default</option>
+              {TRACER_COLOR_OPTIONS.map(c => (
+                <option key={c} value={c}>{c}</option>
+              ))}
+            </select>
+          </Field>
+          {renderNumberField('tracerDistance')}
+        </div>
+      </CollapsibleSection>
+
+      <CollapsibleSection title="Audio / Visual" icon={<Crosshair size={16} />} defaultOpen={false}>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <Field label="Ammo SFX" tooltip="Sound effect key for the projectile / impact audio. Pick from the values used by base ammo templates.">
+            <select
+              className="input-field font-mono text-sm"
+              value={ammo.stats.ammoSfx}
+              onChange={e => onChange({ stats: { ...ammo.stats, ammoSfx: e.target.value } })}
+            >
+              <option value="">None / Default</option>
+              {AMMO_SFX_OPTIONS.map(s => (
+                <option key={s} value={s}>{s}</option>
+              ))}
+            </select>
+          </Field>
+          <Field label="Casing Sounds" tooltip="Audio category key for shell casing sounds. Pick from the values used by base ammo templates.">
+            <select
+              className="input-field font-mono text-sm"
+              value={ammo.stats.casingSounds}
+              onChange={e => onChange({ stats: { ...ammo.stats, casingSounds: e.target.value } })}
+            >
+              <option value="">None / Default</option>
+              {CASING_SOUNDS_OPTIONS.map(s => (
+                <option key={s} value={s}>{s}</option>
+              ))}
+            </select>
+          </Field>
+        </div>
+      </CollapsibleSection>
+
+      <CollapsibleSection title="Explosive / Grenade" icon={<Crosshair size={16} />} defaultOpen={false}>
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+          {explosiveStats.map(renderNumberField)}
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+          <Field label="Fragment Type" tooltip="Fragment type identifier used by the explosion.">
+            <input
+              className="input-field font-mono text-sm"
+              value={ammo.stats.fragmentType}
+              onChange={e => onChange({ stats: { ...ammo.stats, fragmentType: e.target.value } })}
             />
           </Field>
-        ))}
-      </div>
+          <Field label="Explosion Type" tooltip="Explosion type identifier (e.g. grenade, flamable, etc.).">
+            <input
+              className="input-field font-mono text-sm"
+              value={ammo.stats.explosionType}
+              onChange={e => onChange({ stats: { ...ammo.stats, explosionType: e.target.value } })}
+            />
+          </Field>
+          <Field label="Show Hit Effect On Explode" tooltip="Whether to show a hit effect when the explosive detonates.">
+            <select
+              className="input-field"
+              value={ammo.stats.showHitEffectOnExplode ? 'true' : 'false'}
+              onChange={e => onChange({ stats: { ...ammo.stats, showHitEffectOnExplode: e.target.value === 'true' } })}
+            >
+              <option value="false">No</option>
+              <option value="true">Yes</option>
+            </select>
+          </Field>
+        </div>
+      </CollapsibleSection>
+
+      <CollapsibleSection title="Light & Sound (Flash / CS)" icon={<Crosshair size={16} />} defaultOpen={false}>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <Field label="Light & Sound Shot" tooltip="Whether this round acts as a flashbang / sound suppression round.">
+            <select
+              className="input-field"
+              value={ammo.stats.isLightAndSoundShot ? 'true' : 'false'}
+              onChange={e => onChange({ stats: { ...ammo.stats, isLightAndSoundShot: e.target.value === 'true' } })}
+            >
+              <option value="false">No</option>
+              <option value="true">Yes</option>
+            </select>
+          </Field>
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mt-4">
+          {lightSoundStats.map(renderNumberField)}
+        </div>
+      </CollapsibleSection>
+
+      <CollapsibleSection title="Area Effect Vectors" icon={<Crosshair size={16} />} defaultOpen={false}>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {[
+            { key: 'armorDistanceDistanceDamage', label: 'Armor Distance Damage', tooltip: 'Damage falloff over distance against armor.' },
+            { key: 'contusion', label: 'Contusion', tooltip: 'Contusion effect intensity vector.' },
+            { key: 'blindness', label: 'Blindness', tooltip: 'Blindness effect intensity vector.' },
+          ].map(({ key, label, tooltip }) => (
+            <Field key={key} label={label} tooltip={tooltip}>
+              <div className="grid grid-cols-3 gap-2">
+                {(['x', 'y', 'z'] as const).map(axis => (
+                  <input
+                    key={axis}
+                    className="input-field font-mono text-sm"
+                    type="number"
+                    step={0.01}
+                    value={(ammo.stats[key as keyof AmmoStats] as Vector3)[axis]}
+                    onChange={e => updateVector3(key as 'armorDistanceDistanceDamage' | 'contusion' | 'blindness', axis, parseFloat(e.target.value) || 0)}
+                    placeholder={axis.toUpperCase()}
+                  />
+                ))}
+              </div>
+            </Field>
+          ))}
+        </div>
+      </CollapsibleSection>
 
       {ammo.baseTpl && (
-      <div className="mt-6 p-4 bg-tarkov-bg border border-tarkov-border rounded-lg">
+      <CollapsibleSection title="Base Ammo Comparison" icon={<Crosshair size={16} />} defaultOpen={false}>
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4">
-          <h3 className="text-sm font-semibold text-tarkov-accent flex items-center gap-2">
-            <Crosshair size={16} /> Base Ammo Comparison
-          </h3>
           <div className="flex flex-col md:flex-row md:items-center gap-2">
             <span className="text-xs text-tarkov-text-dim">Compare to:</span>
             <select
@@ -936,9 +1197,9 @@ function StatsTab({ ammo, onChange }: { ammo: AmmoDefinition; onChange: (u: Part
         </div>
         {base ? (
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
-            {(['damage', 'penetration', 'armorDamage', 'initialSpeed', 'ammoAccr', 'ammoRec', 'stackMaxSize', 'lightBleedingDelta', 'heavyBleedingDelta', 'durabilityBurnModificator', 'ballisticCoeficient'] as const).map((stat) => {
-              const custom = ammo.stats[stat]
-              const original = base[stat]
+            {allNumericStats.map((stat) => {
+              const custom = ammo.stats[stat as keyof AmmoStats] as number
+              const original = base[stat as keyof AmmoTemplateStats] as number
               const diff = custom - original
               const diffClass = diff > 0 ? 'text-tarkov-success' : diff < 0 ? 'text-tarkov-error' : 'text-tarkov-text-dim'
               const diffText = diff === 0 ? '=' : diff > 0 ? `+${diff}` : `${diff}`
@@ -957,7 +1218,7 @@ function StatsTab({ ammo, onChange }: { ammo: AmmoDefinition; onChange: (u: Part
         ) : (
           <div className="text-sm text-tarkov-text-dim">Comparison ammo not found.</div>
         )}
-      </div>
+      </CollapsibleSection>
       )}
     </Section>
   )
@@ -1247,7 +1508,7 @@ function FiltersTab({ ammo, onChange }: { ammo: AmmoDefinition; onChange: (u: Pa
   return (
     <Section title="Filter Patching" icon={<Filter size={18} />}>
       <p className="text-sm text-tarkov-text-dim mb-4">
-        Optional magazine / weapon IDs whose filters should be patched to accept this ammo. Leave empty if the cloned base already shares filters.
+        Optional magazine / weapon IDs whose filters should be patched to accept this ammo.
       </p>
 
       {compat && (

@@ -67,9 +67,16 @@ public static class CraftingManager
             });
         }
 
+        var recipeId = def.Id;
+        if (productions.Any(p => p.Id == recipeId))
+        {
+            logger.LogWithColor($"[AmmoGen] Skipping crafting recipe for {def.Name}: a recipe with ID '{recipeId}' already exists.", LogTextColor.Yellow);
+            return;
+        }
+
         var recipe = new HideoutProduction
         {
-            Id = new MongoId(GenerateProductionId(def.Id)),
+            Id = new MongoId(recipeId),
             AreaType = HideoutAreas.Workbench,
             Requirements = requirements,
             ProductionTime = def.Crafting.CraftTimeSeconds,
@@ -84,16 +91,5 @@ public static class CraftingManager
 
         productions.Add(recipe);
         logger.LogWithColor($"[AmmoGen] Added crafting recipe for {def.Name} (Workbench L{def.Crafting.WorkbenchLevel}, {def.Crafting.OutputCount} rounds)", LogTextColor.Green);
-    }
-
-    private static string GenerateProductionId(string ammoId)
-    {
-        if (ammoId.Length >= 24)
-        {
-            var chars = ammoId[..24].ToCharArray();
-            chars[0] = chars[0] == 'f' ? '0' : (char)(chars[0] + 1);
-            return new string(chars);
-        }
-        return ("p" + ammoId).PadRight(24, '0')[..24];
     }
 }

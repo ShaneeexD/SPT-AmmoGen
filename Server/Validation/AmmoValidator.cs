@@ -77,6 +77,78 @@ public static class AmmoValidator
             if (ammo.Stats.BallisticCoeficient < 0)
                 errors.Add($"{prefix}: 'stats.ballisticCoeficient' cannot be negative.");
 
+            if (ammo.Stats.RicochetChance < 0)
+                errors.Add($"{prefix}: 'stats.ricochetChance' cannot be negative.");
+
+            if (ammo.Stats.FragmentationChance < 0)
+                errors.Add($"{prefix}: 'stats.fragmentationChance' cannot be negative.");
+
+            if (ammo.Stats.PenetrationChanceObstacle < 0)
+                errors.Add($"{prefix}: 'stats.penetrationChanceObstacle' cannot be negative.");
+
+            if (ammo.Stats.MisfireChance < 0)
+                errors.Add($"{prefix}: 'stats.misfireChance' cannot be negative.");
+
+            if (ammo.Stats.MalfMisfireChance < 0)
+                errors.Add($"{prefix}: 'stats.malfMisfireChance' cannot be negative.");
+
+            if (ammo.Stats.MalfFeedChance < 0)
+                errors.Add($"{prefix}: 'stats.malfFeedChance' cannot be negative.");
+
+            if (ammo.Stats.HeatFactor < 0)
+                errors.Add($"{prefix}: 'stats.heatFactor' cannot be negative.");
+
+            if (ammo.Stats.StaminaBurnPerDamage < 0)
+                errors.Add($"{prefix}: 'stats.staminaBurnPerDamage' cannot be negative.");
+
+            if (ammo.Stats.BulletMassGram < 0)
+                errors.Add($"{prefix}: 'stats.bulletMassGram' cannot be negative.");
+
+            if (ammo.Stats.BulletDiameterMilimeters < 0)
+                errors.Add($"{prefix}: 'stats.bulletDiameterMilimeters' cannot be negative.");
+
+            if (ammo.Stats.TracerDistance < 0)
+                errors.Add($"{prefix}: 'stats.tracerDistance' cannot be negative.");
+
+            if (ammo.Stats.FuzeArmTimeSec < 0)
+                errors.Add($"{prefix}: 'stats.fuzeArmTimeSec' cannot be negative.");
+
+            if (ammo.Stats.MinExplosionDistance < 0)
+                errors.Add($"{prefix}: 'stats.minExplosionDistance' cannot be negative.");
+
+            if (ammo.Stats.MaxExplosionDistance < 0)
+                errors.Add($"{prefix}: 'stats.maxExplosionDistance' cannot be negative.");
+
+            if (ammo.Stats.ExplosionStrength < 0)
+                errors.Add($"{prefix}: 'stats.explosionStrength' cannot be negative.");
+
+            if (ammo.Stats.LightAndSoundShotAngle < 0)
+                errors.Add($"{prefix}: 'stats.lightAndSoundShotAngle' cannot be negative.");
+
+            if (ammo.Stats.LightAndSoundShotSelfContusionTime < 0)
+                errors.Add($"{prefix}: 'stats.lightAndSoundShotSelfContusionTime' cannot be negative.");
+
+            if (ammo.Stats.LightAndSoundShotSelfContusionStrength < 0)
+                errors.Add($"{prefix}: 'stats.lightAndSoundShotSelfContusionStrength' cannot be negative.");
+
+            if (ammo.Stats.ProjectileCount < 0)
+                errors.Add($"{prefix}: 'stats.projectileCount' cannot be negative.");
+
+            if (ammo.Stats.FragmentsCount < 0)
+                errors.Add($"{prefix}: 'stats.fragmentsCount' cannot be negative.");
+
+            if (ammo.Stats.AmmoLifeTimeSec < 0)
+                errors.Add($"{prefix}: 'stats.ammoLifeTimeSec' cannot be negative.");
+
+            if (ammo.Stats.ArmorDistanceDistanceDamage.X < 0 || ammo.Stats.ArmorDistanceDistanceDamage.Y < 0 || ammo.Stats.ArmorDistanceDistanceDamage.Z < 0)
+                errors.Add($"{prefix}: 'stats.armorDistanceDistanceDamage' components cannot be negative.");
+
+            if (ammo.Stats.Contusion.X < 0 || ammo.Stats.Contusion.Y < 0 || ammo.Stats.Contusion.Z < 0)
+                errors.Add($"{prefix}: 'stats.contusion' components cannot be negative.");
+
+            if (ammo.Stats.Blindness.X < 0 || ammo.Stats.Blindness.Y < 0 || ammo.Stats.Blindness.Z < 0)
+                errors.Add($"{prefix}: 'stats.blindness' components cannot be negative.");
+
             for (var j = 0; j < ammo.Traders.Count; j++)
             {
                 var trader = ammo.Traders[j];

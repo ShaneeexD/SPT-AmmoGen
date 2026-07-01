@@ -1,4 +1,5 @@
 using SPTarkov.Server.Core.Models.Common;
+using SPTarkov.Server.Core.Models.Eft.Common;
 using SPTarkov.Server.Core.Models.Eft.Common.Tables;
 using SPTarkov.Server.Core.Models.Logging;
 using SPTarkov.Server.Core.Models.Spt.Mod;
@@ -76,6 +77,54 @@ public static class AmmoManager
             HeavyBleedingDelta = def.Stats.HeavyBleedingDelta != 0 ? def.Stats.HeavyBleedingDelta : null,
             DurabilityBurnModificator = def.Stats.DurabilityBurnModificator,
             BallisticCoeficient = def.Stats.BallisticCoeficient,
+            ProjectileCount = def.Stats.ProjectileCount > 0 ? def.Stats.ProjectileCount : null,
+            RicochetChance = def.Stats.RicochetChance,
+            FragmentationChance = def.Stats.FragmentationChance,
+            PenetrationDamageMod = def.Stats.PenetrationDamageMod,
+            PenetrationChanceObstacle = def.Stats.PenetrationChanceObstacle,
+            AmmoLifeTimeSec = def.Stats.AmmoLifeTimeSec,
+            BulletMassGram = def.Stats.BulletMassGram,
+            BulletDiameterMilimeters = def.Stats.BulletDiameterMilimeters,
+            MisfireChance = def.Stats.MisfireChance,
+            MalfMisfireChance = def.Stats.MalfMisfireChance,
+            MalfFeedChance = def.Stats.MalfFeedChance,
+            HeatFactor = def.Stats.HeatFactor,
+            StaminaBurnPerDamage = def.Stats.StaminaBurnPerDamage,
+            Tracer = def.Stats.Tracer,
+            TracerColor = def.Stats.TracerColor,
+            TracerDistance = def.Stats.TracerDistance,
+            AmmoSfx = def.Stats.AmmoSfx,
+            CasingSounds = def.Stats.CasingSounds,
+            FuzeArmTimeSec = def.Stats.FuzeArmTimeSec,
+            MinExplosionDistance = def.Stats.MinExplosionDistance,
+            MaxExplosionDistance = def.Stats.MaxExplosionDistance,
+            FragmentsCount = def.Stats.FragmentsCount > 0 ? def.Stats.FragmentsCount : null,
+            FragmentType = def.Stats.FragmentType,
+            ExplosionType = def.Stats.ExplosionType,
+            ExplosionStrength = def.Stats.ExplosionStrength,
+            ShowHitEffectOnExplode = def.Stats.ShowHitEffectOnExplode,
+            IsLightAndSoundShot = def.Stats.IsLightAndSoundShot,
+            LightAndSoundShotAngle = def.Stats.LightAndSoundShotAngle,
+            LightAndSoundShotSelfContusionTime = def.Stats.LightAndSoundShotSelfContusionTime,
+            LightAndSoundShotSelfContusionStrength = def.Stats.LightAndSoundShotSelfContusionStrength,
+            ArmorDistanceDistanceDamage = new XYZ
+            {
+                X = def.Stats.ArmorDistanceDistanceDamage.X,
+                Y = def.Stats.ArmorDistanceDistanceDamage.Y,
+                Z = def.Stats.ArmorDistanceDistanceDamage.Z,
+            },
+            Contusion = new XYZ
+            {
+                X = def.Stats.Contusion.X,
+                Y = def.Stats.Contusion.Y,
+                Z = def.Stats.Contusion.Z,
+            },
+            Blindness = new XYZ
+            {
+                X = def.Stats.Blindness.X,
+                Y = def.Stats.Blindness.Y,
+                Z = def.Stats.Blindness.Z,
+            },
         };
 
         var details = new NewItemFromCloneDetails
