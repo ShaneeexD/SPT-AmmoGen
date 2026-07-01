@@ -2447,7 +2447,7 @@ function GrenadeStatsTab({ grenade, onChange }: { grenade: GrenadeDefinition; on
     contusionDistance: 'Contusion Distance',
     explDelay: 'Explosion Delay',
     minTimeToContactExplode: 'Min Time To Contact Explode',
-    strength: 'Strength',
+    strength: 'Strength (Fragment Damage)',
     throwDamMax: 'Throw Damage Max',
     weight: 'Weight',
   }
@@ -2488,7 +2488,7 @@ function GrenadeStatsTab({ grenade, onChange }: { grenade: GrenadeDefinition; on
           {renderNumberField('Contusion Distance', 'contusionDistance', 'Distance at which contusion is applied.')}
           {renderNumberField('Explosion Delay', 'explDelay', 'Delay before the grenade explodes after trigger.')}
           {renderNumberField('Min Time To Contact Explode', 'minTimeToContactExplode', 'Minimum time before contact explosion can occur.')}
-          {renderNumberField('Strength', 'strength', 'Throw strength / arm force required.', 1)}
+          {renderNumberField('Strength', 'strength', 'Max damage per fragment.', 1)}
           {renderNumberField('Throw Damage Max', 'throwDamMax', 'Maximum damage dealt on direct throw impact.')}
           {renderNumberField('Weight', 'weight', 'Grenade weight in kg.')}
           {renderBooleanField('Play Fuze Sound', 'playFuzeSound', 'Whether the fuze sound is audible before detonation.')}
