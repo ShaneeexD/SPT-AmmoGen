@@ -37,7 +37,7 @@ public class AmmoGenPlugin(
     public Task OnLoad()
     {
         logger.LogWithColor("[AmmoGen] ====================================", LogTextColor.Cyan);
-        logger.LogWithColor("[AmmoGen] AmmoGen Framework v1.1.0 loading...", LogTextColor.Cyan);
+        logger.LogWithColor("[AmmoGen] AmmoGen Framework v2.0.0 loading...", LogTextColor.Cyan);
         logger.LogWithColor("[AmmoGen] ====================================", LogTextColor.Cyan);
 
         var configPath = Path.Combine(Directory.GetCurrentDirectory(), "user", "mods", "AmmoGen", "config", "config.json");
