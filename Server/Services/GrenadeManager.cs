@@ -147,6 +147,7 @@ public static class GrenadeManager
             if (items.TryGetValue(def.Id, out var tpl) && tpl.Properties != null)
             {
                 tpl.Properties.RarityPvE = def.Economy.RarityPvE;
+                SetPropertyOrField(tpl.Properties, "CanSellOnRagfair", !def.Economy.FleaBanned);
 
                 // SPT's TemplateItemProperties does not expose these fields directly, so set them via reflection
                 // if the underlying cloned template has them.

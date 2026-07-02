@@ -284,6 +284,7 @@ public static class FlareManager
         if (items.TryGetValue(def.Id, out var weaponTpl) && weaponTpl.Properties != null)
         {
             weaponTpl.Properties.RarityPvE = def.Economy.RarityPvE;
+            SetPropertyOrField(weaponTpl.Properties, "CanSellOnRagfair", !def.Economy.FleaBanned);
             SetPropertyOrField(weaponTpl.Properties, "defAmmo", def.AmmoId);
 
             var weapClass = string.IsNullOrWhiteSpace(def.Stats.WeapClass) ? "specialWeapon" : def.Stats.WeapClass;
@@ -332,6 +333,7 @@ public static class FlareManager
             return;
 
         ammoTpl.Properties.RarityPvE = def.Economy.RarityPvE;
+        SetPropertyOrField(ammoTpl.Properties, "CanSellOnRagfair", !def.Economy.FleaBanned);
 
         if (!string.IsNullOrWhiteSpace(def.Stats.BackgroundColor))
             SetPropertyOrField(ammoTpl.Properties, "BackgroundColor", def.Stats.BackgroundColor);
