@@ -16,6 +16,14 @@ const AmmoParentId = '5485a8684bdc2da71d8b4567'
 
 const compatibility = {}
 
+// Manual overrides for weapons the automatic detection misses (e.g. revolvers with internal cylinders).
+const weaponOverrides = {
+  // 12.7x55mm ammo -> RSh-12 revolver
+  '5cadf6ddae9215051e1c23b2': ['633ec7c2a6918cb895019c6c'],
+  '5cadf6e5ae921500113bb973': ['633ec7c2a6918cb895019c6c'],
+  '5cadf6eeae921500134b2799': ['633ec7c2a6918cb895019c6c'],
+}
+
 function getName(id) {
   return locale[`${id} Name`] || locale[`${id} ShortName`] || items[id]?._props?.Name || items[id]?._name || id
 }
@@ -55,6 +63,15 @@ for (const itemId of Object.keys(items)) {
     magazines: magazines.sort((a, b) => a.name.localeCompare(b.name)),
     weapons: weapons.sort((a, b) => a.name.localeCompare(b.name)),
   }
+}
+
+for (const [ammoId, weaponIds] of Object.entries(weaponOverrides)) {
+  if (!compatibility[ammoId]) continue
+  for (const weaponId of weaponIds) {
+    if (!weaponId || compatibility[ammoId].weapons.some(w => w.id === weaponId)) continue
+    compatibility[ammoId].weapons.push({ id: weaponId, name: getName(weaponId) })
+  }
+  compatibility[ammoId].weapons.sort((a, b) => a.name.localeCompare(b.name))
 }
 
 const entries = Object.entries(compatibility).sort((a, b) => a[0].localeCompare(b[0]))
