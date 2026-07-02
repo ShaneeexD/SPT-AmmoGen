@@ -206,6 +206,7 @@ export interface AmmoEconomy {
   handbookPriceRoubles: number
   fleaPriceRoubles: number
   rarityPvE: string
+  fleaBanned: boolean
 }
 
 export interface TraderEntry {
@@ -371,6 +372,7 @@ export function createDefaultAmmo(): AmmoDefinition {
       handbookPriceRoubles: 0,
       fleaPriceRoubles: 0,
       rarityPvE: 'Rare',
+      fleaBanned: false,
     },
     traders: [createDefaultTraderEntry()],
     crafting: {
@@ -447,6 +449,7 @@ export function createDefaultGrenade(): GrenadeDefinition {
       handbookPriceRoubles: 0,
       fleaPriceRoubles: 0,
       rarityPvE: 'Rare',
+      fleaBanned: false,
     },
     traders: [createDefaultTraderEntry()],
     crafting: {
@@ -496,6 +499,7 @@ export function createDefaultFlare(): FlareDefinition {
       handbookPriceRoubles: 0,
       fleaPriceRoubles: 0,
       rarityPvE: 'Rare',
+      fleaBanned: false,
     },
     traders: [createDefaultTraderEntry()],
     crafting: {

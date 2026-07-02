@@ -58,6 +58,7 @@ import {
 } from './types'
 import { ITEMS, getItemName } from './generated_items'
 import { getAmmoStats, AmmoTemplateStats, TRACER_COLOR_OPTIONS, AMMO_SFX_OPTIONS, CASING_SOUNDS_OPTIONS } from './generated_ammo_stats'
+import { getAmmoEconomy } from './generated_ammo_economy'
 import { getGrenadeStats, type GrenadeTemplateStats, GRENADE_FRAGMENT_TYPES, GRENADE_EXPLOSION_EFFECT_TYPES, GRENADE_THROW_TYPES } from './generated_grenade_stats'
 import { getFlareStats, getCartridgeStats, FLARE_TYPES, AIRDROP_TEMPLATE_OPTIONS } from './generated_flare_stats'
 import { getAmmoCompatibility } from './generated_ammo_compatibility'
@@ -1141,10 +1142,12 @@ function IdentityTab({ pack, setPack, ammo, onChange }: {
                   const base = getAmmoStats(value)
                   if (base) {
                     const { name, shortName, ...baseStats } = base
+                    const baseEconomy = getAmmoEconomy(value)
                     onChange({
                       baseTpl: value,
                       compareToAmmoId: '',
                       stats: baseStats as AmmoStats,
+                      economy: baseEconomy ?? ammo.economy,
                     })
                   } else {
                     onChange({ baseTpl: value, compareToAmmoId: '' })
@@ -1664,6 +1667,13 @@ function EconomyTab({ economy, onChange }: { economy: AmmoEconomy; onChange: (u:
               <option key={r} value={r}>{r}</option>
             ))}
           </select>
+        </Field>
+        <Field label="Flea Banned" tooltip="Prevents the item from being listed or sold on the Flea Market.">
+          <Toggle
+            checked={economy.fleaBanned}
+            onChange={v => onChange({ fleaBanned: v })}
+            label="Flea banned"
+          />
         </Field>
       </div>
     </Section>

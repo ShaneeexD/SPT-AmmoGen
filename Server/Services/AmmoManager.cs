@@ -1,3 +1,4 @@
+using System.Reflection;
 using SPTarkov.Server.Core.Models.Common;
 using SPTarkov.Server.Core.Models.Eft.Common;
 using SPTarkov.Server.Core.Models.Eft.Common.Tables;
@@ -158,6 +159,7 @@ public static class AmmoManager
             if (items.TryGetValue(def.Id, out var tpl) && tpl.Properties != null)
             {
                 tpl.Properties.RarityPvE = def.Economy.RarityPvE;
+                SetPropertyOrField(tpl.Properties, "CanSellOnRagfair", !def.Economy.FleaBanned);
             }
         }
         else
@@ -264,5 +266,20 @@ public static class AmmoManager
             }
         }
         return AmmoCategoryParentId;
+    }
+
+    private static void SetPropertyOrField(object target, string name, object value)
+    {
+        var type = target.GetType();
+        var prop = type.GetProperty(name, BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase);
+        if (prop != null && prop.CanWrite)
+        {
+            prop.SetValue(target, value);
+            return;
+        }
+
+        var field = type.GetField(name, BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase);
+        if (field != null)
+            field.SetValue(target, value);
     }
 }

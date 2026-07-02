@@ -147,6 +147,7 @@ public class AmmoEconomy
     [JsonPropertyName("handbookPriceRoubles")] public int HandbookPriceRoubles { get; set; }
     [JsonPropertyName("fleaPriceRoubles")] public int FleaPriceRoubles { get; set; }
     [JsonPropertyName("rarityPvE")] public string RarityPvE { get; set; } = "Rare";
+    [JsonPropertyName("fleaBanned")] public bool FleaBanned { get; set; }
 }
 
 public class TraderEntry
