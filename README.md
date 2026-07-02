@@ -221,7 +221,7 @@ Invalid packs are **skipped** — other packs still load normally.
 
 The AmmoGen Tool export ZIP is already structured for distribution. When publishing:
 
-1. **State the dependency**: Your pack requires AmmoGen v2.0.0 for SPT 4.0.13.
+1. **State the dependency**: Your pack requires AmmoGen v2.0.1 for SPT 4.0.13.
 2. **Do not include** the AmmoGen DLL or other authors' packs in your ZIP.
 3. **Test** by extracting and running the server before publishing.
 
