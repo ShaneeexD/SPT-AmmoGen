@@ -24,6 +24,7 @@ import {
   MapPin,
   ChevronDown,
   Bomb,
+  Puzzle,
 } from 'lucide-react'
 import {
   AmmoDefinition,
@@ -34,6 +35,8 @@ import {
   AmmoBoxEntry,
   LootEntry,
   CraftingEntry,
+  ModFilterPatch,
+  FilterEntry,
   AMMO_TEMPLATES,
   createDefaultAmmo,
   createDefaultLootEntry,
@@ -272,6 +275,19 @@ function validatePack(pack: AmmoPackDefinition): ValidationError[] {
 
   if (!pack.name.trim()) errors.push({ field: 'name', message: 'Pack name is required' })
 
+  pack.modFilterPatches.forEach((patch, i) => {
+    const prefix = `modFilterPatches[${i}]`
+    patch.ammoIds.forEach((id, j) => {
+      if (!hex24.test(id)) errors.push({ field: `${prefix}.ammoIds[${j}]`, message: 'Ammo ID must be 24 hex chars' })
+    })
+    patch.weaponIds.forEach((id, j) => {
+      if (!hex24.test(id)) errors.push({ field: `${prefix}.weaponIds[${j}]`, message: 'Weapon ID must be 24 hex chars' })
+    })
+    patch.magazineIds.forEach((id, j) => {
+      if (!hex24.test(id)) errors.push({ field: `${prefix}.magazineIds[${j}]`, message: 'Magazine ID must be 24 hex chars' })
+    })
+  })
+
   pack.ammo.forEach((ammo, i) => {
     const prefix = `ammo[${i}]`
     if (!hex24.test(ammo.id)) errors.push({ field: `${prefix}.id`, message: 'ID must be 24 hex chars' })
@@ -483,7 +499,7 @@ function buildExportJson(pack: AmmoPackDefinition): object {
       economy: ammo.economy,
       traders: ammo.traders,
       crafting: ammo.crafting,
-      filters: ammo.filters,
+      filters: applyModPatches(ammo.baseTpl, ammo.filters, pack.modFilterPatches),
       ammoBox: ammo.ammoBox,
       ammoLoot: ammo.ammoLoot,
       ammoBoxLoot: ammo.ammoBoxLoot,
@@ -521,12 +537,21 @@ function buildExportJson(pack: AmmoPackDefinition): object {
   }
 }
 
+function applyModPatches(baseTpl: string, filters: FilterEntry, patches: ModFilterPatch[]): FilterEntry {
+  const matching = patches.filter(p => p.ammoIds.includes(baseTpl))
+  if (matching.length === 0) return filters
+  return {
+    patchWeapons: [...new Set([...filters.patchWeapons, ...matching.flatMap(p => p.weaponIds)])],
+    patchMagazines: [...new Set([...filters.patchMagazines, ...matching.flatMap(p => p.magazineIds)])],
+  }
+}
+
 type Tab = 'identity' | 'stats' | 'economy' | 'trader' | 'crafting' | 'filters' | 'ammobox' | 'loot' | 'preview'
 
 export default function App() {
   const [pack, setPack] = useState<AmmoPackDefinition>(createDefaultPack())
   const [activeIndex, setActiveIndex] = useState(0)
-  const [mode, setMode] = useState<'ammo' | 'grenade' | 'flare'>('ammo')
+  const [mode, setMode] = useState<'ammo' | 'grenade' | 'flare' | 'patches'>('ammo')
   const [errors, setErrors] = useState<ValidationError[]>([])
   const [activeTab, setActiveTab] = useState<Tab>('identity')
   const [showExportSuccess, setShowExportSuccess] = useState(false)
@@ -589,6 +614,27 @@ export default function App() {
     const next = { ...pack, flares: pack.flares.filter((_, i) => i !== index) }
     setPack(next)
     if (activeIndex >= next.flares.length) setActiveIndex(Math.max(0, next.flares.length - 1))
+    setErrors([])
+  }
+
+  const addPatch = () => {
+    const newPatch: ModFilterPatch = { guid: '', name: 'New patch', ammoIds: [], weaponIds: [], magazineIds: [] }
+    setPack({ ...pack, modFilterPatches: [...pack.modFilterPatches, newPatch] })
+    setActiveIndex(pack.modFilterPatches.length)
+    setErrors([])
+  }
+
+  const updatePatch = (index: number, updates: Partial<ModFilterPatch>) => {
+    const next = { ...pack, modFilterPatches: [...pack.modFilterPatches] }
+    next.modFilterPatches[index] = { ...next.modFilterPatches[index], ...updates }
+    setPack(next)
+    setErrors([])
+  }
+
+  const removePatch = (index: number) => {
+    const next = { ...pack, modFilterPatches: pack.modFilterPatches.filter((_, i) => i !== index) }
+    setPack(next)
+    if (activeIndex >= next.modFilterPatches.length) setActiveIndex(Math.max(0, next.modFilterPatches.length - 1))
     setErrors([])
   }
 
@@ -723,12 +769,21 @@ export default function App() {
       })
       return normalized
     })
+    const modFilterPatches = (parsed.modFilterPatches ?? []).map((p: ModFilterPatch) => ({
+      guid: p.guid ?? '',
+      name: p.name ?? '',
+      ammoIds: p.ammoIds ?? [],
+      weaponIds: p.weaponIds ?? [],
+      magazineIds: p.magazineIds ?? [],
+    }))
+
     return {
       ...createDefaultPack(),
       ...parsed,
       ammo,
       grenades,
       flares,
+      modFilterPatches,
     }
   }
 
@@ -775,19 +830,21 @@ export default function App() {
   const activeGrenade = pack.grenades[activeIndex]
   const activeFlare = pack.flares[activeIndex]
 
-  const tabs: { id: Tab; label: string; icon: React.ReactNode }[] = [
-    { id: 'identity', label: 'Identity', icon: <Shield size={16} /> },
-    { id: 'stats', label: 'Stats', icon: mode === 'ammo' ? <Crosshair size={16} /> : mode === 'flare' ? <Target size={16} /> : <Bomb size={16} /> },
-    { id: 'economy', label: 'Economy', icon: <Star size={16} /> },
-    { id: 'trader', label: 'Trader', icon: <Package size={16} /> },
-    { id: 'crafting', label: 'Crafting', icon: <Wrench size={16} /> },
-    ...(mode === 'ammo' ? [
-      { id: 'filters' as Tab, label: 'Filters', icon: <Filter size={16} /> },
-      { id: 'ammobox' as Tab, label: 'Ammo Box', icon: <Box size={16} /> },
-    ] : []),
-    { id: 'loot', label: 'Loot', icon: <MapPin size={16} /> },
-    { id: 'preview', label: 'JSON Preview', icon: <FileJson size={16} /> },
-  ]
+  const tabs: { id: Tab; label: string; icon: React.ReactNode }[] = mode === 'patches'
+    ? []
+    : [
+      { id: 'identity', label: 'Identity', icon: <Shield size={16} /> },
+      { id: 'stats', label: 'Stats', icon: mode === 'ammo' ? <Crosshair size={16} /> : mode === 'flare' ? <Target size={16} /> : <Bomb size={16} /> },
+      { id: 'economy', label: 'Economy', icon: <Star size={16} /> },
+      { id: 'trader', label: 'Trader', icon: <Package size={16} /> },
+      { id: 'crafting', label: 'Crafting', icon: <Wrench size={16} /> },
+      ...(mode === 'ammo' ? [
+        { id: 'filters' as Tab, label: 'Filters', icon: <Filter size={16} /> },
+        { id: 'ammobox' as Tab, label: 'Ammo Box', icon: <Box size={16} /> },
+      ] : []),
+      { id: 'loot', label: 'Loot', icon: <MapPin size={16} /> },
+      { id: 'preview', label: 'JSON Preview', icon: <FileJson size={16} /> },
+    ]
 
   return (
     <div className="min-h-screen flex flex-col bg-tarkov-bg text-tarkov-text">
@@ -833,6 +890,14 @@ export default function App() {
               }`}
             >
               <Target size={14} /> Flares
+            </button>
+            <button
+              onClick={() => { setMode('patches'); setActiveIndex(0); setActiveTab('identity') }}
+              className={`flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded transition-colors ${
+                mode === 'patches' ? 'bg-tarkov-accent text-white' : 'text-tarkov-text-dim hover:text-tarkov-text'
+              }`}
+            >
+              <Puzzle size={14} /> Mod Patches
             </button>
           </div>
         </div>
@@ -898,7 +963,9 @@ export default function App() {
       {/* Item selector */}
       <div className="bg-tarkov-surface border-b border-tarkov-border px-6 py-3">
         <div className="max-w-5xl mx-auto flex flex-col sm:flex-row sm:items-center gap-3">
-          <div className="text-sm text-tarkov-text-dim">{mode === 'ammo' ? 'Ammo' : mode === 'flare' ? 'Flares' : 'Grenades'}</div>
+          <div className="text-sm text-tarkov-text-dim">
+            {mode === 'ammo' ? 'Ammo' : mode === 'flare' ? 'Flares' : mode === 'grenade' ? 'Grenades' : 'Mod Patches'}
+          </div>
           <div className="flex flex-wrap gap-2 flex-1">
             {mode === 'ammo' && pack.ammo.map((ammo, i) => (
               <button
@@ -977,8 +1044,11 @@ export default function App() {
             ))}
           </div>
           <div className="flex items-center gap-3">
-            <button onClick={mode === 'ammo' ? addAmmo : mode === 'flare' ? addFlare : addGrenade} className="btn-secondary text-sm flex items-center gap-1.5">
-              <Plus size={14} /> {mode === 'ammo' ? 'Add Ammo' : mode === 'flare' ? 'Add Flare' : 'Add Grenade'}
+            <button
+              onClick={mode === 'ammo' ? addAmmo : mode === 'flare' ? addFlare : mode === 'patches' ? addPatch : addGrenade}
+              className="btn-secondary text-sm flex items-center gap-1.5"
+            >
+              <Plus size={14} /> {mode === 'ammo' ? 'Add Ammo' : mode === 'flare' ? 'Add Flare' : mode === 'patches' ? 'Add Patch' : 'Add Grenade'}
             </button>
             <a
               href="https://db.sp-tarkov.com/"
@@ -1009,7 +1079,7 @@ export default function App() {
               {activeTab === 'economy' && <EconomyTab economy={activeAmmo.economy} onChange={u => updateAmmo(activeIndex, { economy: { ...activeAmmo.economy, ...u } })} />}
               {activeTab === 'trader' && <TraderTab traders={activeAmmo.traders} onChange={u => updateAmmo(activeIndex, u)} />}
               {activeTab === 'crafting' && <CraftingTab crafting={activeAmmo.crafting} onChange={u => updateAmmo(activeIndex, u)} />}
-              {activeTab === 'filters' && <FiltersTab ammo={activeAmmo} onChange={u => updateAmmo(activeIndex, u)} />}
+              {activeTab === 'filters' && <FiltersTab ammo={activeAmmo} modFilterPatches={pack.modFilterPatches} onChange={u => updateAmmo(activeIndex, u)} />}
               {activeTab === 'ammobox' && <AmmoBoxTab ammo={activeAmmo} onChange={u => updateAmmo(activeIndex, u)} />}
               {activeTab === 'loot' && <LootTab ammo={activeAmmo} onChange={u => updateAmmo(activeIndex, u)} />}
               {activeTab === 'preview' && <PreviewTab pack={pack} activeAmmo={activeAmmo} />}
@@ -1053,6 +1123,15 @@ export default function App() {
               {activeTab === 'preview' && <PreviewTab pack={pack} activeAmmo={activeAmmo} />}
             </>
           )
+        )}
+        {mode === 'patches' && (
+          <ModFilterPatchesTab
+            patches={pack.modFilterPatches}
+            onUpdate={updatePatch}
+            onRemove={removePatch}
+            activeIndex={activeIndex}
+            setActiveIndex={setActiveIndex}
+          />
         )}
       </main>
     </div>
@@ -1957,7 +2036,15 @@ function CraftingTab({ crafting, onChange }: { crafting: CraftingEntry; onChange
   )
 }
 
-function FiltersTab({ ammo, onChange }: { ammo: AmmoDefinition; onChange: (u: Partial<AmmoDefinition>) => void }) {
+function FiltersTab({
+  ammo,
+  modFilterPatches,
+  onChange,
+}: {
+  ammo: AmmoDefinition
+  modFilterPatches: ModFilterPatch[]
+  onChange: (u: Partial<AmmoDefinition>) => void
+}) {
   const compat = getAmmoCompatibility(ammo.baseTpl)
 
   const autoFill = () => {
@@ -1970,6 +2057,20 @@ function FiltersTab({ ammo, onChange }: { ammo: AmmoDefinition; onChange: (u: Pa
       },
     })
   }
+
+  const applyModPatchesToAmmo = () => {
+    const matching = modFilterPatches.filter(p => p.ammoIds.includes(ammo.baseTpl))
+    if (matching.length === 0) return
+    onChange({
+      filters: {
+        ...ammo.filters,
+        patchWeapons: [...new Set([...ammo.filters.patchWeapons, ...matching.flatMap(p => p.weaponIds)])],
+        patchMagazines: [...new Set([...ammo.filters.patchMagazines, ...matching.flatMap(p => p.magazineIds)])],
+      },
+    })
+  }
+
+  const hasModPatches = modFilterPatches.some(p => p.ammoIds.includes(ammo.baseTpl))
 
   return (
     <Section title="Filter Patching" icon={<Filter size={18} />}>
@@ -1985,6 +2086,17 @@ function FiltersTab({ ammo, onChange }: { ammo: AmmoDefinition; onChange: (u: Pa
           </div>
           <button onClick={autoFill} className="btn-primary text-sm flex items-center gap-1.5">
             <Filter size={14} /> Auto-fill Compatible Magazines & Weapons
+          </button>
+        </div>
+      )}
+
+      {hasModPatches && (
+        <div className="mb-4 p-3 bg-tarkov-bg border border-tarkov-border rounded-lg">
+          <div className="text-sm text-tarkov-text mb-2">
+            Mod patch entries found for this ammo's base template.
+          </div>
+          <button onClick={applyModPatchesToAmmo} className="btn-primary text-sm flex items-center gap-1.5">
+            <Puzzle size={14} /> Apply Mod Patches
           </button>
         </div>
       )}
@@ -2024,6 +2136,228 @@ function FiltersTab({ ammo, onChange }: { ammo: AmmoDefinition; onChange: (u: Pa
         </Field>
       </div>
     </Section>
+  )
+}
+
+function ModFilterPatchesTab({
+  patches,
+  onUpdate,
+  onRemove,
+  activeIndex,
+  setActiveIndex,
+}: {
+  patches: ModFilterPatch[]
+  onUpdate: (index: number, updates: Partial<ModFilterPatch>) => void
+  onRemove: (index: number) => void
+  activeIndex: number
+  setActiveIndex: (i: number) => void
+}) {
+  const [openGuids, setOpenGuids] = useState<Set<string>>(new Set())
+  const [draft, setDraft] = useState<ModFilterPatch | null>(null)
+
+  useEffect(() => {
+    if (activeIndex >= 0 && activeIndex < patches.length) {
+      setDraft({ ...patches[activeIndex] })
+    } else {
+      setDraft(null)
+    }
+  }, [activeIndex, patches.length])
+
+  const grouped = useMemo(() => {
+    const map = new Map<string, { index: number; patch: ModFilterPatch }[]>()
+    patches.forEach((patch, index) => {
+      const key = patch.guid || 'Uncategorized'
+      if (!map.has(key)) map.set(key, [])
+      map.get(key)!.push({ index, patch })
+    })
+    return Array.from(map.entries()).sort((a, b) => a[0].localeCompare(b[0]))
+  }, [patches])
+
+  const toggleGuid = (guid: string) => {
+    const next = new Set(openGuids)
+    if (next.has(guid)) next.delete(guid)
+    else next.add(guid)
+    setOpenGuids(next)
+  }
+
+  const startEditing = (index: number) => {
+    setDraft({ ...patches[index] })
+    setActiveIndex(index)
+    const key = patches[index].guid || 'Uncategorized'
+    if (!openGuids.has(key)) {
+      const next = new Set(openGuids)
+      next.add(key)
+      setOpenGuids(next)
+    }
+  }
+
+  const saveDraft = () => {
+    if (draft && activeIndex >= 0) {
+      onUpdate(activeIndex, draft)
+    }
+    setDraft(null)
+    setActiveIndex(-1)
+  }
+
+  const cancelDraft = () => {
+    setDraft(null)
+    setActiveIndex(-1)
+  }
+
+  if (patches.length === 0) {
+    return (
+      <div className="card text-center text-tarkov-text-dim py-12">
+        <Puzzle size={48} className="mx-auto mb-4 text-tarkov-accent/50" />
+        <p className="text-lg">No mod filter patches yet.</p>
+        <p className="text-sm mt-1">Click <span className="text-tarkov-accent">Add Patch</span> to add modded weapon / magazine IDs for vanilla ammo.</p>
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-4">
+      {grouped.map(([guid, entries]) => (
+        <div key={guid} className="card overflow-hidden">
+          <button
+            onClick={() => toggleGuid(guid)}
+            className="w-full flex items-center justify-between px-4 py-3 bg-tarkov-surface border-b border-tarkov-border text-left"
+          >
+            <div className="flex items-center gap-2">
+              <Puzzle size={16} className="text-tarkov-accent" />
+              <span className="font-medium">{guid}</span>
+              <span className="text-xs text-tarkov-text-dim">({entries.length} patch{entries.length === 1 ? '' : 'es'})</span>
+            </div>
+            <ChevronDown
+              size={18}
+              className={`text-tarkov-text-dim transition-transform ${openGuids.has(guid) ? 'rotate-180' : ''}`}
+            />
+          </button>
+
+          {openGuids.has(guid) && (
+            <div className="p-4 space-y-4">
+              {entries.map(({ index, patch }) => {
+                const isEditing = activeIndex === index
+                const editingPatch = isEditing && draft ? draft : patch
+                return (
+                  <div key={index} className={`border border-tarkov-border rounded-lg p-3 ${isEditing ? 'bg-tarkov-bg' : 'bg-tarkov-surface/50'}`}>
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium text-sm">{editingPatch.name || 'Unnamed patch'}</span>
+                        <span className="text-xs text-tarkov-text-dim">
+                          {editingPatch.ammoIds.length} ammo · {editingPatch.weaponIds.length} weapons · {editingPatch.magazineIds.length} magazines
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        {isEditing ? (
+                          <>
+                            <button
+                              onClick={saveDraft}
+                              className="p-1.5 rounded hover:bg-tarkov-success/20 text-tarkov-success"
+                            >
+                              Save
+                            </button>
+                            <button
+                              onClick={cancelDraft}
+                              className="p-1.5 rounded hover:bg-tarkov-border/50 text-tarkov-text-dim hover:text-tarkov-text"
+                            >
+                              Cancel
+                            </button>
+                          </>
+                        ) : (
+                          <button
+                            onClick={() => startEditing(index)}
+                            className="p-1.5 rounded hover:bg-tarkov-border/50 text-tarkov-text-dim hover:text-tarkov-text"
+                          >
+                            Edit
+                          </button>
+                        )}
+                        <button
+                          onClick={() => onRemove(index)}
+                          className="p-1.5 rounded hover:bg-tarkov-error/20 text-tarkov-error"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
+                    </div>
+
+                    {!isEditing && (
+                      <div className="text-xs text-tarkov-text-dim space-y-1">
+                        {patch.ammoIds.length > 0 && (
+                          <div className="flex gap-2">
+                            <span className="font-medium">Ammo:</span>
+                            <span className="font-mono truncate">{patch.ammoIds.join(', ')}</span>
+                          </div>
+                        )}
+                        {patch.weaponIds.length > 0 && (
+                          <div className="flex gap-2">
+                            <span className="font-medium">Weapons:</span>
+                            <span className="font-mono truncate">{patch.weaponIds.join(', ')}</span>
+                          </div>
+                        )}
+                        {patch.magazineIds.length > 0 && (
+                          <div className="flex gap-2">
+                            <span className="font-medium">Magazines:</span>
+                            <span className="font-mono truncate">{patch.magazineIds.join(', ')}</span>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {isEditing && (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <Field label="Mod GUID" className="md:col-span-2">
+                          <input
+                            className="input-field"
+                            value={draft?.guid ?? ''}
+                            onChange={e => setDraft(draft => draft ? { ...draft, guid: e.target.value } : null)}
+                            placeholder="e.g. my-mod-guid"
+                          />
+                        </Field>
+                        <Field label="Patch Name" className="md:col-span-2">
+                          <input
+                            className="input-field"
+                            value={draft?.name ?? ''}
+                            onChange={e => setDraft(draft => draft ? { ...draft, name: e.target.value } : null)}
+                            placeholder="e.g. My Mod .45 ACP"
+                          />
+                        </Field>
+                        <Field label="Vanilla Ammo IDs" tooltip="Base ammo template IDs this patch applies to. One per line.">
+                          <textarea
+                            className="input-field min-h-[120px] font-mono text-sm resize-y"
+                            value={draft?.ammoIds.join('\n') ?? ''}
+                            onChange={e => setDraft(draft => draft ? { ...draft, ammoIds: e.target.value.split('\n').map(s => s.trim()).filter(Boolean) } : null)}
+                            placeholder="One 24-char ID per line"
+                          />
+                          <ResolvedNameList ids={draft?.ammoIds ?? []} />
+                        </Field>
+                        <Field label="Modded Weapon IDs" tooltip="Modded weapon IDs to add to the ammo's chamber filters.">
+                          <textarea
+                            className="input-field min-h-[120px] font-mono text-sm resize-y"
+                            value={draft?.weaponIds.join('\n') ?? ''}
+                            onChange={e => setDraft(draft => draft ? { ...draft, weaponIds: e.target.value.split('\n').map(s => s.trim()).filter(Boolean) } : null)}
+                            placeholder="One 24-char ID per line"
+                          />
+                          <ResolvedNameList ids={draft?.weaponIds ?? []} />
+                        </Field>
+                        <Field label="Modded Magazine IDs" tooltip="Modded magazine IDs to add to the ammo's cartridge filters.">
+                          <textarea
+                            className="input-field min-h-[120px] font-mono text-sm resize-y"
+                            value={draft?.magazineIds.join('\n') ?? ''}
+                            onChange={e => setDraft(draft => draft ? { ...draft, magazineIds: e.target.value.split('\n').map(s => s.trim()).filter(Boolean) } : null)}
+                            placeholder="One 24-char ID per line"
+                          />
+                          <ResolvedNameList ids={draft?.magazineIds ?? []} />
+                        </Field>
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </div>
+      ))}
+    </div>
   )
 }
 
