@@ -4,7 +4,6 @@ export interface AmmoPackDefinition {
   ammo: AmmoDefinition[]
   grenades: GrenadeDefinition[]
   flares: FlareDefinition[]
-  modFilterPatches: ModFilterPatch[]
 }
 
 export type FlareKind = 'handheld' | 'cartridge'
@@ -545,7 +544,6 @@ export function createDefaultPack(): AmmoPackDefinition {
     ammo: [createDefaultAmmo()],
     grenades: [],
     flares: [],
-    modFilterPatches: [],
   }
 }
 

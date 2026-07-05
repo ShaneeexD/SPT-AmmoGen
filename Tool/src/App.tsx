@@ -69,6 +69,14 @@ import { AMMO_BOX_TEMPLATES, getAmmoBoxTemplate } from './generated_ammo_box_tem
 import { LOOT_CONTAINERS, getLootContainer } from './generated_loot_containers'
 import JSZip from 'jszip'
 import { saveAs } from 'file-saver'
+import {
+  isFirebaseEnabled,
+  subscribeToModPatches,
+  addModPatch as addModPatchToFirebase,
+  updateModPatch as updateModPatchInFirebase,
+  removeModPatch as removeModPatchFromFirebase,
+  type ModPatchWithKey,
+} from './firebaseModPatches'
 
 function SearchableSelect({
   value,
@@ -296,13 +304,13 @@ function Sidebar({ open, onClose }: { open: boolean; onClose: () => void }) {
   )
 }
 
-function validatePack(pack: AmmoPackDefinition): ValidationError[] {
+function validatePack(pack: AmmoPackDefinition, modFilterPatches: ModPatchWithKey[] = []): ValidationError[] {
   const errors: ValidationError[] = []
   const hex24 = /^[0-9a-fA-F]{24}$/
 
   if (!pack.name.trim()) errors.push({ field: 'name', message: 'Pack name is required' })
 
-  pack.modFilterPatches.forEach((patch, i) => {
+  modFilterPatches.forEach((patch, i) => {
     const prefix = `modFilterPatches[${i}]`
     patch.ammoIds.forEach((id, j) => {
       if (!hex24.test(id)) errors.push({ field: `${prefix}.ammoIds[${j}]`, message: 'Ammo ID must be 24 hex chars' })
@@ -510,10 +518,11 @@ function validatePack(pack: AmmoPackDefinition): ValidationError[] {
   return errors
 }
 
-function buildExportJson(pack: AmmoPackDefinition): object {
+function buildExportJson(pack: AmmoPackDefinition, modFilterPatches: ModPatchWithKey[] = []): object {
   return {
     enabled: pack.enabled,
     name: pack.name,
+    modFilterPatches: modFilterPatches.map(({ key: _key, ...patch }) => patch),
     ammo: pack.ammo.map((ammo) => ({
       id: ammo.id,
       enabled: ammo.enabled,
@@ -526,7 +535,7 @@ function buildExportJson(pack: AmmoPackDefinition): object {
       economy: ammo.economy,
       traders: ammo.traders,
       crafting: ammo.crafting,
-      filters: applyModPatches(ammo.baseTpl, ammo.filters, pack.modFilterPatches),
+      filters: applyModPatches(ammo.baseTpl, ammo.filters, modFilterPatches),
       ammoBox: ammo.ammoBox,
       ammoLoot: ammo.ammoLoot,
       ammoBoxLoot: ammo.ammoBoxLoot,
@@ -575,6 +584,34 @@ function applyModPatches(baseTpl: string, filters: FilterEntry, patches: ModFilt
 
 type Tab = 'identity' | 'stats' | 'economy' | 'trader' | 'crafting' | 'filters' | 'ammobox' | 'loot' | 'preview'
 
+const MOD_PATCHES_STORAGE_KEY = 'ammogen-mod-patches-v1'
+
+function loadStoredModPatches(): ModFilterPatch[] {
+  try {
+    const raw = localStorage.getItem(MOD_PATCHES_STORAGE_KEY)
+    if (!raw) return []
+    const parsed = JSON.parse(raw)
+    if (!Array.isArray(parsed)) return []
+    return parsed.map((p: ModFilterPatch) => ({
+      guid: p.guid ?? '',
+      name: p.name ?? '',
+      ammoIds: p.ammoIds ?? [],
+      weaponIds: p.weaponIds ?? [],
+      magazineIds: p.magazineIds ?? [],
+    }))
+  } catch {
+    return []
+  }
+}
+
+function saveStoredModPatches(patches: ModFilterPatch[]): void {
+  try {
+    localStorage.setItem(MOD_PATCHES_STORAGE_KEY, JSON.stringify(patches))
+  } catch (err) {
+    console.error('[AmmoGen] Failed to save mod patches to localStorage:', err)
+  }
+}
+
 export default function App() {
   const [pack, setPack] = useState<AmmoPackDefinition>(createDefaultPack())
   const [activeIndex, setActiveIndex] = useState(0)
@@ -583,6 +620,35 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<Tab>('identity')
   const [showExportSuccess, setShowExportSuccess] = useState(false)
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [modFilterPatches, setModFilterPatches] = useState<ModPatchWithKey[]>(() =>
+    loadStoredModPatches().map((p, i) => ({ ...p, key: `local-${i}` }))
+  )
+  const [patchesLoading, setPatchesLoading] = useState(false)
+  const [patchesError, setPatchesError] = useState<string | null>(null)
+  const firebaseActive = isFirebaseEnabled()
+
+  // Load / subscribe to global mod patches (Firebase or localStorage fallback)
+  useEffect(() => {
+    if (firebaseActive) {
+      setPatchesLoading(true)
+      setPatchesError(null)
+      const unsubscribe = subscribeToModPatches(
+        patches => {
+          setModFilterPatches(patches)
+          setPatchesLoading(false)
+          setPatchesError(null)
+        },
+        err => {
+          setPatchesError(err.message)
+          setPatchesLoading(false)
+        }
+      )
+      return () => {
+        unsubscribe?.()
+      }
+    }
+    return undefined
+  }, [firebaseActive])
 
   const updateAmmo = (index: number, updates: Partial<AmmoDefinition>) => {
     const next = { ...pack, ammo: [...pack.ammo] }
@@ -644,36 +710,92 @@ export default function App() {
     setErrors([])
   }
 
-  const addPatch = () => {
+  const addPatch = async () => {
     const newPatch: ModFilterPatch = { guid: '', name: 'New patch', ammoIds: [], weaponIds: [], magazineIds: [] }
-    setPack({ ...pack, modFilterPatches: [...pack.modFilterPatches, newPatch] })
-    setActiveIndex(pack.modFilterPatches.length)
+    if (firebaseActive) {
+      try {
+        await addModPatchToFirebase(newPatch)
+      } catch (err) {
+        setPatchesError(err instanceof Error ? err.message : String(err))
+      }
+    } else {
+      const withKey: ModPatchWithKey = { ...newPatch, key: `local-${Date.now()}-${Math.random().toString(36).slice(2, 8)}` }
+      const next = [...modFilterPatches, withKey]
+      setModFilterPatches(next)
+      saveStoredModPatches(next.map(({ key: _key, ...p }) => p))
+      setActiveIndex(next.length - 1)
+    }
     setErrors([])
   }
 
-  const updatePatch = (index: number, updates: Partial<ModFilterPatch>) => {
-    const next = { ...pack, modFilterPatches: [...pack.modFilterPatches] }
-    next.modFilterPatches[index] = { ...next.modFilterPatches[index], ...updates }
-    setPack(next)
+  const updatePatch = async (index: number, updates: Partial<ModFilterPatch>) => {
+    const current = modFilterPatches[index]
+    if (!current) return
+    const updated = { ...current, ...updates }
+    if (firebaseActive) {
+      try {
+        await updateModPatchInFirebase(current.key, updated)
+      } catch (err) {
+        setPatchesError(err instanceof Error ? err.message : String(err))
+      }
+    } else {
+      const next = [...modFilterPatches]
+      next[index] = updated
+      setModFilterPatches(next)
+      saveStoredModPatches(next.map(({ key: _key, ...p }) => p))
+    }
     setErrors([])
   }
 
-  const removePatch = (index: number) => {
-    const next = { ...pack, modFilterPatches: pack.modFilterPatches.filter((_, i) => i !== index) }
-    setPack(next)
-    if (activeIndex >= next.modFilterPatches.length) setActiveIndex(Math.max(0, next.modFilterPatches.length - 1))
+  const removePatch = async (index: number) => {
+    const current = modFilterPatches[index]
+    if (!current) return
+    if (firebaseActive) {
+      try {
+        await removeModPatchFromFirebase(current.key)
+      } catch (err) {
+        setPatchesError(err instanceof Error ? err.message : String(err))
+      }
+    } else {
+      const next = modFilterPatches.filter((_, i) => i !== index)
+      setModFilterPatches(next)
+      saveStoredModPatches(next.map(({ key: _key, ...p }) => p))
+      if (activeIndex >= next.length) setActiveIndex(Math.max(0, next.length - 1))
+    }
     setErrors([])
+  }
+
+  const mergeImportedModPatches = async (imported: ModFilterPatch[]) => {
+    if (imported.length === 0) return
+    if (firebaseActive) {
+      // Push each imported patch as a new RTDB entry (avoids overwriting shared keys)
+      try {
+        await Promise.all(imported.map(p => addModPatchToFirebase(p)))
+      } catch (err) {
+        setPatchesError(err instanceof Error ? err.message : String(err))
+      }
+    } else {
+      const next = [
+        ...modFilterPatches,
+        ...imported.map((p, i) => ({
+          ...p,
+          key: `import-${Date.now()}-${i}`,
+        })),
+      ]
+      setModFilterPatches(next)
+      saveStoredModPatches(next.map(({ key: _key, ...patch }) => patch))
+    }
   }
 
   const downloadJson = () => {
-    const validationErrors = validatePack(pack)
+    const validationErrors = validatePack(pack, modFilterPatches)
     setErrors(validationErrors)
     if (validationErrors.length > 0) {
       setActiveTab('identity')
       return
     }
 
-    const json = buildExportJson(pack)
+    const json = buildExportJson(pack, modFilterPatches)
     const blob = new Blob([JSON.stringify(json, null, 2)], { type: 'application/json' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
@@ -686,7 +808,7 @@ export default function App() {
   }
 
   const exportModZip = async () => {
-    const validationErrors = validatePack(pack)
+    const validationErrors = validatePack(pack, modFilterPatches)
     setErrors(validationErrors)
     if (validationErrors.length > 0) {
       setActiveTab('identity')
@@ -694,7 +816,7 @@ export default function App() {
     }
 
     const zip = new JSZip()
-    const json = buildExportJson(pack)
+    const json = buildExportJson(pack, modFilterPatches)
     const packName = pack.name.toLowerCase().replace(/\s+/g, '-')
     zip.file(`SPT/user/mods/AmmoGen/ammo/${packName}.json`, JSON.stringify(json, null, 2))
 
@@ -704,7 +826,7 @@ export default function App() {
     setTimeout(() => setShowExportSuccess(false), 3000)
   }
 
-  const parsePackJson = (raw: string): AmmoPackDefinition => {
+  const parsePackJson = (raw: string): { pack: AmmoPackDefinition; importedPatches: ModFilterPatch[] } => {
     const cleaned = raw
       .replace(/\/\/.*$/gm, '')
       .replace(/\/\*[\s\S]*?\*\//g, '')
@@ -796,7 +918,7 @@ export default function App() {
       })
       return normalized
     })
-    const modFilterPatches = (parsed.modFilterPatches ?? []).map((p: ModFilterPatch) => ({
+    const importedPatches = (parsed.modFilterPatches ?? []).map((p: ModFilterPatch) => ({
       guid: p.guid ?? '',
       name: p.name ?? '',
       ammoIds: p.ammoIds ?? [],
@@ -804,14 +926,15 @@ export default function App() {
       magazineIds: p.magazineIds ?? [],
     }))
 
-    return {
+    const pack: AmmoPackDefinition = {
       ...createDefaultPack(),
       ...parsed,
       ammo,
       grenades,
       flares,
-      modFilterPatches,
     }
+
+    return { pack, importedPatches }
   }
 
   const importPack = () => {
@@ -840,8 +963,11 @@ export default function App() {
           raw = await file.text()
         }
 
-        const merged = parsePackJson(raw)
+        const { pack: merged, importedPatches } = parsePackJson(raw)
         setPack(merged)
+        if (importedPatches.length > 0) {
+          await mergeImportedModPatches(importedPatches)
+        }
         setActiveIndex(0)
         setErrors([])
         setActiveTab('identity')
@@ -1106,10 +1232,10 @@ export default function App() {
               {activeTab === 'economy' && <EconomyTab economy={activeAmmo.economy} onChange={u => updateAmmo(activeIndex, { economy: { ...activeAmmo.economy, ...u } })} />}
               {activeTab === 'trader' && <TraderTab traders={activeAmmo.traders} onChange={u => updateAmmo(activeIndex, u)} />}
               {activeTab === 'crafting' && <CraftingTab crafting={activeAmmo.crafting} onChange={u => updateAmmo(activeIndex, u)} />}
-              {activeTab === 'filters' && <FiltersTab ammo={activeAmmo} modFilterPatches={pack.modFilterPatches} onChange={u => updateAmmo(activeIndex, u)} />}
+              {activeTab === 'filters' && <FiltersTab ammo={activeAmmo} modFilterPatches={modFilterPatches} onChange={u => updateAmmo(activeIndex, u)} />}
               {activeTab === 'ammobox' && <AmmoBoxTab ammo={activeAmmo} onChange={u => updateAmmo(activeIndex, u)} />}
               {activeTab === 'loot' && <LootTab ammo={activeAmmo} onChange={u => updateAmmo(activeIndex, u)} />}
-              {activeTab === 'preview' && <PreviewTab pack={pack} activeAmmo={activeAmmo} />}
+              {activeTab === 'preview' && <PreviewTab pack={pack} activeAmmo={activeAmmo} modFilterPatches={modFilterPatches} />}
             </>
           )
         )}
@@ -1128,7 +1254,7 @@ export default function App() {
               {activeTab === 'trader' && <TraderTab key={activeGrenade.id} traders={activeGrenade.traders} onChange={u => updateGrenade(activeIndex, u)} />}
               {activeTab === 'crafting' && <CraftingTab key={activeGrenade.id} crafting={activeGrenade.crafting} onChange={u => updateGrenade(activeIndex, u)} />}
               {activeTab === 'loot' && <GrenadeLootTab key={activeGrenade.id} grenade={activeGrenade} onChange={u => updateGrenade(activeIndex, u)} />}
-              {activeTab === 'preview' && <PreviewTab pack={pack} activeAmmo={activeAmmo} />}
+              {activeTab === 'preview' && <PreviewTab pack={pack} activeAmmo={activeAmmo} modFilterPatches={modFilterPatches} />}
             </>
           )
         )}
@@ -1147,17 +1273,19 @@ export default function App() {
               {activeTab === 'trader' && <TraderTab key={activeFlare.id} traders={activeFlare.traders} onChange={u => updateFlare(activeIndex, u)} />}
               {activeTab === 'crafting' && <CraftingTab key={activeFlare.id} crafting={activeFlare.crafting} onChange={u => updateFlare(activeIndex, u)} />}
               {activeTab === 'loot' && <FlareLootTab key={activeFlare.id} flare={activeFlare} onChange={u => updateFlare(activeIndex, u)} />}
-              {activeTab === 'preview' && <PreviewTab pack={pack} activeAmmo={activeAmmo} />}
+              {activeTab === 'preview' && <PreviewTab pack={pack} activeAmmo={activeAmmo} modFilterPatches={modFilterPatches} />}
             </>
           )
         )}
         {mode === 'patches' && (
           <ModFilterPatchesTab
-            patches={pack.modFilterPatches}
+            patches={modFilterPatches}
             onUpdate={updatePatch}
             onRemove={removePatch}
             activeIndex={activeIndex}
             setActiveIndex={setActiveIndex}
+            loading={patchesLoading}
+            error={patchesError}
           />
         )}
       </main>
@@ -2071,7 +2199,7 @@ function FiltersTab({
   onChange,
 }: {
   ammo: AmmoDefinition
-  modFilterPatches: ModFilterPatch[]
+  modFilterPatches: ModPatchWithKey[]
   onChange: (u: Partial<AmmoDefinition>) => void
 }) {
   const compat = getAmmoCompatibility(ammo.baseTpl)
@@ -2174,15 +2302,20 @@ function ModFilterPatchesTab({
   onRemove,
   activeIndex,
   setActiveIndex,
+  loading,
+  error,
 }: {
-  patches: ModFilterPatch[]
-  onUpdate: (index: number, updates: Partial<ModFilterPatch>) => void
-  onRemove: (index: number) => void
+  patches: ModPatchWithKey[]
+  onUpdate: (index: number, updates: Partial<ModFilterPatch>) => void | Promise<void>
+  onRemove: (index: number) => void | Promise<void>
   activeIndex: number
   setActiveIndex: (i: number) => void
+  loading: boolean
+  error: string | null
 }) {
   const [openGuids, setOpenGuids] = useState<Set<string>>(new Set())
   const [draft, setDraft] = useState<ModFilterPatch | null>(null)
+  const [isSaving, setIsSaving] = useState(false)
 
   useEffect(() => {
     if (activeIndex >= 0 && activeIndex < patches.length) {
@@ -2220,9 +2353,14 @@ function ModFilterPatchesTab({
     }
   }
 
-  const saveDraft = () => {
+  const saveDraft = async () => {
     if (draft && activeIndex >= 0) {
-      onUpdate(activeIndex, draft)
+      setIsSaving(true)
+      try {
+        await onUpdate(activeIndex, draft)
+      } finally {
+        setIsSaving(false)
+      }
     }
     setDraft(null)
     setActiveIndex(-1)
@@ -2239,12 +2377,20 @@ function ModFilterPatchesTab({
         <Puzzle size={48} className="mx-auto mb-4 text-tarkov-accent/50" />
         <p className="text-lg">No mod filter patches yet.</p>
         <p className="text-sm mt-1">Click <span className="text-tarkov-accent">Add Patch</span> to add modded weapon / magazine IDs for vanilla ammo.</p>
+        {loading && <p className="text-sm mt-3 text-tarkov-accent">Loading shared patches...</p>}
+        {error && <p className="text-sm mt-3 text-tarkov-error">Error: {error}</p>}
       </div>
     )
   }
 
   return (
     <div className="space-y-4">
+      {loading && (
+        <div className="text-sm text-tarkov-accent">Loading shared patches...</div>
+      )}
+      {error && (
+        <div className="text-sm text-tarkov-error">Patch sync error: {error}</div>
+      )}
       {grouped.map(([guid, entries]) => (
         <div key={guid} className="card overflow-hidden">
           <button
@@ -2281,9 +2427,10 @@ function ModFilterPatchesTab({
                           <>
                             <button
                               onClick={saveDraft}
-                              className="p-1.5 rounded hover:bg-tarkov-success/20 text-tarkov-success"
+                              disabled={isSaving}
+                              className="p-1.5 rounded hover:bg-tarkov-success/20 text-tarkov-success disabled:opacity-50 disabled:cursor-not-allowed"
                             >
-                              Save
+                              {isSaving ? 'Saving...' : 'Save'}
                             </button>
                             <button
                               onClick={cancelDraft}
@@ -2301,7 +2448,9 @@ function ModFilterPatchesTab({
                           </button>
                         )}
                         <button
-                          onClick={() => onRemove(index)}
+                          onClick={async () => {
+                            await onRemove(index)
+                          }}
                           className="p-1.5 rounded hover:bg-tarkov-error/20 text-tarkov-error"
                         >
                           <Trash2 size={16} />
@@ -2412,11 +2561,11 @@ function ResolvedNameList({ ids }: { ids: string[] }) {
   )
 }
 
-function PreviewTab({ pack, activeAmmo }: { pack: AmmoPackDefinition; activeAmmo: AmmoDefinition }) {
+function PreviewTab({ pack, activeAmmo, modFilterPatches }: { pack: AmmoPackDefinition; activeAmmo: AmmoDefinition; modFilterPatches: ModPatchWithKey[] }) {
   return (
     <Section title="JSON Preview" icon={<FileJson size={18} />}>
       <div className="bg-tarkov-bg border border-tarkov-border rounded p-4 font-mono text-xs text-tarkov-text-dim overflow-auto max-h-[70vh]">
-        <pre>{JSON.stringify(buildExportJson({ ...pack, ammo: [activeAmmo] }), null, 2)}</pre>
+        <pre>{JSON.stringify(buildExportJson({ ...pack, ammo: [activeAmmo] }, modFilterPatches), null, 2)}</pre>
       </div>
     </Section>
   )
