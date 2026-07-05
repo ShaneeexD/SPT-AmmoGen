@@ -22,6 +22,76 @@ const weaponOverrides = {
   '5cadf6ddae9215051e1c23b2': ['633ec7c2a6918cb895019c6c'],
   '5cadf6e5ae921500113bb973': ['633ec7c2a6918cb895019c6c'],
   '5cadf6eeae921500134b2799': ['633ec7c2a6918cb895019c6c'],
+  // 12/70 ammo -> MTs-255-12 12ga revolver shotgun
+  '5d6e6772a4b936088465b17c': ['60db29ce99594040e04c4a27'],
+  '5d6e67fba4b9361bc73bc779': ['60db29ce99594040e04c4a27'],
+  '560d5e524bdc2d25448b4571': ['60db29ce99594040e04c4a27'],
+  '5d6e6806a4b936088465b17e': ['60db29ce99594040e04c4a27'],
+  '5d6e68a8a4b9360b6c0d54e2': ['60db29ce99594040e04c4a27'],
+  '5d6e68b3a4b9361bca7e50b5': ['60db29ce99594040e04c4a27'],
+  '5d6e68dea4b9361bcc29e659': ['60db29ce99594040e04c4a27'],
+  '5d6e6911a4b9361bd5780d52': ['60db29ce99594040e04c4a27'],
+  '5d6e68e6a4b9361c140bcfe0': ['60db29ce99594040e04c4a27'],
+  '5d6e6869a4b9361c140bcfde': ['60db29ce99594040e04c4a27'],
+  '58820d1224597753c90aeb13': ['60db29ce99594040e04c4a27'],
+  '5d6e68c4a4b9361b93413f79': ['60db29ce99594040e04c4a27'],
+  '64b8ee384b75259c590fa89b': ['60db29ce99594040e04c4a27'],
+  '5c0d591486f7744c505b416f': ['60db29ce99594040e04c4a27'],
+  '5d6e68d1a4b93622fe60e845': ['60db29ce99594040e04c4a27'],
+  '5d6e6891a4b9361bd473feea': ['60db29ce99594040e04c4a27'],
+  '5d6e689ca4b9361bc8618956': ['60db29ce99594040e04c4a27'],
+  // .357 Magnum ammo -> Chiappa Rhino 50DS revolver
+  '62330b3ed4dc74626d570b95': ['61a4c8884f95bc3b2c5dc96f'],
+  '62330bfadc5883093563729b': ['61a4c8884f95bc3b2c5dc96f'],
+  '62330c18744e5e31df12f516': ['61a4c8884f95bc3b2c5dc96f'],
+  '62330c40bdd19b369e1e53d1': ['61a4c8884f95bc3b2c5dc96f'],
+  // 9x19mm ammo -> Chiappa Rhino 200DS revolver
+  '5c925fa22e221601da359b7b': ['624c2e8614da335f1e034d8c'],
+  '64b7bbb74b75259c590fa897': ['624c2e8614da335f1e034d8c'],
+  '5c3df7d588a4501f290594e5': ['624c2e8614da335f1e034d8c'],
+  '5a3c16fe86f77452b62de32a': ['624c2e8614da335f1e034d8c'],
+  '5efb0da7a29a85116f6ea05f': ['624c2e8614da335f1e034d8c'],
+  '58864a4f2459770fcc257101': ['624c2e8614da335f1e034d8c'],
+  '56d59d3ad2720bdb418b4577': ['624c2e8614da335f1e034d8c'],
+  '5efb0e16aeb21837e749c7ff': ['624c2e8614da335f1e034d8c'],
+  '5c0d56a986f774449d5de529': ['624c2e8614da335f1e034d8c'],
+}
+
+// Manual overrides for magazines the automatic detection misses (e.g. revolver cylinders with camora slots).
+const magazineOverrides = {
+  // 12/70 ammo -> MTs-255-12 cylinder magazine
+  '5d6e6772a4b936088465b17c': ['60dc519adf4c47305f6d410d'],
+  '5d6e67fba4b9361bc73bc779': ['60dc519adf4c47305f6d410d'],
+  '560d5e524bdc2d25448b4571': ['60dc519adf4c47305f6d410d'],
+  '5d6e6806a4b936088465b17e': ['60dc519adf4c47305f6d410d'],
+  '5d6e68a8a4b9360b6c0d54e2': ['60dc519adf4c47305f6d410d'],
+  '5d6e68b3a4b9361bca7e50b5': ['60dc519adf4c47305f6d410d'],
+  '5d6e68dea4b9361bcc29e659': ['60dc519adf4c47305f6d410d'],
+  '5d6e6911a4b9361bd5780d52': ['60dc519adf4c47305f6d410d'],
+  '5d6e68e6a4b9361c140bcfe0': ['60dc519adf4c47305f6d410d'],
+  '5d6e6869a4b9361c140bcfde': ['60dc519adf4c47305f6d410d'],
+  '58820d1224597753c90aeb13': ['60dc519adf4c47305f6d410d'],
+  '5d6e68c4a4b9361b93413f79': ['60dc519adf4c47305f6d410d'],
+  '64b8ee384b75259c590fa89b': ['60dc519adf4c47305f6d410d'],
+  '5c0d591486f7744c505b416f': ['60dc519adf4c47305f6d410d'],
+  '5d6e68d1a4b93622fe60e845': ['60dc519adf4c47305f6d410d'],
+  '5d6e6891a4b9361bd473feea': ['60dc519adf4c47305f6d410d'],
+  '5d6e689ca4b9361bc8618956': ['60dc519adf4c47305f6d410d'],
+  // .357 Magnum ammo -> Chiappa Rhino cylinder + speedloader
+  '62330b3ed4dc74626d570b95': ['619f54a1d25cbd424731fb99', '61a4cda622af7f4f6a3ce617'],
+  '62330bfadc5883093563729b': ['619f54a1d25cbd424731fb99', '61a4cda622af7f4f6a3ce617'],
+  '62330c18744e5e31df12f516': ['619f54a1d25cbd424731fb99', '61a4cda622af7f4f6a3ce617'],
+  '62330c40bdd19b369e1e53d1': ['619f54a1d25cbd424731fb99', '61a4cda622af7f4f6a3ce617'],
+  // 9x19mm ammo -> Chiappa Rhino 200DS cylinder magazine
+  '5c925fa22e221601da359b7b': ['624c3074dbbd335e8e6becf3'],
+  '64b7bbb74b75259c590fa897': ['624c3074dbbd335e8e6becf3'],
+  '5c3df7d588a4501f290594e5': ['624c3074dbbd335e8e6becf3'],
+  '5a3c16fe86f77452b62de32a': ['624c3074dbbd335e8e6becf3'],
+  '5efb0da7a29a85116f6ea05f': ['624c3074dbbd335e8e6becf3'],
+  '58864a4f2459770fcc257101': ['624c3074dbbd335e8e6becf3'],
+  '56d59d3ad2720bdb418b4577': ['624c3074dbbd335e8e6becf3'],
+  '5efb0e16aeb21837e749c7ff': ['624c3074dbbd335e8e6becf3'],
+  '5c0d56a986f774449d5de529': ['624c3074dbbd335e8e6becf3'],
 }
 
 function getName(id) {
@@ -72,6 +142,15 @@ for (const [ammoId, weaponIds] of Object.entries(weaponOverrides)) {
     compatibility[ammoId].weapons.push({ id: weaponId, name: getName(weaponId) })
   }
   compatibility[ammoId].weapons.sort((a, b) => a.name.localeCompare(b.name))
+}
+
+for (const [ammoId, magazineIds] of Object.entries(magazineOverrides)) {
+  if (!compatibility[ammoId]) continue
+  for (const magazineId of magazineIds) {
+    if (!magazineId || compatibility[ammoId].magazines.some(m => m.id === magazineId)) continue
+    compatibility[ammoId].magazines.push({ id: magazineId, name: getName(magazineId) })
+  }
+  compatibility[ammoId].magazines.sort((a, b) => a.name.localeCompare(b.name))
 }
 
 const entries = Object.entries(compatibility).sort((a, b) => a[0].localeCompare(b[0]))
