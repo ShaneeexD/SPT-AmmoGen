@@ -136,6 +136,7 @@ export interface AmmoStats {
   // Audio / visual
   ammoSfx: string
   casingSounds: string
+  backgroundColor: string
 
   // Explosive / grenade rounds
   fuzeArmTimeSec: number
@@ -178,6 +179,7 @@ export interface GrenadeStats {
   throwType: string
   throwDamMax: number
   weight: number
+  backgroundColor: string
   smokeColor: string
   bodyColor: string
   smokeRadius: number
@@ -300,6 +302,8 @@ export { FLARE_STATS, CARTRIDGE_STATS, type FlareTemplateStats } from './generat
 
 export const RARITY_OPTIONS = ['Common', 'Rare', 'SuperRare', 'NotExists']
 
+export const BACKGROUND_COLORS = ['yellow', 'blue', 'green', 'red', 'violet', 'black', 'grey', 'white']
+
 export function createDefaultTraderEntry(): TraderEntry {
   return {
     enabled: true,
@@ -352,6 +356,7 @@ export function createDefaultAmmo(): AmmoDefinition {
       tracerDistance: 0,
       ammoSfx: '',
       casingSounds: '',
+      backgroundColor: 'default',
       fuzeArmTimeSec: 0,
       minExplosionDistance: 0,
       maxExplosionDistance: 0,
@@ -432,6 +437,7 @@ export function createDefaultGrenade(): GrenadeDefinition {
       throwType: '',
       throwDamMax: 0,
       weight: 0,
+      backgroundColor: 'default',
       smokeColor: '',
       bodyColor: '',
       smokeRadius: 0,
@@ -483,7 +489,7 @@ export function createDefaultFlare(): FlareDefinition {
       tracer: true,
       tracerColor: '',
       tracerDistance: 0,
-      backgroundColor: '',
+      backgroundColor: 'default',
       flareColor: '',
       weight: 0,
       misfireChance: 0,

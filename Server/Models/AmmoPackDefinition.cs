@@ -112,6 +112,7 @@ public class AmmoStats
     // Audio / visual
     [JsonPropertyName("ammoSfx")] public string AmmoSfx { get; set; } = string.Empty;
     [JsonPropertyName("casingSounds")] public string CasingSounds { get; set; } = string.Empty;
+    [JsonPropertyName("backgroundColor")] public string BackgroundColor { get; set; } = string.Empty;
 
     // Explosive / grenade rounds
     [JsonPropertyName("fuzeArmTimeSec")] public double FuzeArmTimeSec { get; set; }
@@ -252,6 +253,7 @@ public class GrenadeStats
     [JsonPropertyName("throwType")] public string ThrowType { get; set; } = string.Empty;
     [JsonPropertyName("throwDamMax")] public double ThrowDamMax { get; set; }
     [JsonPropertyName("weight")] public double Weight { get; set; }
+    [JsonPropertyName("backgroundColor")] public string BackgroundColor { get; set; } = string.Empty;
     [JsonPropertyName("smokeColor")] public string SmokeColor { get; set; } = string.Empty;
     [JsonPropertyName("bodyColor")] public string BodyColor { get; set; } = string.Empty;
     [JsonPropertyName("smokeRadius")] public double SmokeRadius { get; set; }

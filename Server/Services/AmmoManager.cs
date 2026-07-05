@@ -160,6 +160,9 @@ public static class AmmoManager
             {
                 tpl.Properties.RarityPvE = def.Economy.RarityPvE;
                 SetPropertyOrField(tpl.Properties, "CanSellOnRagfair", !def.Economy.FleaBanned);
+
+                if (!string.IsNullOrWhiteSpace(def.Stats.BackgroundColor) && def.Stats.BackgroundColor != "default")
+                    SetPropertyOrField(tpl.Properties, "BackgroundColor", def.Stats.BackgroundColor);
             }
         }
         else

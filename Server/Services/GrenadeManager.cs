@@ -149,6 +149,9 @@ public static class GrenadeManager
                 tpl.Properties.RarityPvE = def.Economy.RarityPvE;
                 SetPropertyOrField(tpl.Properties, "CanSellOnRagfair", !def.Economy.FleaBanned);
 
+                if (!string.IsNullOrWhiteSpace(def.Stats.BackgroundColor) && def.Stats.BackgroundColor != "default")
+                    SetPropertyOrField(tpl.Properties, "BackgroundColor", def.Stats.BackgroundColor);
+
                 // SPT's TemplateItemProperties does not expose these fields directly, so set them via reflection
                 // if the underlying cloned template has them.
                 if (def.Stats.MinFragmentDamage > 0)

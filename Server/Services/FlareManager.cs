@@ -287,6 +287,9 @@ public static class FlareManager
             SetPropertyOrField(weaponTpl.Properties, "CanSellOnRagfair", !def.Economy.FleaBanned);
             SetPropertyOrField(weaponTpl.Properties, "defAmmo", def.AmmoId);
 
+            if (!string.IsNullOrWhiteSpace(def.Stats.BackgroundColor) && def.Stats.BackgroundColor != "default")
+                SetPropertyOrField(weaponTpl.Properties, "BackgroundColor", def.Stats.BackgroundColor);
+
             var weapClass = string.IsNullOrWhiteSpace(def.Stats.WeapClass) ? "specialWeapon" : def.Stats.WeapClass;
             SetPropertyOrField(weaponTpl.Properties, "weapClass", weapClass);
             SetPropertyOrField(weaponTpl.Properties, "WeapClass", weapClass);
@@ -335,7 +338,7 @@ public static class FlareManager
         ammoTpl.Properties.RarityPvE = def.Economy.RarityPvE;
         SetPropertyOrField(ammoTpl.Properties, "CanSellOnRagfair", !def.Economy.FleaBanned);
 
-        if (!string.IsNullOrWhiteSpace(def.Stats.BackgroundColor))
+        if (!string.IsNullOrWhiteSpace(def.Stats.BackgroundColor) && def.Stats.BackgroundColor != "default")
             SetPropertyOrField(ammoTpl.Properties, "BackgroundColor", def.Stats.BackgroundColor);
 
         if (def.Stats.FlareTypes.Count > 0)

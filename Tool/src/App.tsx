@@ -143,6 +143,57 @@ function SearchableSelect({
   )
 }
 
+const SPT_COLOR_HEX: Record<string, string> = {
+  default: '#ffffff',
+  yellow: '#ffff00',
+  blue: '#0000ff',
+  green: '#00ff00',
+  red: '#ff0000',
+  violet: '#ee82ee',
+  black: '#000000',
+  grey: '#808080',
+  white: '#ffffff',
+  orange: '#ffa500',
+}
+
+const SPT_COLOR_NAMES = Object.keys(SPT_COLOR_HEX)
+
+function colorToHex(color: string): string {
+  const named = color.toLowerCase()
+  if (SPT_COLOR_HEX[named]) return SPT_COLOR_HEX[named]
+  if (/^#[0-9a-fA-F]{6}$/.test(color)) return color.toLowerCase()
+  return '#ffffff'
+}
+
+function BackgroundColorPicker({ value, onChange }: { value: string; onChange: (color: string) => void }) {
+  const hex = colorToHex(value)
+  return (
+    <div className="flex items-center gap-2">
+      <select
+        className="input-field flex-1"
+        value={SPT_COLOR_NAMES.includes(value.toLowerCase()) ? value.toLowerCase() : '__custom__'}
+        onChange={e => {
+          const color = e.target.value
+          if (color !== '__custom__') onChange(color)
+        }}
+      >
+        <option value="__custom__">Custom</option>
+        {SPT_COLOR_NAMES.map(c => (
+          <option key={c} value={c}>
+            {c}
+          </option>
+        ))}
+      </select>
+      <input
+        type="color"
+        className="w-10 h-10 rounded cursor-pointer bg-transparent border-0 p-0 shrink-0"
+        value={hex}
+        onChange={e => onChange(e.target.value.toLowerCase())}
+      />
+    </div>
+  )
+}
+
 function Sidebar({ open, onClose }: { open: boolean; onClose: () => void }) {
   const ref = useRef<HTMLDivElement>(null)
 
@@ -1146,7 +1197,7 @@ function IdentityTab({ pack, setPack, ammo, onChange }: {
                     onChange({
                       baseTpl: value,
                       compareToAmmoId: '',
-                      stats: baseStats as AmmoStats,
+                      stats: { ...baseStats, backgroundColor: 'default' } as AmmoStats,
                       economy: baseEconomy ?? ammo.economy,
                     })
                   } else {
@@ -1206,6 +1257,13 @@ function IdentityTab({ pack, setPack, ammo, onChange }: {
               value={ammo.shortName}
               onChange={e => onChange({ shortName: e.target.value })}
               placeholder="e.g. cBP"
+            />
+          </Field>
+
+          <Field label="Background Color" tooltip="Inventory cell background color for the ammo. Auto-fills from the base template.">
+            <BackgroundColorPicker
+              value={ammo.stats.backgroundColor}
+              onChange={color => onChange({ stats: { ...ammo.stats, backgroundColor: color } })}
             />
           </Field>
 
@@ -2505,7 +2563,7 @@ function FlareIdentityTab({ pack, setPack, flare, onChange }: {
                       baseTpl: value,
                       compareToFlareId: '',
                       ammoBaseTpl: flare.kind === 'handheld' ? base.ammoBaseTpl : '',
-                      stats: baseStats as FlareStats,
+                      stats: { ...baseStats, backgroundColor: 'default' } as FlareStats,
                     })
                   } else {
                     onChange({ baseTpl: value, compareToFlareId: '', ammoBaseTpl: '' })
@@ -2562,6 +2620,13 @@ function FlareIdentityTab({ pack, setPack, flare, onChange }: {
               value={flare.shortName}
               onChange={e => onChange({ shortName: e.target.value })}
               placeholder="e.g. cGreen"
+            />
+          </Field>
+
+          <Field label="Background Color" tooltip="Inventory cell background color for the flare. Auto-fills from the base template.">
+            <BackgroundColorPicker
+              value={flare.stats.backgroundColor}
+              onChange={color => onChange({ stats: { ...flare.stats, backgroundColor: color } })}
             />
           </Field>
 
@@ -2675,14 +2740,6 @@ function FlareStatsTab({ flare, onChange }: { flare: FlareDefinition; onChange: 
                 placeholder="Enter custom tracer color"
               />
             )}
-          </Field>
-          <Field label="Background Color">
-            <input
-              className="input-field"
-              value={flare.stats.backgroundColor}
-              onChange={e => updateStat('backgroundColor', e.target.value)}
-              placeholder="e.g. yellow, red, green, blue"
-            />
           </Field>
           <Field label="Ammo Type">
             <input
@@ -2935,7 +2992,7 @@ function GrenadeIdentityTab({ pack, setPack, grenade, onChange }: {
                     onChange({
                       baseTpl: value,
                       compareToGrenadeId: '',
-                      stats: baseStats as GrenadeStats,
+                      stats: { ...baseStats, backgroundColor: 'default' } as GrenadeStats,
                     })
                   } else {
                     onChange({ baseTpl: value, compareToGrenadeId: '' })
@@ -2978,6 +3035,13 @@ function GrenadeIdentityTab({ pack, setPack, grenade, onChange }: {
               value={grenade.shortName}
               onChange={e => onChange({ shortName: e.target.value })}
               placeholder="e.g. cF-1"
+            />
+          </Field>
+
+          <Field label="Background Color" tooltip="Inventory cell background color for the grenade. Auto-fills from the base template.">
+            <BackgroundColorPicker
+              value={grenade.stats.backgroundColor}
+              onChange={color => onChange({ stats: { ...grenade.stats, backgroundColor: color } })}
             />
           </Field>
 
