@@ -200,6 +200,7 @@ public class AmmoBoxEntry
     [JsonPropertyName("description")] public string Description { get; set; } = string.Empty;
     [JsonPropertyName("handbookPriceRoubles")] public int HandbookPriceRoubles { get; set; }
     [JsonPropertyName("rarityPvE")] public string RarityPvE { get; set; } = "Rare";
+    [JsonPropertyName("backgroundColor")] public string BackgroundColor { get; set; } = "default";
     [JsonPropertyName("sellToTraders")] public bool SellToTraders { get; set; }
     [JsonPropertyName("traderPriceRoubles")] public int TraderPriceRoubles { get; set; }
     [JsonPropertyName("traderId")] public string? TraderId { get; set; }

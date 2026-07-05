@@ -250,6 +250,7 @@ export interface AmmoBoxEntry {
   description: string
   handbookPriceRoubles: number
   rarityPvE: string
+  backgroundColor: string
   sellToTraders: boolean
   traderPriceRoubles: number
   traderId?: string
@@ -401,6 +402,7 @@ export function createDefaultAmmo(): AmmoDefinition {
       description: '',
       handbookPriceRoubles: 0,
       rarityPvE: 'Rare',
+      backgroundColor: 'default',
       sellToTraders: false,
       traderPriceRoubles: 0,
     },

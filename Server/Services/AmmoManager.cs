@@ -249,6 +249,9 @@ public static class AmmoManager
                 }
 
                 boxItem.Properties.RarityPvE = box.RarityPvE;
+
+                if (!string.IsNullOrWhiteSpace(box.BackgroundColor) && box.BackgroundColor != "default")
+                    SetPropertyOrField(boxItem.Properties, "BackgroundColor", box.BackgroundColor);
             }
         }
         catch (Exception ex)

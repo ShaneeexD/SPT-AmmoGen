@@ -2104,6 +2104,7 @@ function AmmoBoxTab({ ammo, onChange }: { ammo: AmmoDefinition; onChange: (u: Pa
                   updateBox({
                     baseTpl: value,
                     count: template?.count || ammo.ammoBox.count,
+                    backgroundColor: 'default',
                   })
                 } else {
                   updateBox({ baseTpl: '' })
@@ -2185,6 +2186,13 @@ function AmmoBoxTab({ ammo, onChange }: { ammo: AmmoDefinition; onChange: (u: Pa
                 <option key={r} value={r}>{r}</option>
               ))}
             </select>
+          </Field>
+
+          <Field label="Background Color" tooltip="Inventory cell background color for the ammo box. 'default' leaves the base template's color unchanged.">
+            <BackgroundColorPicker
+              value={ammo.ammoBox.backgroundColor}
+              onChange={color => updateBox({ backgroundColor: color })}
+            />
           </Field>
 
           <div className="md:col-span-2 mt-2">
