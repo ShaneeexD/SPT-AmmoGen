@@ -113,6 +113,7 @@ public class AmmoStats
     [JsonPropertyName("ammoSfx")] public string AmmoSfx { get; set; } = string.Empty;
     [JsonPropertyName("casingSounds")] public string CasingSounds { get; set; } = string.Empty;
     [JsonPropertyName("backgroundColor")] public string BackgroundColor { get; set; } = string.Empty;
+    [JsonPropertyName("backgroundAlpha")] public double BackgroundAlpha { get; set; } = 1;
 
     // Explosive / grenade rounds
     [JsonPropertyName("fuzeArmTimeSec")] public double FuzeArmTimeSec { get; set; }
@@ -201,6 +202,7 @@ public class AmmoBoxEntry
     [JsonPropertyName("handbookPriceRoubles")] public int HandbookPriceRoubles { get; set; }
     [JsonPropertyName("rarityPvE")] public string RarityPvE { get; set; } = "Rare";
     [JsonPropertyName("backgroundColor")] public string BackgroundColor { get; set; } = "default";
+    [JsonPropertyName("backgroundAlpha")] public double BackgroundAlpha { get; set; } = 1;
     [JsonPropertyName("sellToTraders")] public bool SellToTraders { get; set; }
     [JsonPropertyName("traderPriceRoubles")] public int TraderPriceRoubles { get; set; }
     [JsonPropertyName("traderId")] public string? TraderId { get; set; }
@@ -255,6 +257,7 @@ public class GrenadeStats
     [JsonPropertyName("throwDamMax")] public double ThrowDamMax { get; set; }
     [JsonPropertyName("weight")] public double Weight { get; set; }
     [JsonPropertyName("backgroundColor")] public string BackgroundColor { get; set; } = string.Empty;
+    [JsonPropertyName("backgroundAlpha")] public double BackgroundAlpha { get; set; } = 1;
     [JsonPropertyName("smokeColor")] public string SmokeColor { get; set; } = string.Empty;
     [JsonPropertyName("bodyColor")] public string BodyColor { get; set; } = string.Empty;
     [JsonPropertyName("smokeRadius")] public double SmokeRadius { get; set; }
@@ -319,6 +322,7 @@ public class FlareStats
     [JsonPropertyName("tracerColor")] public string TracerColor { get; set; } = string.Empty;
     [JsonPropertyName("tracerDistance")] public double TracerDistance { get; set; }
     [JsonPropertyName("backgroundColor")] public string BackgroundColor { get; set; } = string.Empty;
+    [JsonPropertyName("backgroundAlpha")] public double BackgroundAlpha { get; set; } = 1;
     [JsonPropertyName("flareColor")] public string FlareColor { get; set; } = string.Empty;
     [JsonPropertyName("weight")] public double Weight { get; set; }
     [JsonPropertyName("misfireChance")] public double MisfireChance { get; set; }

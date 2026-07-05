@@ -168,31 +168,58 @@ function colorToHex(color: string): string {
   return '#ffffff'
 }
 
-function BackgroundColorPicker({ value, onChange }: { value: string; onChange: (color: string) => void }) {
+function BackgroundColorPicker({
+  value,
+  alpha,
+  onChange,
+  onAlphaChange,
+}: {
+  value: string
+  alpha: number
+  onChange: (color: string) => void
+  onAlphaChange: (alpha: number) => void
+}) {
   const hex = colorToHex(value)
+  const alphaPercent = Math.round(alpha * 100)
+  const isDefault = !value || value === 'default'
   return (
-    <div className="flex items-center gap-2">
-      <select
-        className="input-field flex-1"
-        value={SPT_COLOR_NAMES.includes(value.toLowerCase()) ? value.toLowerCase() : '__custom__'}
-        onChange={e => {
-          const color = e.target.value
-          if (color !== '__custom__') onChange(color)
-        }}
-      >
-        <option value="__custom__">Custom</option>
-        {SPT_COLOR_NAMES.map(c => (
-          <option key={c} value={c}>
-            {c}
-          </option>
-        ))}
-      </select>
-      <input
-        type="color"
-        className="w-10 h-10 rounded cursor-pointer bg-transparent border-0 p-0 shrink-0"
-        value={hex}
-        onChange={e => onChange(e.target.value.toLowerCase())}
-      />
+    <div className="space-y-2">
+      <div className="flex items-center gap-2">
+        <select
+          className="input-field flex-1"
+          value={SPT_COLOR_NAMES.includes(value.toLowerCase()) ? value.toLowerCase() : '__custom__'}
+          onChange={e => {
+            const color = e.target.value
+            if (color !== '__custom__') onChange(color)
+          }}
+        >
+          <option value="__custom__">Custom</option>
+          {SPT_COLOR_NAMES.map(c => (
+            <option key={c} value={c}>
+              {c}
+            </option>
+          ))}
+        </select>
+        <input
+          type="color"
+          className="w-10 h-10 rounded cursor-pointer bg-transparent border-0 p-0 shrink-0"
+          value={hex}
+          onChange={e => onChange(e.target.value.toLowerCase())}
+        />
+      </div>
+      <div className={`flex items-center gap-3 ${isDefault ? 'opacity-50' : ''}`}>
+        <input
+          type="range"
+          min={0}
+          max={1}
+          step={0.01}
+          value={alpha}
+          onChange={e => onAlphaChange(parseFloat(e.target.value))}
+          disabled={isDefault}
+          className="flex-1 accent-tarkov-accent"
+        />
+        <span className="text-sm text-tarkov-text-dim w-12 text-right">{alphaPercent}%</span>
+      </div>
     </div>
   )
 }
@@ -1276,7 +1303,7 @@ function IdentityTab({ pack, setPack, ammo, onChange }: {
                     onChange({
                       baseTpl: value,
                       compareToAmmoId: '',
-                      stats: { ...baseStats, backgroundColor: 'default' } as AmmoStats,
+                      stats: { ...baseStats, backgroundColor: 'default', backgroundAlpha: 1 } as AmmoStats,
                       economy: baseEconomy ?? ammo.economy,
                     })
                   } else {
@@ -1342,7 +1369,9 @@ function IdentityTab({ pack, setPack, ammo, onChange }: {
           <Field label="Background Color" tooltip="Inventory cell background color for the ammo. Auto-fills from the base template.">
             <BackgroundColorPicker
               value={ammo.stats.backgroundColor}
+              alpha={ammo.stats.backgroundAlpha}
               onChange={color => onChange({ stats: { ...ammo.stats, backgroundColor: color } })}
+              onAlphaChange={alpha => onChange({ stats: { ...ammo.stats, backgroundAlpha: alpha } })}
             />
           </Field>
 
@@ -2439,6 +2468,7 @@ function AmmoBoxTab({ ammo, onChange }: { ammo: AmmoDefinition; onChange: (u: Pa
                     baseTpl: value,
                     count: template?.count || ammo.ammoBox.count,
                     backgroundColor: 'default',
+                    backgroundAlpha: 1,
                   })
                 } else {
                   updateBox({ baseTpl: '' })
@@ -2525,7 +2555,9 @@ function AmmoBoxTab({ ammo, onChange }: { ammo: AmmoDefinition; onChange: (u: Pa
           <Field label="Background Color" tooltip="Inventory cell background color for the ammo box. 'default' leaves the base template's color unchanged.">
             <BackgroundColorPicker
               value={ammo.ammoBox.backgroundColor}
+              alpha={ammo.ammoBox.backgroundAlpha}
               onChange={color => updateBox({ backgroundColor: color })}
+              onAlphaChange={alpha => updateBox({ backgroundAlpha: alpha })}
             />
           </Field>
 
@@ -2905,7 +2937,7 @@ function FlareIdentityTab({ pack, setPack, flare, onChange }: {
                       baseTpl: value,
                       compareToFlareId: '',
                       ammoBaseTpl: flare.kind === 'handheld' ? base.ammoBaseTpl : '',
-                      stats: { ...baseStats, backgroundColor: 'default' } as FlareStats,
+                      stats: { ...baseStats, backgroundColor: 'default', backgroundAlpha: 1 } as FlareStats,
                     })
                   } else {
                     onChange({ baseTpl: value, compareToFlareId: '', ammoBaseTpl: '' })
@@ -2968,7 +3000,9 @@ function FlareIdentityTab({ pack, setPack, flare, onChange }: {
           <Field label="Background Color" tooltip="Inventory cell background color for the flare. Auto-fills from the base template.">
             <BackgroundColorPicker
               value={flare.stats.backgroundColor}
+              alpha={flare.stats.backgroundAlpha}
               onChange={color => onChange({ stats: { ...flare.stats, backgroundColor: color } })}
+              onAlphaChange={alpha => onChange({ stats: { ...flare.stats, backgroundAlpha: alpha } })}
             />
           </Field>
 
@@ -3334,7 +3368,7 @@ function GrenadeIdentityTab({ pack, setPack, grenade, onChange }: {
                     onChange({
                       baseTpl: value,
                       compareToGrenadeId: '',
-                      stats: { ...baseStats, backgroundColor: 'default' } as GrenadeStats,
+                      stats: { ...baseStats, backgroundColor: 'default', backgroundAlpha: 1 } as GrenadeStats,
                     })
                   } else {
                     onChange({ baseTpl: value, compareToGrenadeId: '' })
@@ -3383,7 +3417,9 @@ function GrenadeIdentityTab({ pack, setPack, grenade, onChange }: {
           <Field label="Background Color" tooltip="Inventory cell background color for the grenade. Auto-fills from the base template.">
             <BackgroundColorPicker
               value={grenade.stats.backgroundColor}
+              alpha={grenade.stats.backgroundAlpha}
               onChange={color => onChange({ stats: { ...grenade.stats, backgroundColor: color } })}
+              onAlphaChange={alpha => onChange({ stats: { ...grenade.stats, backgroundAlpha: alpha } })}
             />
           </Field>
 

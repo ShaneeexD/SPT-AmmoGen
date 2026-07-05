@@ -42,6 +42,7 @@ export interface FlareStats {
   tracerColor: string
   tracerDistance: number
   backgroundColor: string
+  backgroundAlpha: number
   flareColor: string
   weight: number
   misfireChance: number
@@ -138,6 +139,7 @@ export interface AmmoStats {
   ammoSfx: string
   casingSounds: string
   backgroundColor: string
+  backgroundAlpha: number
 
   // Explosive / grenade rounds
   fuzeArmTimeSec: number
@@ -181,6 +183,7 @@ export interface GrenadeStats {
   throwDamMax: number
   weight: number
   backgroundColor: string
+  backgroundAlpha: number
   smokeColor: string
   bodyColor: string
   smokeRadius: number
@@ -260,6 +263,7 @@ export interface AmmoBoxEntry {
   handbookPriceRoubles: number
   rarityPvE: string
   backgroundColor: string
+  backgroundAlpha: number
   sellToTraders: boolean
   traderPriceRoubles: number
   traderId?: string
@@ -367,6 +371,7 @@ export function createDefaultAmmo(): AmmoDefinition {
       ammoSfx: '',
       casingSounds: '',
       backgroundColor: 'default',
+      backgroundAlpha: 1,
       fuzeArmTimeSec: 0,
       minExplosionDistance: 0,
       maxExplosionDistance: 0,
@@ -412,6 +417,7 @@ export function createDefaultAmmo(): AmmoDefinition {
       handbookPriceRoubles: 0,
       rarityPvE: 'Rare',
       backgroundColor: 'default',
+      backgroundAlpha: 1,
       sellToTraders: false,
       traderPriceRoubles: 0,
     },
@@ -449,6 +455,7 @@ export function createDefaultGrenade(): GrenadeDefinition {
       throwDamMax: 0,
       weight: 0,
       backgroundColor: 'default',
+      backgroundAlpha: 1,
       smokeColor: '',
       bodyColor: '',
       smokeRadius: 0,
@@ -501,6 +508,7 @@ export function createDefaultFlare(): FlareDefinition {
       tracerColor: '',
       tracerDistance: 0,
       backgroundColor: 'default',
+      backgroundAlpha: 1,
       flareColor: '',
       weight: 0,
       misfireChance: 0,

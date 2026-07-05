@@ -69,6 +69,7 @@ function getAmmoItemStats(id) {
     tracerColor: props.TracerColor || '',
     tracerDistance: props.TracerDistance || 0,
     backgroundColor: props.BackgroundColor || '',
+    backgroundAlpha: 1,
     flareColor: '',
     weight: props.Weight || 0,
     misfireChance: props.MisfireChance || 0,
@@ -100,6 +101,7 @@ function getHandheldStats(id) {
     tracerColor: ammoProps.TracerColor || '',
     tracerDistance: ammoProps.TracerDistance || 0,
     backgroundColor: ammoProps.BackgroundColor || '',
+    backgroundAlpha: 1,
     flareColor: '',
     weight: ammoProps.Weight || 0,
     misfireChance: ammoProps.MisfireChance || 0,
@@ -180,6 +182,7 @@ function buildStatsLines(sortedStats) {
       `tracerColor: ${JSON.stringify(s.tracerColor)}`,
       `tracerDistance: ${s.tracerDistance}`,
       `backgroundColor: ${JSON.stringify(s.backgroundColor)}`,
+      `backgroundAlpha: ${s.backgroundAlpha}`,
       `flareColor: ${JSON.stringify(s.flareColor)}`,
       `weight: ${s.weight}`,
       `misfireChance: ${s.misfireChance}`,
@@ -210,6 +213,7 @@ export interface FlareTemplateStats {
   tracerColor: string
   tracerDistance: number
   backgroundColor: string
+  backgroundAlpha: number
   flareColor: string
   weight: number
   misfireChance: number

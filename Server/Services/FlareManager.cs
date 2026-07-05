@@ -288,7 +288,7 @@ public static class FlareManager
             SetPropertyOrField(weaponTpl.Properties, "defAmmo", def.AmmoId);
 
             if (!string.IsNullOrWhiteSpace(def.Stats.BackgroundColor) && def.Stats.BackgroundColor != "default")
-                SetPropertyOrField(weaponTpl.Properties, "BackgroundColor", def.Stats.BackgroundColor);
+                SetPropertyOrField(weaponTpl.Properties, "BackgroundColor", FormatBackgroundColor(def.Stats.BackgroundColor, def.Stats.BackgroundAlpha));
 
             var weapClass = string.IsNullOrWhiteSpace(def.Stats.WeapClass) ? "specialWeapon" : def.Stats.WeapClass;
             SetPropertyOrField(weaponTpl.Properties, "weapClass", weapClass);
@@ -339,7 +339,7 @@ public static class FlareManager
         SetPropertyOrField(ammoTpl.Properties, "CanSellOnRagfair", !def.Economy.FleaBanned);
 
         if (!string.IsNullOrWhiteSpace(def.Stats.BackgroundColor) && def.Stats.BackgroundColor != "default")
-            SetPropertyOrField(ammoTpl.Properties, "BackgroundColor", def.Stats.BackgroundColor);
+            SetPropertyOrField(ammoTpl.Properties, "BackgroundColor", FormatBackgroundColor(def.Stats.BackgroundColor, def.Stats.BackgroundAlpha));
 
         if (def.Stats.FlareTypes.Count > 0)
             SetPropertyOrField(ammoTpl.Properties, "FlareTypes", def.Stats.FlareTypes.ToList());
@@ -537,5 +537,33 @@ public static class FlareManager
             }
         }
         return WeaponCategoryParentId;
+    }
+
+    private static string FormatBackgroundColor(string color, double alpha)
+    {
+        if (string.IsNullOrWhiteSpace(color) || color == "default")
+            return "default";
+        if (alpha >= 1)
+            return color;
+
+        var namedMap = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["yellow"] = "#ffff00",
+            ["blue"] = "#0000ff",
+            ["green"] = "#00ff00",
+            ["red"] = "#ff0000",
+            ["violet"] = "#ee82ee",
+            ["black"] = "#000000",
+            ["grey"] = "#808080",
+            ["white"] = "#ffffff",
+            ["orange"] = "#ffa500",
+        };
+
+        var baseHex = namedMap.TryGetValue(color, out var hex) ? hex : color;
+        if (!baseHex.StartsWith("#"))
+            baseHex = "#ffffff";
+
+        var alphaByte = (byte)Math.Round(Math.Max(0, Math.Min(1, alpha)) * 255);
+        return $"{baseHex}{alphaByte:x2}";
     }
 }

@@ -150,7 +150,7 @@ public static class GrenadeManager
                 SetPropertyOrField(tpl.Properties, "CanSellOnRagfair", !def.Economy.FleaBanned);
 
                 if (!string.IsNullOrWhiteSpace(def.Stats.BackgroundColor) && def.Stats.BackgroundColor != "default")
-                    SetPropertyOrField(tpl.Properties, "BackgroundColor", def.Stats.BackgroundColor);
+                    SetPropertyOrField(tpl.Properties, "BackgroundColor", FormatBackgroundColor(def.Stats.BackgroundColor, def.Stats.BackgroundAlpha));
 
                 // SPT's TemplateItemProperties does not expose these fields directly, so set them via reflection
                 // if the underlying cloned template has them.
@@ -232,5 +232,33 @@ public static class GrenadeManager
         {
             logger.LogWithColor($"[AmmoGen] Failed to write smoke_settings.json: {ex.Message}", LogTextColor.Red);
         }
+    }
+
+    private static string FormatBackgroundColor(string color, double alpha)
+    {
+        if (string.IsNullOrWhiteSpace(color) || color == "default")
+            return "default";
+        if (alpha >= 1)
+            return color;
+
+        var namedMap = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["yellow"] = "#ffff00",
+            ["blue"] = "#0000ff",
+            ["green"] = "#00ff00",
+            ["red"] = "#ff0000",
+            ["violet"] = "#ee82ee",
+            ["black"] = "#000000",
+            ["grey"] = "#808080",
+            ["white"] = "#ffffff",
+            ["orange"] = "#ffa500",
+        };
+
+        var baseHex = namedMap.TryGetValue(color, out var hex) ? hex : color;
+        if (!baseHex.StartsWith("#"))
+            baseHex = "#ffffff";
+
+        var alphaByte = (byte)Math.Round(Math.Max(0, Math.Min(1, alpha)) * 255);
+        return $"{baseHex}{alphaByte:x2}";
     }
 }
