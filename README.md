@@ -4,7 +4,7 @@ A server-side framework for SPTarkov that lets anyone, including non-programmers
 
 **Tool**: [AmmoGen](https://ammogen-tool.netlify.app).
 
-> **New**: The tool supports exporting a ready-to-install ZIP and importing existing packs (JSON or ZIP) for editing.
+> **New in v2.1.0**: Custom background colors with opacity, a **Mod Patches** tab for crowd-sourced weapon/magazine compatibility, and built-in patches for MTs-255-12, Chiappa Rhino, and RSh-12.
 
 ---
 
@@ -59,6 +59,9 @@ You can also click **Export JSON** to download a single `.json` file and place i
 - **Export / import** packs as JSON or ready-to-install ZIP.
 - **Tooltips** on every major field.
 - **Dark theme** and responsive layout.
+- **Custom background colors** with opacity slider for ammo, grenades, flares, and ammo boxes.
+- **Crowd-sourced Mod Patches** tab in the tool for creating and merging custom weapon/magazine compatibility patches.
+- **Built-in ammo compatibility patches** for MTs-255-12, Chiappa Rhino 50DS/200DS, RSh-12, and related magazines.
 
 See [`roadmap.md`](roadmap.md) for upcoming features and planned improvements.
 
@@ -221,7 +224,7 @@ Invalid packs are **skipped** — other packs still load normally.
 
 The AmmoGen Tool export ZIP is already structured for distribution. When publishing:
 
-1. **State the dependency**: Your pack requires AmmoGen v2.0.1 for SPT 4.0.13.
+1. **State the dependency**: Your pack requires AmmoGen v2.1.0 for SPT 4.0.13.
 2. **Do not include** the AmmoGen DLL or other authors' packs in your ZIP.
 3. **Test** by extracting and running the server before publishing.
 

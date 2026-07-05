@@ -20,6 +20,9 @@ For setup, usage, and JSON examples, see [`README.md`](README.md).
 - **Export / import** packs as JSON or ready-to-install ZIP.
 - **Tooltips** on every major field.
 - **Dark theme** and responsive layout.
+- **Custom background colors** for ammo, grenades, flares, and ammo boxes with an opacity slider.
+- **Crowd-sourced Mod Patches** tab in the tool for grouping and merging custom weapon/magazine filter patches.
+- **Built-in ammo compatibility patches** for MTs-255-12, Chiappa Rhino, RSh-12, and related magazines.
 
 ---
 
