@@ -17,6 +17,9 @@ tool-*.log
 # Accidental root-level package lock (Node files live in Tool/)
 /package-lock.json
 
+# Firebase credentials (example file is committed, real file is local-only)
+Tool/src/firebaseConfig.ts
+
 ###################
 # .NET / Visual Studio
 ###################
