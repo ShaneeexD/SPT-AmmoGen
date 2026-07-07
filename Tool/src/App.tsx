@@ -313,13 +313,13 @@ function validatePack(pack: AmmoPackDefinition, modFilterPatches: ModPatchWithKe
   modFilterPatches.forEach((patch, i) => {
     const prefix = `modFilterPatches[${i}]`
     patch.ammoIds.forEach((id, j) => {
-      if (!hex24.test(id)) errors.push({ field: `${prefix}.ammoIds[${j}]`, message: 'Ammo ID must be 24 hex chars' })
+      if (id && !hex24.test(id)) errors.push({ field: `${prefix}.ammoIds[${j}]`, message: 'Ammo ID must be 24 hex chars' })
     })
     patch.weaponIds.forEach((id, j) => {
-      if (!hex24.test(id)) errors.push({ field: `${prefix}.weaponIds[${j}]`, message: 'Weapon ID must be 24 hex chars' })
+      if (id && !hex24.test(id)) errors.push({ field: `${prefix}.weaponIds[${j}]`, message: 'Weapon ID must be 24 hex chars' })
     })
     patch.magazineIds.forEach((id, j) => {
-      if (!hex24.test(id)) errors.push({ field: `${prefix}.magazineIds[${j}]`, message: 'Magazine ID must be 24 hex chars' })
+      if (id && !hex24.test(id)) errors.push({ field: `${prefix}.magazineIds[${j}]`, message: 'Magazine ID must be 24 hex chars' })
     })
   })
 
@@ -350,10 +350,10 @@ function validatePack(pack: AmmoPackDefinition, modFilterPatches: ModPatchWithKe
     }
 
     ammo.filters.patchMagazines.forEach((id, j) => {
-      if (!hex24.test(id)) errors.push({ field: `${prefix}.filters.patchMagazines[${j}]`, message: 'Magazine ID must be 24 hex chars' })
+      if (id && !hex24.test(id)) errors.push({ field: `${prefix}.filters.patchMagazines[${j}]`, message: 'Magazine ID must be 24 hex chars' })
     })
     ammo.filters.patchWeapons.forEach((id, j) => {
-      if (!hex24.test(id)) errors.push({ field: `${prefix}.filters.patchWeapons[${j}]`, message: 'Weapon ID must be 24 hex chars' })
+      if (id && !hex24.test(id)) errors.push({ field: `${prefix}.filters.patchWeapons[${j}]`, message: 'Weapon ID must be 24 hex chars' })
     })
 
     if (ammo.ammoBox.enabled) {
@@ -522,7 +522,12 @@ function buildExportJson(pack: AmmoPackDefinition, modFilterPatches: ModPatchWit
   return {
     enabled: pack.enabled,
     name: pack.name,
-    modFilterPatches: modFilterPatches.map(({ key: _key, ...patch }) => patch),
+    modFilterPatches: modFilterPatches.map(({ key: _key, ...patch }) => ({
+      ...patch,
+      ammoIds: patch.ammoIds.filter(Boolean),
+      weaponIds: patch.weaponIds.filter(Boolean),
+      magazineIds: patch.magazineIds.filter(Boolean),
+    })),
     ammo: pack.ammo.map((ammo) => ({
       id: ammo.id,
       enabled: ammo.enabled,
@@ -574,11 +579,11 @@ function buildExportJson(pack: AmmoPackDefinition, modFilterPatches: ModPatchWit
 }
 
 function applyModPatches(baseTpl: string, filters: FilterEntry, patches: ModFilterPatch[]): FilterEntry {
-  const matching = patches.filter(p => p.ammoIds.includes(baseTpl))
+  const matching = patches.filter(p => p.ammoIds.filter(Boolean).includes(baseTpl))
   if (matching.length === 0) return filters
   return {
-    patchWeapons: [...new Set([...filters.patchWeapons, ...matching.flatMap(p => p.weaponIds)])],
-    patchMagazines: [...new Set([...filters.patchMagazines, ...matching.flatMap(p => p.magazineIds)])],
+    patchWeapons: [...new Set([...filters.patchWeapons, ...matching.flatMap(p => p.weaponIds).filter(Boolean)])],
+    patchMagazines: [...new Set([...filters.patchMagazines, ...matching.flatMap(p => p.magazineIds).filter(Boolean)])],
   }
 }
 
@@ -2209,25 +2214,25 @@ function FiltersTab({
     onChange({
       filters: {
         ...ammo.filters,
-        patchMagazines: [...new Set([...ammo.filters.patchMagazines, ...compat.magazines.map(m => m.id)])],
-        patchWeapons: [...new Set([...ammo.filters.patchWeapons, ...compat.weapons.map(w => w.id)])],
+        patchMagazines: [...new Set([...ammo.filters.patchMagazines.filter(Boolean), ...compat.magazines.map(m => m.id)])],
+        patchWeapons: [...new Set([...ammo.filters.patchWeapons.filter(Boolean), ...compat.weapons.map(w => w.id)])],
       },
     })
   }
 
   const applyModPatchesToAmmo = () => {
-    const matching = modFilterPatches.filter(p => p.ammoIds.includes(ammo.baseTpl))
+    const matching = modFilterPatches.filter(p => p.ammoIds.filter(Boolean).includes(ammo.baseTpl))
     if (matching.length === 0) return
     onChange({
       filters: {
         ...ammo.filters,
-        patchWeapons: [...new Set([...ammo.filters.patchWeapons, ...matching.flatMap(p => p.weaponIds)])],
-        patchMagazines: [...new Set([...ammo.filters.patchMagazines, ...matching.flatMap(p => p.magazineIds)])],
+        patchWeapons: [...new Set([...ammo.filters.patchWeapons.filter(Boolean), ...matching.flatMap(p => p.weaponIds).filter(Boolean)])],
+        patchMagazines: [...new Set([...ammo.filters.patchMagazines.filter(Boolean), ...matching.flatMap(p => p.magazineIds).filter(Boolean)])],
       },
     })
   }
 
-  const hasModPatches = modFilterPatches.some(p => p.ammoIds.includes(ammo.baseTpl))
+  const hasModPatches = modFilterPatches.some(p => p.ammoIds.filter(Boolean).includes(ammo.baseTpl))
 
   return (
     <Section title="Filter Patching" icon={<Filter size={18} />}>
@@ -2267,7 +2272,7 @@ function FiltersTab({
               onChange({
                 filters: {
                   ...ammo.filters,
-                  patchMagazines: e.target.value.split('\n').map(s => s.trim()).filter(Boolean),
+                  patchMagazines: e.target.value.split('\n').map(s => s.trim()),
                 },
               })
             }
@@ -2283,7 +2288,7 @@ function FiltersTab({
               onChange({
                 filters: {
                   ...ammo.filters,
-                  patchWeapons: e.target.value.split('\n').map(s => s.trim()).filter(Boolean),
+                  patchWeapons: e.target.value.split('\n').map(s => s.trim()),
                 },
               })
             }
@@ -2503,7 +2508,7 @@ function ModFilterPatchesTab({
                           <textarea
                             className="input-field min-h-[120px] font-mono text-sm resize-y"
                             value={draft?.ammoIds.join('\n') ?? ''}
-                            onChange={e => setDraft(draft => draft ? { ...draft, ammoIds: e.target.value.split('\n').map(s => s.trim()).filter(Boolean) } : null)}
+                            onChange={e => setDraft(draft => draft ? { ...draft, ammoIds: e.target.value.split('\n').map(s => s.trim()) } : null)}
                             placeholder="One 24-char ID per line"
                           />
                           <ResolvedNameList ids={draft?.ammoIds ?? []} />
@@ -2512,7 +2517,7 @@ function ModFilterPatchesTab({
                           <textarea
                             className="input-field min-h-[120px] font-mono text-sm resize-y"
                             value={draft?.weaponIds.join('\n') ?? ''}
-                            onChange={e => setDraft(draft => draft ? { ...draft, weaponIds: e.target.value.split('\n').map(s => s.trim()).filter(Boolean) } : null)}
+                            onChange={e => setDraft(draft => draft ? { ...draft, weaponIds: e.target.value.split('\n').map(s => s.trim()) } : null)}
                             placeholder="One 24-char ID per line"
                           />
                           <ResolvedNameList ids={draft?.weaponIds ?? []} />
@@ -2521,7 +2526,7 @@ function ModFilterPatchesTab({
                           <textarea
                             className="input-field min-h-[120px] font-mono text-sm resize-y"
                             value={draft?.magazineIds.join('\n') ?? ''}
-                            onChange={e => setDraft(draft => draft ? { ...draft, magazineIds: e.target.value.split('\n').map(s => s.trim()).filter(Boolean) } : null)}
+                            onChange={e => setDraft(draft => draft ? { ...draft, magazineIds: e.target.value.split('\n').map(s => s.trim()) } : null)}
                             placeholder="One 24-char ID per line"
                           />
                           <ResolvedNameList ids={draft?.magazineIds ?? []} />
@@ -2541,7 +2546,7 @@ function ModFilterPatchesTab({
 
 function ResolvedNameList({ ids }: { ids: string[] }) {
   const resolved = useMemo(() => {
-    return ids.map(id => ({ id, name: getItemName(id) || 'Unknown item' }))
+    return ids.filter(Boolean).map(id => ({ id, name: getItemName(id) || 'Unknown item' }))
   }, [ids])
 
   if (ids.length === 0) return null
