@@ -75,6 +75,7 @@ import {
   addModPatch as addModPatchToFirebase,
   updateModPatch as updateModPatchInFirebase,
   removeModPatch as removeModPatchFromFirebase,
+  setAllModPatches as setAllModPatchesInFirebase,
   type ModPatchWithKey,
 } from './firebaseModPatches'
 
@@ -770,25 +771,93 @@ export default function App() {
     setErrors([])
   }
 
+  const patchesAreEqual = (a: ModFilterPatch, b: ModFilterPatch): boolean => {
+    const sameIds = (x: string[], y: string[]) =>
+      x.length === y.length && x.slice().sort().join(',') === y.slice().sort().join(',')
+    return (
+      a.guid === b.guid &&
+      a.name === b.name &&
+      sameIds(a.ammoIds, b.ammoIds) &&
+      sameIds(a.weaponIds, b.weaponIds) &&
+      sameIds(a.magazineIds, b.magazineIds)
+    )
+  }
+
   const mergeImportedModPatches = async (imported: ModFilterPatch[]) => {
     if (imported.length === 0) return
+    const unique = imported.filter(p => !modFilterPatches.some(existing => patchesAreEqual(existing, p)))
+    if (unique.length === 0) return
     if (firebaseActive) {
-      // Push each imported patch as a new RTDB entry (avoids overwriting shared keys)
       try {
-        await Promise.all(imported.map(p => addModPatchToFirebase(p)))
+        await Promise.all(unique.map(p => addModPatchToFirebase(p)))
       } catch (err) {
         setPatchesError(err instanceof Error ? err.message : String(err))
       }
     } else {
       const next = [
         ...modFilterPatches,
-        ...imported.map((p, i) => ({
+        ...unique.map((p, i) => ({
           ...p,
           key: `import-${Date.now()}-${i}`,
         })),
       ]
       setModFilterPatches(next)
       saveStoredModPatches(next.map(({ key: _key, ...patch }) => patch))
+    }
+  }
+
+  const deduplicatePatches = async () => {
+    const seen: ModFilterPatch[] = []
+    const unique = modFilterPatches.filter(p => {
+      if (seen.some(s => patchesAreEqual(s, p))) return false
+      seen.push(p)
+      return true
+    })
+    if (unique.length === modFilterPatches.length) return
+    if (firebaseActive) {
+      try {
+        await setAllModPatchesInFirebase(unique)
+      } catch (err) {
+        setPatchesError(err instanceof Error ? err.message : String(err))
+      }
+    } else {
+      setModFilterPatches(unique)
+      saveStoredModPatches(unique.map(({ key: _key, ...p }) => p))
+    }
+  }
+
+  const removeUncategorizedPatches = async () => {
+    const remaining = modFilterPatches.filter(p => p.guid.trim() !== '')
+    if (remaining.length === modFilterPatches.length) return
+    if (firebaseActive) {
+      try {
+        await setAllModPatchesInFirebase(remaining)
+      } catch (err) {
+        setPatchesError(err instanceof Error ? err.message : String(err))
+      }
+    } else {
+      setModFilterPatches(remaining)
+      saveStoredModPatches(remaining.map(({ key: _key, ...p }) => p))
+    }
+  }
+
+  const removeEmptyPatches = async () => {
+    const remaining = modFilterPatches.filter(p =>
+      p.name.trim() !== '' ||
+      p.ammoIds.some(Boolean) ||
+      p.weaponIds.some(Boolean) ||
+      p.magazineIds.some(Boolean)
+    )
+    if (remaining.length === modFilterPatches.length) return
+    if (firebaseActive) {
+      try {
+        await setAllModPatchesInFirebase(remaining)
+      } catch (err) {
+        setPatchesError(err instanceof Error ? err.message : String(err))
+      }
+    } else {
+      setModFilterPatches(remaining)
+      saveStoredModPatches(remaining.map(({ key: _key, ...p }) => p))
     }
   }
 
@@ -1287,6 +1356,9 @@ export default function App() {
             patches={modFilterPatches}
             onUpdate={updatePatch}
             onRemove={removePatch}
+            onDeduplicate={deduplicatePatches}
+            onRemoveUncategorized={removeUncategorizedPatches}
+            onRemoveEmpty={removeEmptyPatches}
             activeIndex={activeIndex}
             setActiveIndex={setActiveIndex}
             loading={patchesLoading}
@@ -2305,6 +2377,9 @@ function ModFilterPatchesTab({
   patches,
   onUpdate,
   onRemove,
+  onDeduplicate,
+  onRemoveUncategorized,
+  onRemoveEmpty,
   activeIndex,
   setActiveIndex,
   loading,
@@ -2313,6 +2388,9 @@ function ModFilterPatchesTab({
   patches: ModPatchWithKey[]
   onUpdate: (index: number, updates: Partial<ModFilterPatch>) => void | Promise<void>
   onRemove: (index: number) => void | Promise<void>
+  onDeduplicate: () => void | Promise<void>
+  onRemoveUncategorized: () => void | Promise<void>
+  onRemoveEmpty: () => void | Promise<void>
   activeIndex: number
   setActiveIndex: (i: number) => void
   loading: boolean
@@ -2390,6 +2468,32 @@ function ModFilterPatchesTab({
 
   return (
     <div className="space-y-4">
+      <div className="flex flex-wrap items-center gap-2">
+        <button
+          onClick={async () => {
+            if (window.confirm('Remove duplicate patches across all categories?')) await onDeduplicate()
+          }}
+          className="btn-secondary text-sm flex items-center gap-1.5"
+        >
+          <Puzzle size={14} /> Remove Duplicates
+        </button>
+        <button
+          onClick={async () => {
+            if (window.confirm('Delete every Uncategorized patch?')) await onRemoveUncategorized()
+          }}
+          className="btn-secondary text-sm flex items-center gap-1.5"
+        >
+          <Trash2 size={14} /> Delete Uncategorized
+        </button>
+        <button
+          onClick={async () => {
+            if (window.confirm('Delete all empty patches?')) await onRemoveEmpty()
+          }}
+          className="btn-secondary text-sm flex items-center gap-1.5"
+        >
+          <Trash2 size={14} /> Delete Empty
+        </button>
+      </div>
       {loading && (
         <div className="text-sm text-tarkov-accent">Loading shared patches...</div>
       )}
