@@ -992,13 +992,15 @@ export default function App() {
       })
       return normalized
     })
-    const importedPatches = (parsed.modFilterPatches ?? []).map((p: ModFilterPatch) => ({
-      guid: p.guid ?? '',
-      name: p.name ?? '',
-      ammoIds: p.ammoIds ?? [],
-      weaponIds: p.weaponIds ?? [],
-      magazineIds: p.magazineIds ?? [],
-    }))
+    const importedPatches = (parsed.modFilterPatches ?? [])
+      .filter((p: ModFilterPatch) => (p.guid ?? '').trim() !== '')
+      .map((p: ModFilterPatch) => ({
+        guid: p.guid ?? '',
+        name: p.name ?? '',
+        ammoIds: p.ammoIds ?? [],
+        weaponIds: p.weaponIds ?? [],
+        magazineIds: p.magazineIds ?? [],
+      }))
 
     const pack: AmmoPackDefinition = {
       ...createDefaultPack(),
