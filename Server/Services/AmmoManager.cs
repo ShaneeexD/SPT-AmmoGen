@@ -92,7 +92,6 @@ public static class AmmoManager
             HeatFactor = def.Stats.HeatFactor,
             StaminaBurnPerDamage = def.Stats.StaminaBurnPerDamage,
             Tracer = def.Stats.Tracer,
-            TracerColor = def.Stats.TracerColor,
             TracerDistance = def.Stats.TracerDistance,
             AmmoSfx = def.Stats.AmmoSfx,
             CasingSounds = def.Stats.CasingSounds,
@@ -127,6 +126,9 @@ public static class AmmoManager
                 Z = def.Stats.Blindness.Z,
             },
         };
+
+        if (!string.IsNullOrWhiteSpace(def.Stats.TracerColor))
+            overrides.TracerColor = def.Stats.TracerColor;
 
         var details = new NewItemFromCloneDetails
         {

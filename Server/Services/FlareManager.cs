@@ -307,7 +307,7 @@ public static class FlareManager
 
     private static TemplateItemProperties BuildAmmoOverrides(FlareDefinition def)
     {
-        return new TemplateItemProperties
+        var overrides = new TemplateItemProperties
         {
             Name = def.ShortName,
             ShortName = def.ShortName,
@@ -317,13 +317,17 @@ public static class FlareManager
             StackMaxSize = def.Stats.StackMaxSize > 0 ? def.Stats.StackMaxSize : null,
             AmmoLifeTimeSec = def.Stats.AmmoLifeTimeSec,
             Tracer = def.Stats.Tracer,
-            TracerColor = def.Stats.TracerColor,
             TracerDistance = def.Stats.TracerDistance,
             CasingSounds = def.Stats.CasingSounds,
             MisfireChance = def.Stats.MisfireChance,
             RicochetChance = def.Stats.RicochetChance,
             Weight = def.Stats.Weight,
         };
+
+        if (!string.IsNullOrWhiteSpace(def.Stats.TracerColor))
+            overrides.TracerColor = def.Stats.TracerColor;
+
+        return overrides;
     }
 
     private static void ApplyCartridgeOverrides(
