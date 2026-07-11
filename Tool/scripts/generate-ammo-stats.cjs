@@ -18,6 +18,7 @@ const stats = {}
 const tracerColors = new Set()
 const ammoSfxOptions = new Set()
 const casingSoundsOptions = new Set()
+const explosionTypes = new Set()
 
 for (const itemId of Object.keys(items)) {
   const item = items[itemId]
@@ -45,13 +46,16 @@ for (const itemId of Object.keys(items)) {
     durabilityBurnModificator: item._props.DurabilityBurnModificator ?? 1,
     ballisticCoeficient: item._props.BallisticCoeficient ?? 1,
     projectileCount: item._props.ProjectileCount || 0,
+    buckshotBullets: item._props.buckshotBullets || 0,
     ricochetChance: item._props.RicochetChance || 0,
     fragmentationChance: item._props.FragmentationChance || 0,
     penetrationDamageMod: item._props.PenetrationDamageMod ?? 0,
     penetrationChanceObstacle: item._props.PenetrationChanceObstacle || 0,
+    penetrationPowerDiviation: item._props.PenetrationPowerDiviation || 0,
     ammoLifeTimeSec: item._props.AmmoLifeTimeSec ?? 2,
     bulletMassGram: item._props.BulletMassGram || 0,
     bulletDiameterMilimeters: item._props.BulletDiameterMilimeters || 0,
+    weight: item._props.Weight || 0,
     misfireChance: item._props.MisfireChance || 0,
     malfMisfireChance: item._props.MalfMisfireChance || 0,
     malfFeedChance: item._props.MalfFeedChance || 0,
@@ -62,6 +66,7 @@ for (const itemId of Object.keys(items)) {
     tracerDistance: item._props.TracerDistance || 0,
     ammoSfx: item._props.ammoSfx || '',
     casingSounds: item._props.casingSounds || '',
+    hasGrenaderComponent: item._props.HasGrenaderComponent || false,
     fuzeArmTimeSec: item._props.FuzeArmTimeSec || 0,
     minExplosionDistance: item._props.MinExplosionDistance || 0,
     maxExplosionDistance: item._props.MaxExplosionDistance || 0,
@@ -82,12 +87,14 @@ for (const itemId of Object.keys(items)) {
   if (item._props.TracerColor) tracerColors.add(item._props.TracerColor)
   if (item._props.ammoSfx) ammoSfxOptions.add(item._props.ammoSfx)
   if (item._props.casingSounds) casingSoundsOptions.add(item._props.casingSounds)
+  if (item._props.ExplosionType) explosionTypes.add(item._props.ExplosionType)
 }
 
 const sortedSet = (s) => Array.from(s).sort((a, b) => a.localeCompare(b))
 const tracerColorOptions = sortedSet(tracerColors)
 const ammoSfxValues = sortedSet(ammoSfxOptions)
 const casingSoundsValues = sortedSet(casingSoundsOptions)
+const explosionTypeValues = sortedSet(explosionTypes)
 
 const entries = Object.entries(stats).sort((a, b) => a[1].name.localeCompare(b[1].name))
 
@@ -129,13 +136,16 @@ export interface AmmoTemplateStats {
   durabilityBurnModificator: number
   ballisticCoeficient: number
   projectileCount: number
+  buckshotBullets: number
   ricochetChance: number
   fragmentationChance: number
   penetrationDamageMod: number
   penetrationChanceObstacle: number
+  penetrationPowerDiviation: number
   ammoLifeTimeSec: number
   bulletMassGram: number
   bulletDiameterMilimeters: number
+  weight: number
   misfireChance: number
   malfMisfireChance: number
   malfFeedChance: number
@@ -146,6 +156,7 @@ export interface AmmoTemplateStats {
   tracerDistance: number
   ammoSfx: string
   casingSounds: string
+  hasGrenaderComponent: boolean
   fuzeArmTimeSec: number
   minExplosionDistance: number
   maxExplosionDistance: number
@@ -174,6 +185,7 @@ export function getAmmoStats(id: string): AmmoTemplateStats | undefined {
 export const TRACER_COLOR_OPTIONS: string[] = ${JSON.stringify(tracerColorOptions)}
 export const AMMO_SFX_OPTIONS: string[] = ${JSON.stringify(ammoSfxValues)}
 export const CASING_SOUNDS_OPTIONS: string[] = ${JSON.stringify(casingSoundsValues)}
+export const AMMO_EXPLOSION_TYPES: string[] = ${JSON.stringify(explosionTypeValues)}
 `
 
 fs.writeFileSync(outputPath, output, 'utf-8')

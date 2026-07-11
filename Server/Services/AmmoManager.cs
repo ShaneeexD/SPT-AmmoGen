@@ -1,3 +1,4 @@
+using System;
 using System.Reflection;
 using SPTarkov.Server.Core.Models.Common;
 using SPTarkov.Server.Core.Models.Eft.Common;
@@ -86,6 +87,7 @@ public static class AmmoManager
             AmmoLifeTimeSec = def.Stats.AmmoLifeTimeSec,
             BulletMassGram = def.Stats.BulletMassGram,
             BulletDiameterMilimeters = def.Stats.BulletDiameterMilimeters,
+            Weight = def.Stats.Weight,
             MisfireChance = def.Stats.MisfireChance,
             MalfMisfireChance = def.Stats.MalfMisfireChance,
             MalfFeedChance = def.Stats.MalfFeedChance,
@@ -165,6 +167,15 @@ public static class AmmoManager
 
                 if (!string.IsNullOrWhiteSpace(def.Stats.BackgroundColor) && def.Stats.BackgroundColor != "default")
                     SetPropertyOrField(tpl.Properties, "BackgroundColor", FormatBackgroundColor(def.Stats.BackgroundColor, def.Stats.BackgroundAlpha));
+
+                // SPT's TemplateItemProperties does not expose these fields directly, so set them via reflection
+                // if the underlying cloned template has them.
+                if (def.Stats.BuckshotBullets > 0)
+                    SetPropertyOrField(tpl.Properties, "BuckshotBullets", def.Stats.BuckshotBullets);
+                if (def.Stats.PenetrationPowerDiviation != 0)
+                    SetPropertyOrField(tpl.Properties, "PenetrationPowerDiviation", def.Stats.PenetrationPowerDiviation);
+                if (def.Stats.HasGrenaderComponent)
+                    SetPropertyOrField(tpl.Properties, "HasGrenaderComponent", def.Stats.HasGrenaderComponent);
             }
         }
         else
@@ -282,13 +293,21 @@ public static class AmmoManager
         var prop = type.GetProperty(name, BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase);
         if (prop != null && prop.CanWrite)
         {
-            prop.SetValue(target, value);
+            prop.SetValue(target, ConvertValue(value, prop.PropertyType));
             return;
         }
 
         var field = type.GetField(name, BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase);
         if (field != null)
-            field.SetValue(target, value);
+            field.SetValue(target, ConvertValue(value, field.FieldType));
+    }
+
+    private static object? ConvertValue(object value, Type targetType)
+    {
+        var underlyingType = Nullable.GetUnderlyingType(targetType) ?? targetType;
+        if (value.GetType() == underlyingType || value.GetType().IsAssignableTo(underlyingType))
+            return value;
+        return Convert.ChangeType(value, underlyingType);
     }
 
     private static string FormatBackgroundColor(string color, double alpha)

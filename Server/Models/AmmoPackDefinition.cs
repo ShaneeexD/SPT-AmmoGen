@@ -89,13 +89,16 @@ public class AmmoStats
 
     // Projectile / flight
     [JsonPropertyName("projectileCount")] public int ProjectileCount { get; set; }
+    [JsonPropertyName("buckshotBullets")] public int BuckshotBullets { get; set; }
     [JsonPropertyName("ricochetChance")] public double RicochetChance { get; set; }
     [JsonPropertyName("fragmentationChance")] public double FragmentationChance { get; set; }
     [JsonPropertyName("penetrationDamageMod")] public double PenetrationDamageMod { get; set; }
     [JsonPropertyName("penetrationChanceObstacle")] public double PenetrationChanceObstacle { get; set; }
+    [JsonPropertyName("penetrationPowerDiviation")] public double PenetrationPowerDiviation { get; set; }
     [JsonPropertyName("ammoLifeTimeSec")] public double AmmoLifeTimeSec { get; set; }
     [JsonPropertyName("bulletMassGram")] public double BulletMassGram { get; set; }
     [JsonPropertyName("bulletDiameterMilimeters")] public double BulletDiameterMilimeters { get; set; }
+    [JsonPropertyName("weight")] public double Weight { get; set; }
 
     // Malfunctions / durability
     [JsonPropertyName("misfireChance")] public double MisfireChance { get; set; }
@@ -116,6 +119,7 @@ public class AmmoStats
     [JsonPropertyName("backgroundAlpha")] public double BackgroundAlpha { get; set; } = 1;
 
     // Explosive / grenade rounds
+    [JsonPropertyName("hasGrenaderComponent")] public bool HasGrenaderComponent { get; set; }
     [JsonPropertyName("fuzeArmTimeSec")] public double FuzeArmTimeSec { get; set; }
     [JsonPropertyName("minExplosionDistance")] public double MinExplosionDistance { get; set; }
     [JsonPropertyName("maxExplosionDistance")] public double MaxExplosionDistance { get; set; }

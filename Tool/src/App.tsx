@@ -60,7 +60,7 @@ import {
   createDefaultFlare,
 } from './types'
 import { ITEMS, getItemName } from './generated_items'
-import { getAmmoStats, AmmoTemplateStats, TRACER_COLOR_OPTIONS, AMMO_SFX_OPTIONS, CASING_SOUNDS_OPTIONS } from './generated_ammo_stats'
+import { getAmmoStats, AmmoTemplateStats, TRACER_COLOR_OPTIONS, AMMO_SFX_OPTIONS, CASING_SOUNDS_OPTIONS, AMMO_EXPLOSION_TYPES } from './generated_ammo_stats'
 import { getAmmoEconomy } from './generated_ammo_economy'
 import { getGrenadeStats, type GrenadeTemplateStats, GRENADE_FRAGMENT_TYPES, GRENADE_EXPLOSION_EFFECT_TYPES, GRENADE_THROW_TYPES } from './generated_grenade_stats'
 import { getFlareStats, getCartridgeStats, FLARE_TYPES, AIRDROP_TEMPLATE_OPTIONS } from './generated_flare_stats'
@@ -389,9 +389,9 @@ function validatePack(pack: AmmoPackDefinition, modFilterPatches: ModPatchWithKe
     }
 
     const nonNegativeStats = [
-      'ricochetChance', 'fragmentationChance', 'penetrationChanceObstacle', 'misfireChance',
+      'ricochetChance', 'fragmentationChance', 'penetrationChanceObstacle', 'penetrationPowerDiviation', 'misfireChance',
       'malfMisfireChance', 'malfFeedChance', 'heatFactor', 'staminaBurnPerDamage',
-      'bulletMassGram', 'bulletDiameterMilimeters', 'tracerDistance', 'fuzeArmTimeSec',
+      'bulletMassGram', 'bulletDiameterMilimeters', 'weight', 'tracerDistance', 'fuzeArmTimeSec',
       'minExplosionDistance', 'maxExplosionDistance', 'explosionStrength', 'lightAndSoundShotAngle',
       'lightAndSoundShotSelfContusionTime', 'lightAndSoundShotSelfContusionStrength',
     ] as const
@@ -1623,13 +1623,16 @@ function StatsTab({ ammo, onChange }: { ammo: AmmoDefinition; onChange: (u: Part
     durabilityBurnModificator: 'Durability Burn',
     ballisticCoeficient: 'Ballistic Coefficient',
     projectileCount: 'Projectile Count',
+    buckshotBullets: 'Buckshot Bullets',
     ricochetChance: 'Ricochet Chance',
     fragmentationChance: 'Fragmentation Chance',
     penetrationDamageMod: 'Penetration Damage Mod',
     penetrationChanceObstacle: 'Penetration Chance (Obstacle)',
+    penetrationPowerDiviation: 'Penetration Deviation',
     ammoLifeTimeSec: 'Ammo Life Time (sec)',
     bulletMassGram: 'Bullet Mass (g)',
     bulletDiameterMilimeters: 'Bullet Diameter (mm)',
+    weight: 'Weight (kg)',
     misfireChance: 'Misfire Chance',
     malfMisfireChance: 'Malf. Misfire Chance',
     malfFeedChance: 'Malf. Feed Chance',
@@ -1658,13 +1661,16 @@ function StatsTab({ ammo, onChange }: { ammo: AmmoDefinition; onChange: (u: Part
     durabilityBurnModificator: 'Multiplier for weapon durability burn per shot. 1 is the base ammo value; 0 disables durability burn.',
     ballisticCoeficient: 'Ballistic coefficient (G1). Lower values drop faster; higher values retain velocity better.',
     projectileCount: 'Number of projectiles fired per shot (1 for normal, higher for buckshot).',
+    buckshotBullets: 'Must match Projectile Count for buckshot-type base templates. 0 leaves the base value unchanged.',
     ricochetChance: 'Probability of ricocheting off hard surfaces.',
     fragmentationChance: 'Probability of fragmenting on impact.',
     penetrationDamageMod: 'Damage retained after penetrating armor.',
     penetrationChanceObstacle: 'Chance to penetrate thin obstacles and barriers.',
+    penetrationPowerDiviation: 'Penetration variance (0-1+). 1 means penetration can vary by +/-100%. 0 leaves the base value unchanged.',
     ammoLifeTimeSec: 'How long the projectile stays in the world before being removed.',
     bulletMassGram: 'Projectile mass in grams.',
     bulletDiameterMilimeters: 'Projectile diameter in millimeters.',
+    weight: 'Cartridge weight in kilograms. 0 leaves the base value unchanged.',
     misfireChance: 'Chance of a single misfire on fire.',
     malfMisfireChance: 'Chance contribution to weapon misfire malfunction.',
     malfFeedChance: 'Chance contribution to weapon feed malfunction.',
@@ -1684,7 +1690,7 @@ function StatsTab({ ammo, onChange }: { ammo: AmmoDefinition; onChange: (u: Part
   const base = getAmmoStats(compareToId)
 
   const coreStats = ['damage', 'penetration', 'armorDamage', 'initialSpeed', 'ammoAccr', 'ammoRec', 'stackMaxSize', 'lightBleedingDelta', 'heavyBleedingDelta', 'durabilityBurnModificator', 'ballisticCoeficient']
-  const projectileStats = ['projectileCount', 'ricochetChance', 'fragmentationChance', 'penetrationDamageMod', 'penetrationChanceObstacle', 'ammoLifeTimeSec', 'bulletMassGram', 'bulletDiameterMilimeters']
+  const projectileStats = ['projectileCount', 'buckshotBullets', 'ricochetChance', 'fragmentationChance', 'penetrationDamageMod', 'penetrationChanceObstacle', 'penetrationPowerDiviation', 'ammoLifeTimeSec', 'bulletMassGram', 'bulletDiameterMilimeters', 'weight']
   const malfunctionStats = ['misfireChance', 'malfMisfireChance', 'malfFeedChance', 'heatFactor', 'staminaBurnPerDamage']
   const explosiveStats = ['fuzeArmTimeSec', 'minExplosionDistance', 'maxExplosionDistance', 'fragmentsCount', 'explosionStrength']
   const lightSoundStats = ['lightAndSoundShotAngle', 'lightAndSoundShotSelfContusionTime', 'lightAndSoundShotSelfContusionStrength']
@@ -1692,7 +1698,8 @@ function StatsTab({ ammo, onChange }: { ammo: AmmoDefinition; onChange: (u: Part
 
   const stepForStat = (stat: string): string | number => {
     if (stat === 'lightBleedingDelta' || stat === 'heavyBleedingDelta' || stat === 'ricochetChance' || stat === 'fragmentationChance' || stat === 'penetrationChanceObstacle' || stat === 'misfireChance' || stat === 'malfMisfireChance' || stat === 'malfFeedChance' || stat === 'staminaBurnPerDamage' || stat === 'heatFactor') return 0.01
-    if (stat === 'ballisticCoeficient' || stat === 'penetrationDamageMod' || stat === 'bulletMassGram' || stat === 'bulletDiameterMilimeters') return 0.001
+    if (stat === 'ballisticCoeficient' || stat === 'penetrationDamageMod' || stat === 'bulletMassGram' || stat === 'bulletDiameterMilimeters' || stat === 'weight') return 0.001
+    if (stat === 'penetrationPowerDiviation') return 0.01
     if (stat === 'fuzeArmTimeSec' || stat === 'minExplosionDistance' || stat === 'maxExplosionDistance' || stat === 'tracerDistance' || stat === 'ammoLifeTimeSec' || stat === 'lightAndSoundShotSelfContusionTime' || stat === 'explosionStrength') return 0.1
     return 1
   }
@@ -1864,18 +1871,33 @@ function StatsTab({ ammo, onChange }: { ammo: AmmoDefinition; onChange: (u: Part
               onChange={e => onChange({ stats: { ...ammo.stats, fragmentType: e.target.value } })}
             />
           </Field>
-          <Field label="Explosion Type" tooltip="Explosion type identifier (e.g. grenade, flamable, etc.).">
-            <input
+          <Field label="Explosion Type" tooltip="Explosion type identifier. Pick a base-game value or enter a custom one.">
+            <select
               className="input-field font-mono text-sm"
               value={ammo.stats.explosionType}
               onChange={e => onChange({ stats: { ...ammo.stats, explosionType: e.target.value } })}
-            />
+            >
+              <option value="">None / Default</option>
+              {AMMO_EXPLOSION_TYPES.map(t => (
+                <option key={t} value={t}>{t}</option>
+              ))}
+            </select>
           </Field>
           <Field label="Show Hit Effect On Explode" tooltip="Whether to show a hit effect when the explosive detonates.">
             <select
               className="input-field"
               value={ammo.stats.showHitEffectOnExplode ? 'true' : 'false'}
               onChange={e => onChange({ stats: { ...ammo.stats, showHitEffectOnExplode: e.target.value === 'true' } })}
+            >
+              <option value="false">No</option>
+              <option value="true">Yes</option>
+            </select>
+          </Field>
+          <Field label="Has Grenader Component" tooltip="Enables the explosive/grenade component for this round. Required for ammo that should explode on impact.">
+            <select
+              className="input-field"
+              value={ammo.stats.hasGrenaderComponent ? 'true' : 'false'}
+              onChange={e => onChange({ stats: { ...ammo.stats, hasGrenaderComponent: e.target.value === 'true' } })}
             >
               <option value="false">No</option>
               <option value="true">Yes</option>
@@ -1973,7 +1995,7 @@ function StatsTab({ ammo, onChange }: { ammo: AmmoDefinition; onChange: (u: Part
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
             {allNumericStats.map((stat) => {
               const custom = ammo.stats[stat as keyof AmmoStats] as number
-              const original = base[stat as keyof AmmoTemplateStats] as number
+              const original = (base[stat as keyof AmmoTemplateStats] as number | undefined) ?? 0
               const diff = custom - original
               const diffClass = diff > 0 ? 'text-tarkov-success' : diff < 0 ? 'text-tarkov-error' : 'text-tarkov-text-dim'
               const diffText = diff === 0 ? '=' : diff > 0 ? `+${diff}` : `${diff}`

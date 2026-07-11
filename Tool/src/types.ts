@@ -114,13 +114,16 @@ export interface AmmoStats {
 
   // Projectile / flight
   projectileCount: number
+  buckshotBullets: number
   ricochetChance: number
   fragmentationChance: number
   penetrationDamageMod: number
   penetrationChanceObstacle: number
+  penetrationPowerDiviation: number
   ammoLifeTimeSec: number
   bulletMassGram: number
   bulletDiameterMilimeters: number
+  weight: number
 
   // Malfunctions / durability
   misfireChance: number
@@ -141,6 +144,7 @@ export interface AmmoStats {
   backgroundAlpha: number
 
   // Explosive / grenade rounds
+  hasGrenaderComponent: boolean
   fuzeArmTimeSec: number
   minExplosionDistance: number
   maxExplosionDistance: number
@@ -352,13 +356,16 @@ export function createDefaultAmmo(): AmmoDefinition {
       durabilityBurnModificator: 1,
       ballisticCoeficient: 1,
       projectileCount: 0,
+      buckshotBullets: 0,
       ricochetChance: 0,
       fragmentationChance: 0,
       penetrationDamageMod: 0,
       penetrationChanceObstacle: 0,
+      penetrationPowerDiviation: 0,
       ammoLifeTimeSec: 0,
       bulletMassGram: 0,
       bulletDiameterMilimeters: 0,
+      weight: 0,
       misfireChance: 0,
       malfMisfireChance: 0,
       malfFeedChance: 0,
@@ -371,6 +378,7 @@ export function createDefaultAmmo(): AmmoDefinition {
       casingSounds: '',
       backgroundColor: 'default',
       backgroundAlpha: 1,
+      hasGrenaderComponent: false,
       fuzeArmTimeSec: 0,
       minExplosionDistance: 0,
       maxExplosionDistance: 0,
