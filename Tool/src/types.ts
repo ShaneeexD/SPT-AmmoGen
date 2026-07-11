@@ -62,6 +62,8 @@ export interface AmmoDefinition {
   name: string
   shortName: string
   description: string
+  customModel: string
+  customUsePrefab: string
   handbookParentId?: string
   stats: AmmoStats
   economy: AmmoEconomy
@@ -263,6 +265,8 @@ export interface AmmoBoxEntry {
   name: string
   shortName: string
   description: string
+  customModel: string
+  customUsePrefab: string
   handbookPriceRoubles: number
   rarityPvE: string
   backgroundColor: string
@@ -343,6 +347,8 @@ export function createDefaultAmmo(): AmmoDefinition {
     name: '',
     shortName: '',
     description: '',
+    customModel: '',
+    customUsePrefab: '',
     stats: {
       damage: 0,
       penetration: 0,
@@ -421,6 +427,8 @@ export function createDefaultAmmo(): AmmoDefinition {
       name: '',
       shortName: '',
       description: '',
+      customModel: '',
+      customUsePrefab: '',
       handbookPriceRoubles: 0,
       rarityPvE: 'Rare',
       backgroundColor: 'default',

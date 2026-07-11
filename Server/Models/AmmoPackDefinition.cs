@@ -44,6 +44,10 @@ public class AmmoDefinition
     [JsonPropertyName("description")]
     public string Description { get; set; } = string.Empty;
 
+    // Optional custom asset bundle paths for the 3D model (and use/equip model, if different).
+    [JsonPropertyName("customModel")] public string CustomModel { get; set; } = string.Empty;
+    [JsonPropertyName("customUsePrefab")] public string CustomUsePrefab { get; set; } = string.Empty;
+
     // SPT handbook parent category. Defaults to the base ammo's category if omitted.
     [JsonPropertyName("handbookParentId")]
     public string? HandbookParentId { get; set; }
@@ -203,6 +207,8 @@ public class AmmoBoxEntry
     [JsonPropertyName("name")] public string Name { get; set; } = string.Empty;
     [JsonPropertyName("shortName")] public string ShortName { get; set; } = string.Empty;
     [JsonPropertyName("description")] public string Description { get; set; } = string.Empty;
+    [JsonPropertyName("customModel")] public string CustomModel { get; set; } = string.Empty;
+    [JsonPropertyName("customUsePrefab")] public string CustomUsePrefab { get; set; } = string.Empty;
     [JsonPropertyName("handbookPriceRoubles")] public int HandbookPriceRoubles { get; set; }
     [JsonPropertyName("rarityPvE")] public string RarityPvE { get; set; } = "Rare";
     [JsonPropertyName("backgroundColor")] public string BackgroundColor { get; set; } = "default";

@@ -132,6 +132,10 @@ public static class AmmoManager
         if (!string.IsNullOrWhiteSpace(def.Stats.TracerColor))
             overrides.TracerColor = def.Stats.TracerColor;
 
+        // Keep base prefab unless a custom bundle path is provided.
+        overrides.Prefab = null;
+        overrides.UsePrefab = null;
+
         var details = new NewItemFromCloneDetails
         {
             NewId = def.Id,
@@ -176,6 +180,8 @@ public static class AmmoManager
                     SetPropertyOrField(tpl.Properties, "PenetrationPowerDiviation", def.Stats.PenetrationPowerDiviation);
                 if (def.Stats.HasGrenaderComponent)
                     SetPropertyOrField(tpl.Properties, "HasGrenaderComponent", def.Stats.HasGrenaderComponent);
+
+                ApplyCustomPrefabPaths(tpl.Properties, def.CustomModel, def.CustomUsePrefab);
             }
         }
         else
@@ -198,6 +204,8 @@ public static class AmmoManager
             Name = box.ShortName,
             ShortName = box.ShortName,
             Description = box.Description,
+            Prefab = null,
+            UsePrefab = null,
         };
 
         var details = new NewItemFromCloneDetails
@@ -265,12 +273,22 @@ public static class AmmoManager
 
                 if (!string.IsNullOrWhiteSpace(box.BackgroundColor) && box.BackgroundColor != "default")
                     SetPropertyOrField(boxItem.Properties, "BackgroundColor", FormatBackgroundColor(box.BackgroundColor, box.BackgroundAlpha));
+
+                ApplyCustomPrefabPaths(boxItem.Properties, box.CustomModel, box.CustomUsePrefab);
             }
         }
         catch (Exception ex)
         {
             logger.LogWithColor($"[AmmoGen] Created ammo box '{box.Name}' but failed to patch StackSlots: {ex.Message}", LogTextColor.Yellow);
         }
+    }
+
+    private static void ApplyCustomPrefabPaths(TemplateItemProperties properties, string customModel, string customUsePrefab)
+    {
+        if (!string.IsNullOrWhiteSpace(customModel) && properties.Prefab != null)
+            properties.Prefab.Path = customModel;
+        if (!string.IsNullOrWhiteSpace(customUsePrefab) && properties.UsePrefab != null)
+            properties.UsePrefab.Path = customUsePrefab;
     }
 
     private static string ResolveHandbookParent(DatabaseService databaseService, string baseTpl)

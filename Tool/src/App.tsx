@@ -536,6 +536,8 @@ function buildExportJson(pack: AmmoPackDefinition, modFilterPatches: ModPatchWit
       name: ammo.name,
       shortName: ammo.shortName,
       description: ammo.description,
+      customModel: ammo.customModel,
+      customUsePrefab: ammo.customUsePrefab,
       ...(ammo.handbookParentId ? { handbookParentId: ammo.handbookParentId } : {}),
       stats: ammo.stats,
       economy: ammo.economy,
@@ -1601,6 +1603,32 @@ function IdentityTab({ pack, setPack, ammo, onChange }: {
               value={ammo.handbookParentId || ''}
               onChange={e => onChange({ handbookParentId: e.target.value || undefined })}
               placeholder="Leave blank to auto-resolve from base template"
+            />
+          </Field>
+
+          <Field
+            label="Custom Model Bundle (optional)"
+            className="md:col-span-2"
+            tooltip="Path to the asset inside a custom Unity bundle. If provided, the client will inject the bundle for this ammo model."
+          >
+            <input
+              className="input-field font-mono text-sm"
+              value={ammo.customModel}
+              onChange={e => onChange({ customModel: e.target.value })}
+              placeholder="assets/content/items/ammo/patrons/patron_custom.bundle"
+            />
+          </Field>
+
+          <Field
+            label="Custom Use Prefab (optional)"
+            className="md:col-span-2"
+            tooltip="Optional separate prefab path used when the item is equipped/used. If blank, the Custom Model path is used for both."
+          >
+            <input
+              className="input-field font-mono text-sm"
+              value={ammo.customUsePrefab}
+              onChange={e => onChange({ customUsePrefab: e.target.value })}
+              placeholder="assets/content/items/ammo/patrons/patron_custom_uses.bundle"
             />
           </Field>
         </div>
@@ -2800,6 +2828,32 @@ function AmmoBoxTab({ ammo, onChange }: { ammo: AmmoDefinition; onChange: (u: Pa
               value={ammo.ammoBox.description}
               onChange={e => updateBox({ description: e.target.value })}
               placeholder="A box containing custom ammo..."
+            />
+          </Field>
+
+          <Field
+            label="Custom Model Bundle (optional)"
+            className="md:col-span-2"
+            tooltip="Path to the asset inside a custom Unity bundle. If provided, the client will inject the bundle for this ammo box model."
+          >
+            <input
+              className="input-field font-mono text-sm"
+              value={ammo.ammoBox.customModel}
+              onChange={e => updateBox({ customModel: e.target.value })}
+              placeholder="assets/content/items/ammo/boxes/box_custom.bundle"
+            />
+          </Field>
+
+          <Field
+            label="Custom Use Prefab (optional)"
+            className="md:col-span-2"
+            tooltip="Optional separate prefab path used when the box is equipped/used. If blank, the Custom Model path is used for both."
+          >
+            <input
+              className="input-field font-mono text-sm"
+              value={ammo.ammoBox.customUsePrefab}
+              onChange={e => updateBox({ customUsePrefab: e.target.value })}
+              placeholder="assets/content/items/ammo/boxes/box_custom_uses.bundle"
             />
           </Field>
 
