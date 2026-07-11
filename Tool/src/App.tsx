@@ -1609,26 +1609,26 @@ function IdentityTab({ pack, setPack, ammo, onChange }: {
           <Field
             label="Custom Model Bundle (optional)"
             className="md:col-span-2"
-            tooltip="Path to the asset inside a custom Unity bundle. If provided, the client will inject the bundle for this ammo model."
+            tooltip="Bundle name (e.g. patron_custom.bundle) if placed in BepInEx/plugins/Serenity-AmmoGen/bundles, or a full custom asset path if loaded elsewhere. If provided, the client will inject the bundle for this ammo model."
           >
             <input
               className="input-field font-mono text-sm"
               value={ammo.customModel}
               onChange={e => onChange({ customModel: e.target.value })}
-              placeholder="assets/content/items/ammo/patrons/patron_custom.bundle"
+              placeholder="patron_custom.bundle"
             />
           </Field>
 
           <Field
             label="Custom Use Prefab (optional)"
             className="md:col-span-2"
-            tooltip="Optional separate prefab path used when the item is equipped/used. If blank, the Custom Model path is used for both."
+            tooltip="Optional separate bundle name (e.g. patron_custom_uses.bundle) in BepInEx/plugins/Serenity-AmmoGen/bundles, or full asset path. If blank, the Custom Model path is used for both."
           >
             <input
               className="input-field font-mono text-sm"
               value={ammo.customUsePrefab}
               onChange={e => onChange({ customUsePrefab: e.target.value })}
-              placeholder="assets/content/items/ammo/patrons/patron_custom_uses.bundle"
+              placeholder="patron_custom_uses.bundle"
             />
           </Field>
         </div>
@@ -2834,26 +2834,26 @@ function AmmoBoxTab({ ammo, onChange }: { ammo: AmmoDefinition; onChange: (u: Pa
           <Field
             label="Custom Model Bundle (optional)"
             className="md:col-span-2"
-            tooltip="Path to the asset inside a custom Unity bundle. If provided, the client will inject the bundle for this ammo box model."
+            tooltip="Bundle name (e.g. box_custom.bundle) if placed in BepInEx/plugins/Serenity-AmmoGen/bundles, or a full custom asset path if loaded elsewhere. If provided, the client will inject the bundle for this ammo box model."
           >
             <input
               className="input-field font-mono text-sm"
               value={ammo.ammoBox.customModel}
               onChange={e => updateBox({ customModel: e.target.value })}
-              placeholder="assets/content/items/ammo/boxes/box_custom.bundle"
+              placeholder="box_custom.bundle"
             />
           </Field>
 
           <Field
             label="Custom Use Prefab (optional)"
             className="md:col-span-2"
-            tooltip="Optional separate prefab path used when the box is equipped/used. If blank, the Custom Model path is used for both."
+            tooltip="Optional separate bundle name (e.g. box_custom_uses.bundle) in BepInEx/plugins/Serenity-AmmoGen/bundles, or full asset path. If blank, the Custom Model path is used for both."
           >
             <input
               className="input-field font-mono text-sm"
               value={ammo.ammoBox.customUsePrefab}
               onChange={e => updateBox({ customUsePrefab: e.target.value })}
-              placeholder="assets/content/items/ammo/boxes/box_custom_uses.bundle"
+              placeholder="box_custom_uses.bundle"
             />
           </Field>
 
