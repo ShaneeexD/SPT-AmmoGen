@@ -571,3 +571,19 @@ export function generateMongoId(): string {
   }
   return id
 }
+
+export interface ModdedItemDump {
+  generatedAt: string
+  totalModdedItems: number
+  categories: Record<string, ModdedDumpedItem[]>
+}
+
+export interface ModdedDumpedItem {
+  id: string
+  name: string
+  locale?: {
+    name: string
+    shortName: string
+    description: string
+  }
+}

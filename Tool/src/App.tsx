@@ -25,6 +25,7 @@ import {
   ChevronDown,
   Bomb,
   Puzzle,
+  FileSearch,
 } from 'lucide-react'
 import {
   AmmoDefinition,
@@ -58,6 +59,8 @@ import {
   CARTRIDGE_TEMPLATES,
   createDefaultGrenade,
   createDefaultFlare,
+  ModdedItemDump,
+  ModdedDumpedItem,
 } from './types'
 import { ITEMS, getItemName } from './generated_items'
 import { getAmmoStats, AmmoTemplateStats, TRACER_COLOR_OPTIONS, AMMO_SFX_OPTIONS, CASING_SOUNDS_OPTIONS, AMMO_EXPLOSION_TYPES } from './generated_ammo_stats'
@@ -623,7 +626,7 @@ function saveStoredModPatches(patches: ModFilterPatch[]): void {
 export default function App() {
   const [pack, setPack] = useState<AmmoPackDefinition>(createDefaultPack())
   const [activeIndex, setActiveIndex] = useState(0)
-  const [mode, setMode] = useState<'ammo' | 'grenade' | 'flare' | 'patches'>('ammo')
+  const [mode, setMode] = useState<'ammo' | 'grenade' | 'flare' | 'patches' | 'moddedItems'>('ammo')
   const [errors, setErrors] = useState<ValidationError[]>([])
   const [activeTab, setActiveTab] = useState<Tab>('identity')
   const [showExportSuccess, setShowExportSuccess] = useState(false)
@@ -1061,7 +1064,7 @@ export default function App() {
   const activeGrenade = pack.grenades[activeIndex]
   const activeFlare = pack.flares[activeIndex]
 
-  const tabs: { id: Tab; label: string; icon: React.ReactNode }[] = mode === 'patches'
+  const tabs: { id: Tab; label: string; icon: React.ReactNode }[] = mode === 'patches' || mode === 'moddedItems'
     ? []
     : [
       { id: 'identity', label: 'Identity', icon: <Shield size={16} /> },
@@ -1130,6 +1133,14 @@ export default function App() {
             >
               <Puzzle size={14} /> Mod Patches
             </button>
+            <button
+              onClick={() => { setMode('moddedItems'); setActiveIndex(0); setActiveTab('identity') }}
+              className={`flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded transition-colors ${
+                mode === 'moddedItems' ? 'bg-tarkov-accent text-white' : 'text-tarkov-text-dim hover:text-tarkov-text'
+              }`}
+            >
+              <FileSearch size={14} /> Modded Items
+            </button>
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -1195,7 +1206,7 @@ export default function App() {
       <div className="bg-tarkov-surface border-b border-tarkov-border px-6 py-3">
         <div className="max-w-5xl mx-auto flex flex-col sm:flex-row sm:items-center gap-3">
           <div className="text-sm text-tarkov-text-dim">
-            {mode === 'ammo' ? 'Ammo' : mode === 'flare' ? 'Flares' : mode === 'grenade' ? 'Grenades' : 'Mod Patches'}
+            {mode === 'ammo' ? 'Ammo' : mode === 'flare' ? 'Flares' : mode === 'grenade' ? 'Grenades' : mode === 'patches' ? 'Mod Patches' : 'Modded Items'}
           </div>
           <div className="flex flex-wrap gap-2 flex-1">
             {mode === 'ammo' && pack.ammo.map((ammo, i) => (
@@ -1275,12 +1286,14 @@ export default function App() {
             ))}
           </div>
           <div className="flex items-center gap-3">
-            <button
-              onClick={mode === 'ammo' ? addAmmo : mode === 'flare' ? addFlare : mode === 'patches' ? addPatch : addGrenade}
-              className="btn-secondary text-sm flex items-center gap-1.5"
-            >
-              <Plus size={14} /> {mode === 'ammo' ? 'Add Ammo' : mode === 'flare' ? 'Add Flare' : mode === 'patches' ? 'Add Patch' : 'Add Grenade'}
-            </button>
+            {mode !== 'moddedItems' && (
+              <button
+                onClick={mode === 'ammo' ? addAmmo : mode === 'flare' ? addFlare : mode === 'patches' ? addPatch : addGrenade}
+                className="btn-secondary text-sm flex items-center gap-1.5"
+              >
+                <Plus size={14} /> {mode === 'ammo' ? 'Add Ammo' : mode === 'flare' ? 'Add Flare' : mode === 'patches' ? 'Add Patch' : 'Add Grenade'}
+              </button>
+            )}
             <a
               href="https://db.sp-tarkov.com/"
               target="_blank"
@@ -1369,6 +1382,7 @@ export default function App() {
             error={patchesError}
           />
         )}
+        {mode === 'moddedItems' && <ModdedItemsTab />}
       </main>
     </div>
   )
@@ -2546,6 +2560,12 @@ function ModFilterPatchesTab({
           <Trash2 size={14} /> Delete Empty
         </button>
       </div>
+      <div className="p-3 bg-tarkov-error/10 border border-tarkov-error/30 rounded-lg text-sm text-tarkov-error flex items-start gap-2">
+        <AlertCircle size={16} className="shrink-0 mt-0.5" />
+        <span>
+          These mod patches are community-made. Adding, editing, or deleting a patch here changes the shared patch list and will affect all users.
+        </span>
+      </div>
       {loading && (
         <div className="text-sm text-tarkov-accent">Loading shared patches...</div>
       )}
@@ -2696,6 +2716,224 @@ function ModFilterPatchesTab({
           )}
         </div>
       ))}
+    </div>
+  )
+}
+
+const MODDED_ITEMS_STORAGE_KEY = 'ammogen-modded-items-dump-v1'
+
+function normalizeDumpedItem(item: unknown): ModdedDumpedItem {
+  const raw = item as any
+  const locale = raw?.locale ?? raw?.Locale
+  const localeName = locale?.name ?? locale?.Name
+  const topName = raw?.name ?? raw?.Name ?? ''
+  return {
+    id: String(raw?.id ?? raw?.Id ?? ''),
+    name: String(localeName ?? topName),
+    locale: locale
+      ? {
+          name: String(localeName ?? ''),
+          shortName: String(locale?.shortName ?? locale?.ShortName ?? localeName ?? ''),
+          description: String(locale?.description ?? locale?.Description ?? ''),
+        }
+      : undefined,
+  }
+}
+
+function normalizeModdedItemDump(data: unknown): ModdedItemDump | null {
+  if (!data || typeof data !== 'object') return null
+  const raw = data as any
+  const rawCategories = raw.categories ?? raw.Categories
+  if (!rawCategories || typeof rawCategories !== 'object') return null
+
+  const categories: Record<string, ModdedDumpedItem[]> = {}
+  for (const [key, items] of Object.entries(rawCategories)) {
+    if (!Array.isArray(items)) continue
+    categories[key] = items.map(normalizeDumpedItem).filter(item => item.id)
+  }
+
+  if (Object.keys(categories).length === 0) return null
+
+  return {
+    generatedAt: String(raw.generatedAt ?? raw.GeneratedAt ?? ''),
+    totalModdedItems: Number(raw.totalModdedItems ?? raw.TotalModdedItems ?? 0),
+    categories,
+  }
+}
+
+function ModdedItemsTab() {
+  const [dump, setDump] = useState<ModdedItemDump | null>(() => {
+    try {
+      const raw = localStorage.getItem(MODDED_ITEMS_STORAGE_KEY)
+      if (raw) {
+        return normalizeModdedItemDump(JSON.parse(raw))
+      }
+    } catch (err) {
+      console.error('[AmmoGen] Failed to load modded item dump:', err)
+    }
+    return null
+  })
+  const [activeCategory, setActiveCategory] = useState<string | null>(null)
+  const [search, setSearch] = useState('')
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (dump) {
+      if (!activeCategory || !dump.categories[activeCategory]) {
+        setActiveCategory(Object.keys(dump.categories)[0] ?? null)
+      }
+    } else {
+      setActiveCategory(null)
+    }
+  }, [dump, activeCategory])
+
+  const importDump = () => {
+    const input = document.createElement('input')
+    input.type = 'file'
+    input.accept = '.json'
+    input.onchange = async (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0]
+      if (!file) return
+
+      try {
+        const raw = await file.text()
+        const parsed = JSON.parse(raw)
+        const normalized = normalizeModdedItemDump(parsed)
+        if (!normalized) {
+          setError('Invalid modded item dump format.')
+          return
+        }
+        setDump(normalized)
+        setSearch('')
+        setError(null)
+        localStorage.setItem(MODDED_ITEMS_STORAGE_KEY, JSON.stringify(normalized))
+      } catch (err) {
+        setError('Failed to import dump. Ensure it is valid JSON.')
+        console.error(err)
+      }
+    }
+    input.click()
+  }
+
+  const clearDump = () => {
+    if (window.confirm('Clear imported modded items dump?')) {
+      setDump(null)
+      setActiveCategory(null)
+      setSearch('')
+      setError(null)
+      localStorage.removeItem(MODDED_ITEMS_STORAGE_KEY)
+    }
+  }
+
+  const categoryNames = useMemo(() => {
+    if (!dump) return []
+    return Object.keys(dump.categories).sort()
+  }, [dump])
+
+  const activeItems = useMemo(() => {
+    if (!dump || !activeCategory) return []
+    const term = search.trim().toLowerCase()
+    const items = dump.categories[activeCategory] ?? []
+    if (!term) return items
+    return items.filter(item =>
+      item.id.toLowerCase().includes(term) ||
+      item.name.toLowerCase().includes(term)
+    )
+  }, [dump, activeCategory, search])
+
+  if (!dump) {
+    return (
+      <div className="card text-center text-tarkov-text-dim py-12">
+        <FileSearch size={48} className="mx-auto mb-4 text-tarkov-accent/50" />
+        <p className="text-lg">No modded item dump imported.</p>
+        <p className="text-sm mt-1">
+          Import the <code>modded_item_id_dump.json</code> generated by the server to browse modded items by category.
+        </p>
+        <button onClick={importDump} className="btn-primary mt-4 flex items-center gap-1.5 mx-auto">
+          <Upload size={14} /> Import Dump
+        </button>
+        {error && <p className="text-sm mt-3 text-tarkov-error">{error}</p>}
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="text-sm text-tarkov-text-dim">
+          {dump.generatedAt ? `Generated ${new Date(dump.generatedAt).toLocaleString()} · ` : ''}
+          {dump.totalModdedItems} modded items
+        </div>
+        <div className="flex items-center gap-2">
+          <button onClick={importDump} className="btn-secondary text-sm flex items-center gap-1.5">
+            <Upload size={14} /> Import New Dump
+          </button>
+          <button onClick={clearDump} className="btn-secondary text-sm flex items-center gap-1.5 text-tarkov-error hover:text-tarkov-error/80">
+            <Trash2 size={14} /> Clear
+          </button>
+        </div>
+      </div>
+
+      {error && <div className="text-sm text-tarkov-error">{error}</div>}
+
+      <div className="flex flex-wrap gap-2">
+        <input
+          type="text"
+          className="input-field flex-1 min-w-[200px]"
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          placeholder="Search by name or ID..."
+        />
+      </div>
+
+      <div className="flex flex-wrap gap-2">
+        {categoryNames.map(category => {
+          const count = dump.categories[category].length
+          const isActive = activeCategory === category
+          return (
+            <button
+              key={category}
+              onClick={() => setActiveCategory(category)}
+              className={`flex items-center gap-1.5 text-sm px-3 py-1.5 rounded border transition-colors ${
+                isActive
+                  ? 'bg-tarkov-accent/20 border-tarkov-accent text-tarkov-accent'
+                  : 'bg-tarkov-bg border-tarkov-border text-tarkov-text-dim hover:text-tarkov-text'
+              }`}
+            >
+              {category}
+              <span className="text-xs opacity-70">({count})</span>
+            </button>
+          )
+        })}
+      </div>
+
+      <div className="card">
+        <h2 className="text-lg font-semibold text-tarkov-accent mb-4 flex items-center gap-2">
+          <FileSearch size={18} /> {activeCategory ?? 'Select a category'}
+        </h2>
+        {activeCategory && (
+          <div className="max-h-[600px] overflow-y-auto space-y-1">
+            {activeItems.map(item => (
+              <div key={item.id} className="flex items-center justify-between gap-3 p-2 bg-tarkov-bg rounded border border-tarkov-border">
+                <div className="min-w-0 flex-1">
+                  <div className="text-sm font-medium text-tarkov-text truncate">{item.name}</div>
+                  <div className="text-xs font-mono text-tarkov-text-dim truncate">{item.id}</div>
+                </div>
+                <button
+                  onClick={() => navigator.clipboard.writeText(item.id)}
+                  className="btn-secondary text-xs px-2 py-1"
+                  title="Copy ID"
+                >
+                  Copy
+                </button>
+              </div>
+            ))}
+            {activeItems.length === 0 && (
+              <div className="text-sm text-tarkov-text-dim text-center py-4">No items match the search.</div>
+            )}
+          </div>
+        )}
+      </div>
     </div>
   )
 }

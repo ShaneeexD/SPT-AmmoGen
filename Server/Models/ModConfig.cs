@@ -11,6 +11,9 @@ public class ModConfig
     [JsonPropertyName("debug")]
     public bool Debug { get; set; } = false;
 
+    [JsonPropertyName("dumpModdedItems")]
+    public bool DumpModdedItems { get; set; } = false;
+
     public static ModConfig Load(string path)
     {
         if (!File.Exists(path))
