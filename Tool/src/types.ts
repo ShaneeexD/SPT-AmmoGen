@@ -1,9 +1,16 @@
+export interface ModPatchesEntry {
+  ammoIds: string[]
+  weaponIds: string[]
+  magazineIds: string[]
+}
+
 export interface AmmoPackDefinition {
   enabled: boolean
   name: string
   ammo: AmmoDefinition[]
   grenades: GrenadeDefinition[]
   flares: FlareDefinition[]
+  modpatches: ModPatchesEntry
 }
 
 export type FlareKind = 'handheld' | 'cartridge'
@@ -569,6 +576,11 @@ export function createDefaultPack(): AmmoPackDefinition {
     ammo: [createDefaultAmmo()],
     grenades: [],
     flares: [],
+    modpatches: {
+      ammoIds: [],
+      weaponIds: [],
+      magazineIds: [],
+    },
   }
 }
 

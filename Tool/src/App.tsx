@@ -524,16 +524,10 @@ function validatePack(pack: AmmoPackDefinition, modFilterPatches: ModPatchWithKe
   return errors
 }
 
-function buildExportJson(pack: AmmoPackDefinition, modFilterPatches: ModPatchWithKey[] = []): object {
+function buildExportJson(pack: AmmoPackDefinition): object {
   return {
     enabled: pack.enabled,
     name: pack.name,
-    modFilterPatches: modFilterPatches.map(({ key: _key, ...patch }) => ({
-      ...patch,
-      ammoIds: patch.ammoIds.filter(Boolean),
-      weaponIds: patch.weaponIds.filter(Boolean),
-      magazineIds: patch.magazineIds.filter(Boolean),
-    })),
     ammo: pack.ammo.map((ammo) => ({
       id: ammo.id,
       enabled: ammo.enabled,
@@ -548,7 +542,7 @@ function buildExportJson(pack: AmmoPackDefinition, modFilterPatches: ModPatchWit
       economy: ammo.economy,
       traders: ammo.traders,
       crafting: ammo.crafting,
-      filters: applyModPatches(ammo.baseTpl, ammo.filters, modFilterPatches),
+      filters: ammo.filters,
       ammoBox: ammo.ammoBox,
       ammoLoot: ammo.ammoLoot,
       ammoBoxLoot: ammo.ammoBoxLoot,
@@ -879,7 +873,7 @@ export default function App() {
       return
     }
 
-    const json = buildExportJson(pack, modFilterPatches)
+    const json = buildExportJson(pack)
     const blob = new Blob([JSON.stringify(json, null, 2)], { type: 'application/json' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
@@ -900,7 +894,7 @@ export default function App() {
     }
 
     const zip = new JSZip()
-    const json = buildExportJson(pack, modFilterPatches)
+    const json = buildExportJson(pack)
     const packName = pack.name.toLowerCase().replace(/\s+/g, '-')
     zip.file(`SPT/user/mods/AmmoGen/ammo/${packName}.json`, JSON.stringify(json, null, 2))
 
@@ -1002,7 +996,7 @@ export default function App() {
       })
       return normalized
     })
-    const importedPatches = (parsed.modFilterPatches ?? [])
+    const legacyPatches = (parsed.modFilterPatches ?? [])
       .filter((p: ModFilterPatch) => (p.guid ?? '').trim() !== '')
       .map((p: ModFilterPatch) => ({
         guid: p.guid ?? '',
@@ -1011,6 +1005,19 @@ export default function App() {
         weaponIds: p.weaponIds ?? [],
         magazineIds: p.magazineIds ?? [],
       }))
+    const modpatches = parsed.modpatches
+    const combinedPatch: ModFilterPatch | null =
+      modpatches &&
+      (modpatches.ammoIds?.length || modpatches.weaponIds?.length || modpatches.magazineIds?.length)
+        ? {
+            guid: 'ammogen-modpatches',
+            name: 'Mod Patches',
+            ammoIds: modpatches.ammoIds ?? [],
+            weaponIds: modpatches.weaponIds ?? [],
+            magazineIds: modpatches.magazineIds ?? [],
+          }
+        : null
+    const importedPatches = combinedPatch ? [combinedPatch, ...legacyPatches] : legacyPatches
 
     const pack: AmmoPackDefinition = {
       ...createDefaultPack(),
@@ -1331,7 +1338,7 @@ export default function App() {
               {activeTab === 'filters' && <FiltersTab ammo={activeAmmo} modFilterPatches={modFilterPatches} onChange={u => updateAmmo(activeIndex, u)} />}
               {activeTab === 'ammobox' && <AmmoBoxTab ammo={activeAmmo} onChange={u => updateAmmo(activeIndex, u)} />}
               {activeTab === 'loot' && <LootTab ammo={activeAmmo} onChange={u => updateAmmo(activeIndex, u)} />}
-              {activeTab === 'preview' && <PreviewTab pack={pack} activeAmmo={activeAmmo} modFilterPatches={modFilterPatches} />}
+              {activeTab === 'preview' && <PreviewTab pack={pack} activeAmmo={activeAmmo} />}
             </>
           )
         )}
@@ -1350,7 +1357,7 @@ export default function App() {
               {activeTab === 'trader' && <TraderTab key={activeGrenade.id} traders={activeGrenade.traders} onChange={u => updateGrenade(activeIndex, u)} />}
               {activeTab === 'crafting' && <CraftingTab key={activeGrenade.id} crafting={activeGrenade.crafting} onChange={u => updateGrenade(activeIndex, u)} />}
               {activeTab === 'loot' && <GrenadeLootTab key={activeGrenade.id} grenade={activeGrenade} onChange={u => updateGrenade(activeIndex, u)} />}
-              {activeTab === 'preview' && <PreviewTab pack={pack} activeAmmo={activeAmmo} modFilterPatches={modFilterPatches} />}
+              {activeTab === 'preview' && <PreviewTab pack={pack} activeAmmo={activeGrenade} />}
             </>
           )
         )}
@@ -1369,7 +1376,7 @@ export default function App() {
               {activeTab === 'trader' && <TraderTab key={activeFlare.id} traders={activeFlare.traders} onChange={u => updateFlare(activeIndex, u)} />}
               {activeTab === 'crafting' && <CraftingTab key={activeFlare.id} crafting={activeFlare.crafting} onChange={u => updateFlare(activeIndex, u)} />}
               {activeTab === 'loot' && <FlareLootTab key={activeFlare.id} flare={activeFlare} onChange={u => updateFlare(activeIndex, u)} />}
-              {activeTab === 'preview' && <PreviewTab pack={pack} activeAmmo={activeAmmo} modFilterPatches={modFilterPatches} />}
+              {activeTab === 'preview' && <PreviewTab pack={pack} activeAmmo={activeFlare} />}
             </>
           )
         )}
@@ -2402,15 +2409,7 @@ function FiltersTab({
   }
 
   const applyModPatchesToAmmo = () => {
-    const matching = modFilterPatches.filter(p => p.ammoIds.filter(Boolean).includes(ammo.baseTpl))
-    if (matching.length === 0) return
-    onChange({
-      filters: {
-        ...ammo.filters,
-        patchWeapons: [...new Set([...ammo.filters.patchWeapons.filter(Boolean), ...matching.flatMap(p => p.weaponIds).filter(Boolean)])],
-        patchMagazines: [...new Set([...ammo.filters.patchMagazines.filter(Boolean), ...matching.flatMap(p => p.magazineIds).filter(Boolean)])],
-      },
-    })
+    onChange({ filters: applyModPatches(ammo.baseTpl, ammo.filters, modFilterPatches) })
   }
 
   const hasModPatches = modFilterPatches.some(p => p.ammoIds.filter(Boolean).includes(ammo.baseTpl))
@@ -3003,11 +3002,11 @@ function ResolvedNameList({ ids }: { ids: string[] }) {
   )
 }
 
-function PreviewTab({ pack, activeAmmo, modFilterPatches }: { pack: AmmoPackDefinition; activeAmmo: AmmoDefinition; modFilterPatches: ModPatchWithKey[] }) {
+function PreviewTab({ pack, activeAmmo }: { pack: AmmoPackDefinition; activeAmmo: any }) {
   return (
     <Section title="JSON Preview" icon={<FileJson size={18} />}>
       <div className="bg-tarkov-bg border border-tarkov-border rounded p-4 font-mono text-xs text-tarkov-text-dim overflow-auto max-h-[70vh]">
-        <pre>{JSON.stringify(buildExportJson({ ...pack, ammo: [activeAmmo] }, modFilterPatches), null, 2)}</pre>
+        <pre>{JSON.stringify(buildExportJson({ ...pack, ammo: [activeAmmo] }), null, 2)}</pre>
       </div>
     </Section>
   )
