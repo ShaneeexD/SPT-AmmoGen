@@ -8,6 +8,7 @@ using SPTarkov.Server.Core.Models.Spt.Mod;
 using SPTarkov.Server.Core.Models.Utils;
 using SPTarkov.Server.Core.Services;
 using SPTarkov.Server.Core.Services.Mod;
+using AmmoGen.Helpers;
 using AmmoGen.Models;
 
 namespace AmmoGen.Services;
@@ -63,78 +64,72 @@ public static class AmmoManager
             ? def.HandbookParentId
             : ResolveHandbookParent(databaseService, def.BaseTpl);
 
-        var overrides = new TemplateItemProperties
+        var overrides = PropertiesHelper.DeserializeProperties(def.Properties) ?? new TemplateItemProperties();
+        overrides.Name = def.ShortName;
+        overrides.ShortName = def.ShortName;
+        overrides.Description = def.Description;
+        overrides.Damage = def.Stats.Damage;
+        overrides.PenetrationPower = def.Stats.PenetrationPower;
+        overrides.ArmorDamage = def.Stats.ArmorDamage;
+        overrides.InitialSpeed = def.Stats.InitialSpeed;
+        overrides.AmmoAccr = def.Stats.AmmoAccr;
+        overrides.AmmoRec = def.Stats.AmmoRec;
+        overrides.StackMaxSize = def.Stats.StackMaxSize > 0 ? def.Stats.StackMaxSize : null;
+        overrides.LightBleedingDelta = def.Stats.LightBleedingDelta != 0 ? def.Stats.LightBleedingDelta : null;
+        overrides.HeavyBleedingDelta = def.Stats.HeavyBleedingDelta != 0 ? def.Stats.HeavyBleedingDelta : null;
+        overrides.DurabilityBurnModificator = def.Stats.DurabilityBurnModificator;
+        overrides.BallisticCoeficient = def.Stats.BallisticCoeficient;
+        overrides.ProjectileCount = def.Stats.ProjectileCount > 0 ? def.Stats.ProjectileCount : null;
+        overrides.RicochetChance = def.Stats.RicochetChance;
+        overrides.FragmentationChance = def.Stats.FragmentationChance;
+        overrides.PenetrationDamageMod = def.Stats.PenetrationDamageMod;
+        overrides.PenetrationChanceObstacle = def.Stats.PenetrationChanceObstacle;
+        overrides.AmmoLifeTimeSec = def.Stats.AmmoLifeTimeSec;
+        overrides.BulletMassGram = def.Stats.BulletMassGram;
+        overrides.BulletDiameterMilimeters = def.Stats.BulletDiameterMilimeters;
+        overrides.Weight = def.Stats.Weight;
+        overrides.MisfireChance = def.Stats.MisfireChance;
+        overrides.MalfMisfireChance = def.Stats.MalfMisfireChance;
+        overrides.MalfFeedChance = def.Stats.MalfFeedChance;
+        overrides.HeatFactor = def.Stats.HeatFactor;
+        overrides.StaminaBurnPerDamage = def.Stats.StaminaBurnPerDamage;
+        overrides.Tracer = def.Stats.Tracer;
+        overrides.TracerDistance = def.Stats.TracerDistance;
+        overrides.AmmoSfx = def.Stats.AmmoSfx;
+        overrides.CasingSounds = def.Stats.CasingSounds;
+        overrides.FuzeArmTimeSec = def.Stats.FuzeArmTimeSec;
+        overrides.MinExplosionDistance = def.Stats.MinExplosionDistance;
+        overrides.MaxExplosionDistance = def.Stats.MaxExplosionDistance;
+        overrides.FragmentsCount = def.Stats.FragmentsCount > 0 ? def.Stats.FragmentsCount : null;
+        overrides.FragmentType = def.Stats.FragmentType;
+        overrides.ExplosionType = def.Stats.ExplosionType;
+        overrides.ExplosionStrength = def.Stats.ExplosionStrength;
+        overrides.ShowHitEffectOnExplode = def.Stats.ShowHitEffectOnExplode;
+        overrides.IsLightAndSoundShot = def.Stats.IsLightAndSoundShot;
+        overrides.LightAndSoundShotAngle = def.Stats.LightAndSoundShotAngle;
+        overrides.LightAndSoundShotSelfContusionTime = def.Stats.LightAndSoundShotSelfContusionTime;
+        overrides.LightAndSoundShotSelfContusionStrength = def.Stats.LightAndSoundShotSelfContusionStrength;
+        overrides.ArmorDistanceDistanceDamage = new XYZ
         {
-            Name = def.ShortName,
-            ShortName = def.ShortName,
-            Description = def.Description,
-            Damage = def.Stats.Damage,
-            PenetrationPower = def.Stats.PenetrationPower,
-            ArmorDamage = def.Stats.ArmorDamage,
-            InitialSpeed = def.Stats.InitialSpeed,
-            AmmoAccr = def.Stats.AmmoAccr,
-            AmmoRec = def.Stats.AmmoRec,
-            StackMaxSize = def.Stats.StackMaxSize > 0 ? def.Stats.StackMaxSize : null,
-            LightBleedingDelta = def.Stats.LightBleedingDelta != 0 ? def.Stats.LightBleedingDelta : null,
-            HeavyBleedingDelta = def.Stats.HeavyBleedingDelta != 0 ? def.Stats.HeavyBleedingDelta : null,
-            DurabilityBurnModificator = def.Stats.DurabilityBurnModificator,
-            BallisticCoeficient = def.Stats.BallisticCoeficient,
-            ProjectileCount = def.Stats.ProjectileCount > 0 ? def.Stats.ProjectileCount : null,
-            RicochetChance = def.Stats.RicochetChance,
-            FragmentationChance = def.Stats.FragmentationChance,
-            PenetrationDamageMod = def.Stats.PenetrationDamageMod,
-            PenetrationChanceObstacle = def.Stats.PenetrationChanceObstacle,
-            AmmoLifeTimeSec = def.Stats.AmmoLifeTimeSec,
-            BulletMassGram = def.Stats.BulletMassGram,
-            BulletDiameterMilimeters = def.Stats.BulletDiameterMilimeters,
-            Weight = def.Stats.Weight,
-            MisfireChance = def.Stats.MisfireChance,
-            MalfMisfireChance = def.Stats.MalfMisfireChance,
-            MalfFeedChance = def.Stats.MalfFeedChance,
-            HeatFactor = def.Stats.HeatFactor,
-            StaminaBurnPerDamage = def.Stats.StaminaBurnPerDamage,
-            Tracer = def.Stats.Tracer,
-            TracerDistance = def.Stats.TracerDistance,
-            AmmoSfx = def.Stats.AmmoSfx,
-            CasingSounds = def.Stats.CasingSounds,
-            FuzeArmTimeSec = def.Stats.FuzeArmTimeSec,
-            MinExplosionDistance = def.Stats.MinExplosionDistance,
-            MaxExplosionDistance = def.Stats.MaxExplosionDistance,
-            FragmentsCount = def.Stats.FragmentsCount > 0 ? def.Stats.FragmentsCount : null,
-            FragmentType = def.Stats.FragmentType,
-            ExplosionType = def.Stats.ExplosionType,
-            ExplosionStrength = def.Stats.ExplosionStrength,
-            ShowHitEffectOnExplode = def.Stats.ShowHitEffectOnExplode,
-            IsLightAndSoundShot = def.Stats.IsLightAndSoundShot,
-            LightAndSoundShotAngle = def.Stats.LightAndSoundShotAngle,
-            LightAndSoundShotSelfContusionTime = def.Stats.LightAndSoundShotSelfContusionTime,
-            LightAndSoundShotSelfContusionStrength = def.Stats.LightAndSoundShotSelfContusionStrength,
-            ArmorDistanceDistanceDamage = new XYZ
-            {
-                X = def.Stats.ArmorDistanceDistanceDamage.X,
-                Y = def.Stats.ArmorDistanceDistanceDamage.Y,
-                Z = def.Stats.ArmorDistanceDistanceDamage.Z,
-            },
-            Contusion = new XYZ
-            {
-                X = def.Stats.Contusion.X,
-                Y = def.Stats.Contusion.Y,
-                Z = def.Stats.Contusion.Z,
-            },
-            Blindness = new XYZ
-            {
-                X = def.Stats.Blindness.X,
-                Y = def.Stats.Blindness.Y,
-                Z = def.Stats.Blindness.Z,
-            },
+            X = def.Stats.ArmorDistanceDistanceDamage.X,
+            Y = def.Stats.ArmorDistanceDistanceDamage.Y,
+            Z = def.Stats.ArmorDistanceDistanceDamage.Z,
+        };
+        overrides.Contusion = new XYZ
+        {
+            X = def.Stats.Contusion.X,
+            Y = def.Stats.Contusion.Y,
+            Z = def.Stats.Contusion.Z,
+        };
+        overrides.Blindness = new XYZ
+        {
+            X = def.Stats.Blindness.X,
+            Y = def.Stats.Blindness.Y,
+            Z = def.Stats.Blindness.Z,
         };
 
         if (!string.IsNullOrWhiteSpace(def.Stats.TracerColor))
             overrides.TracerColor = def.Stats.TracerColor;
-
-        // Keep base prefab unless a custom bundle path is provided.
-        overrides.Prefab = null;
-        overrides.UsePrefab = null;
 
         var details = new NewItemFromCloneDetails
         {

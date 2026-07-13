@@ -1,3 +1,4 @@
+using System.Text.Json;
 using System.Text.Json.Serialization;
 
 namespace AmmoGen.Models;
@@ -75,6 +76,9 @@ public class AmmoDefinition
 
     [JsonPropertyName("ammoBoxLoot")]
     public LootEntry AmmoBoxLoot { get; set; } = new();
+
+    [JsonPropertyName("properties")]
+    public JsonElement Properties { get; set; }
 }
 
 public class AmmoStats
@@ -244,6 +248,9 @@ public class GrenadeDefinition
     [JsonPropertyName("traders")] public List<TraderEntry> Traders { get; set; } = [];
     [JsonPropertyName("crafting")] public CraftingEntry Crafting { get; set; } = new();
     [JsonPropertyName("loot")] public LootEntry Loot { get; set; } = new();
+
+    [JsonPropertyName("properties")]
+    public JsonElement Properties { get; set; }
 }
 
 public class GrenadeStats
@@ -320,6 +327,9 @@ public class FlareDefinition
     [JsonPropertyName("traders")] public List<TraderEntry> Traders { get; set; } = [];
     [JsonPropertyName("crafting")] public CraftingEntry Crafting { get; set; } = new();
     [JsonPropertyName("loot")] public LootEntry Loot { get; set; } = new();
+
+    [JsonPropertyName("properties")]
+    public JsonElement Properties { get; set; }
 }
 
 public class FlareStats

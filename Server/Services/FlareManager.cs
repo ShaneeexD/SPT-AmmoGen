@@ -11,6 +11,7 @@ using SPTarkov.Server.Core.Models.Spt.Mod;
 using SPTarkov.Server.Core.Models.Utils;
 using SPTarkov.Server.Core.Services;
 using SPTarkov.Server.Core.Services.Mod;
+using AmmoGen.Helpers;
 using AmmoGen.Models;
 
 namespace AmmoGen.Services;
@@ -307,22 +308,20 @@ public static class FlareManager
 
     private static TemplateItemProperties BuildAmmoOverrides(FlareDefinition def)
     {
-        var overrides = new TemplateItemProperties
-        {
-            Name = def.ShortName,
-            ShortName = def.ShortName,
-            Description = def.Description,
-            Damage = def.Stats.Damage,
-            InitialSpeed = def.Stats.InitialSpeed,
-            StackMaxSize = def.Stats.StackMaxSize > 0 ? def.Stats.StackMaxSize : null,
-            AmmoLifeTimeSec = def.Stats.AmmoLifeTimeSec,
-            Tracer = def.Stats.Tracer,
-            TracerDistance = def.Stats.TracerDistance,
-            CasingSounds = def.Stats.CasingSounds,
-            MisfireChance = def.Stats.MisfireChance,
-            RicochetChance = def.Stats.RicochetChance,
-            Weight = def.Stats.Weight,
-        };
+        var overrides = PropertiesHelper.DeserializeProperties(def.Properties) ?? new TemplateItemProperties();
+        overrides.Name = def.ShortName;
+        overrides.ShortName = def.ShortName;
+        overrides.Description = def.Description;
+        overrides.Damage = def.Stats.Damage;
+        overrides.InitialSpeed = def.Stats.InitialSpeed;
+        overrides.StackMaxSize = def.Stats.StackMaxSize > 0 ? def.Stats.StackMaxSize : null;
+        overrides.AmmoLifeTimeSec = def.Stats.AmmoLifeTimeSec;
+        overrides.Tracer = def.Stats.Tracer;
+        overrides.TracerDistance = def.Stats.TracerDistance;
+        overrides.CasingSounds = def.Stats.CasingSounds;
+        overrides.MisfireChance = def.Stats.MisfireChance;
+        overrides.RicochetChance = def.Stats.RicochetChance;
+        overrides.Weight = def.Stats.Weight;
 
         if (!string.IsNullOrWhiteSpace(def.Stats.TracerColor))
             overrides.TracerColor = def.Stats.TracerColor;

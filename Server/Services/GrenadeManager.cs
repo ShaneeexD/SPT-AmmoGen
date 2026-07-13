@@ -9,6 +9,7 @@ using SPTarkov.Server.Core.Models.Spt.Mod;
 using SPTarkov.Server.Core.Models.Utils;
 using SPTarkov.Server.Core.Services;
 using SPTarkov.Server.Core.Services.Mod;
+using AmmoGen.Helpers;
 using AmmoGen.Models;
 
 namespace AmmoGen.Services;
@@ -74,48 +75,46 @@ public static class GrenadeManager
             ? def.HandbookParentId
             : ResolveHandbookParent(databaseService, def.BaseTpl);
 
-        var overrides = new TemplateItemProperties
+        var overrides = PropertiesHelper.DeserializeProperties(def.Properties) ?? new TemplateItemProperties();
+        overrides.Name = def.ShortName;
+        overrides.ShortName = def.ShortName;
+        overrides.Description = def.Description;
+        overrides.MinExplosionDistance = def.Stats.MinExplosionDistance;
+        overrides.MaxExplosionDistance = def.Stats.MaxExplosionDistance;
+        overrides.FragmentsCount = def.Stats.FragmentsCount > 0 ? def.Stats.FragmentsCount : null;
+        overrides.FragmentType = def.Stats.FragmentType;
+        overrides.ExplosionEffectType = def.Stats.ExplosionEffectType;
+        overrides.ArmorDistanceDistanceDamage = new XYZ
         {
-            Name = def.ShortName,
-            ShortName = def.ShortName,
-            Description = def.Description,
-            MinExplosionDistance = def.Stats.MinExplosionDistance,
-            MaxExplosionDistance = def.Stats.MaxExplosionDistance,
-            FragmentsCount = def.Stats.FragmentsCount > 0 ? def.Stats.FragmentsCount : null,
-            FragmentType = def.Stats.FragmentType,
-            ExplosionEffectType = def.Stats.ExplosionEffectType,
-            ArmorDistanceDistanceDamage = new XYZ
-            {
-                X = def.Stats.ArmorDistanceDistanceDamage.X,
-                Y = def.Stats.ArmorDistanceDistanceDamage.Y,
-                Z = def.Stats.ArmorDistanceDistanceDamage.Z,
-            },
-            Contusion = new XYZ
-            {
-                X = def.Stats.Contusion.X,
-                Y = def.Stats.Contusion.Y,
-                Z = def.Stats.Contusion.Z,
-            },
-            Blindness = new XYZ
-            {
-                X = def.Stats.Blindness.X,
-                Y = def.Stats.Blindness.Y,
-                Z = def.Stats.Blindness.Z,
-            },
-            ContusionDistance = def.Stats.ContusionDistance,
-            // TemplateItemProperties has both capitalized and camel-case JSON aliases for some fields.
-            // Set both to ensure the value is respected regardless of which serializer path the client reads.
-            ExplDelay = def.Stats.ExplDelay,
-            explDelay = def.Stats.ExplDelay,
-            MinTimeToContactExplode = def.Stats.MinTimeToContactExplode,
-            PlayFuzeSound = def.Stats.PlayFuzeSound,
-            Strength = def.Stats.Strength,
-            ThrowType = string.IsNullOrWhiteSpace(def.Stats.ThrowType)
-                ? null
-                : Enum.Parse<ThrowWeapType>(def.Stats.ThrowType, true),
-            ThrowDamMax = def.Stats.ThrowDamMax,
-            Weight = def.Stats.Weight,
+            X = def.Stats.ArmorDistanceDistanceDamage.X,
+            Y = def.Stats.ArmorDistanceDistanceDamage.Y,
+            Z = def.Stats.ArmorDistanceDistanceDamage.Z,
         };
+        overrides.Contusion = new XYZ
+        {
+            X = def.Stats.Contusion.X,
+            Y = def.Stats.Contusion.Y,
+            Z = def.Stats.Contusion.Z,
+        };
+        overrides.Blindness = new XYZ
+        {
+            X = def.Stats.Blindness.X,
+            Y = def.Stats.Blindness.Y,
+            Z = def.Stats.Blindness.Z,
+        };
+        overrides.ContusionDistance = def.Stats.ContusionDistance;
+        // TemplateItemProperties has both capitalized and camel-case JSON aliases for some fields.
+        // Set both to ensure the value is respected regardless of which serializer path the client reads.
+        overrides.ExplDelay = def.Stats.ExplDelay;
+        overrides.explDelay = def.Stats.ExplDelay;
+        overrides.MinTimeToContactExplode = def.Stats.MinTimeToContactExplode;
+        overrides.PlayFuzeSound = def.Stats.PlayFuzeSound;
+        overrides.Strength = def.Stats.Strength;
+        overrides.ThrowType = string.IsNullOrWhiteSpace(def.Stats.ThrowType)
+            ? null
+            : Enum.Parse<ThrowWeapType>(def.Stats.ThrowType, true);
+        overrides.ThrowDamMax = def.Stats.ThrowDamMax;
+        overrides.Weight = def.Stats.Weight;
 
         var details = new NewItemFromCloneDetails
         {

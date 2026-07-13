@@ -64,8 +64,10 @@ import {
 } from './types'
 import { ITEMS, getItemName } from './generated_items'
 import { getAmmoStats, AmmoTemplateStats, TRACER_COLOR_OPTIONS, AMMO_SFX_OPTIONS, CASING_SOUNDS_OPTIONS, AMMO_EXPLOSION_TYPES } from './generated_ammo_stats'
+import { getAmmoProperties } from './generated_ammo_properties'
 import { getAmmoEconomy } from './generated_ammo_economy'
 import { getGrenadeStats, type GrenadeTemplateStats, GRENADE_FRAGMENT_TYPES, GRENADE_EXPLOSION_EFFECT_TYPES, GRENADE_THROW_TYPES } from './generated_grenade_stats'
+import { getGrenadeProperties } from './generated_grenade_properties'
 import { getFlareStats, getCartridgeStats, FLARE_TYPES, AIRDROP_TEMPLATE_OPTIONS } from './generated_flare_stats'
 import { getAmmoCompatibility } from './generated_ammo_compatibility'
 import { AMMO_BOX_TEMPLATES, getAmmoBoxTemplate } from './generated_ammo_box_templates'
@@ -550,6 +552,7 @@ function buildExportJson(pack: AmmoPackDefinition, modFilterPatches: ModPatchWit
       ammoBox: ammo.ammoBox,
       ammoLoot: ammo.ammoLoot,
       ammoBoxLoot: ammo.ammoBoxLoot,
+      properties: ammo.properties,
     })),
     grenades: pack.grenades.map((grenade) => ({
       id: grenade.id,
@@ -564,6 +567,7 @@ function buildExportJson(pack: AmmoPackDefinition, modFilterPatches: ModPatchWit
       traders: grenade.traders,
       crafting: grenade.crafting,
       loot: grenade.loot,
+      properties: grenade.properties,
     })),
     flares: pack.flares.map((flare) => ({
       id: flare.id,
@@ -580,6 +584,7 @@ function buildExportJson(pack: AmmoPackDefinition, modFilterPatches: ModPatchWit
       traders: flare.traders,
       crafting: flare.crafting,
       loot: flare.loot,
+      properties: flare.properties,
     })),
   }
 }
@@ -1446,6 +1451,37 @@ function CollapsibleSection({ title, icon, defaultOpen = true, children }: { tit
   )
 }
 
+function RawPropertiesPanel({ properties, onChange, title = 'Raw Properties JSON' }: { properties: Record<string, any>; onChange: (properties: Record<string, any>) => void; title?: string }) {
+  const [rawProps, setRawProps] = useState(JSON.stringify(properties ?? {}, null, 2))
+  const [error, setError] = useState<string | null>(null)
+  useEffect(() => {
+    setRawProps(JSON.stringify(properties ?? {}, null, 2))
+  }, [properties])
+  const apply = () => {
+    try {
+      const parsed = JSON.parse(rawProps)
+      onChange(parsed)
+      setError(null)
+    } catch (e) {
+      setError('Invalid JSON')
+    }
+  }
+  return (
+    <CollapsibleSection title={title} icon={<FileJson size={16} />} defaultOpen={false}>
+      <div className="space-y-2">
+        <textarea
+          className="input-field font-mono text-xs h-64 w-full"
+          value={rawProps}
+          onChange={e => setRawProps(e.target.value)}
+          spellCheck={false}
+        />
+        {error && <div className="text-tarkov-error text-sm">{error}</div>}
+        <button type="button" className="btn-primary" onClick={apply}>Apply</button>
+      </div>
+    </CollapsibleSection>
+  )
+}
+
 function Toggle({ checked, onChange, label }: { checked: boolean; onChange: (v: boolean) => void; label?: string }) {
   return (
     <label className="toggle flex items-center gap-2 cursor-pointer">
@@ -1523,11 +1559,13 @@ function IdentityTab({ pack, setPack, ammo, onChange }: {
                   if (base) {
                     const { name, shortName, ...baseStats } = base
                     const baseEconomy = getAmmoEconomy(value)
+                    const baseProps = getAmmoProperties(value) ?? {}
                     onChange({
                       baseTpl: value,
                       compareToAmmoId: '',
                       stats: { ...baseStats, backgroundColor: 'default', backgroundAlpha: 1 } as AmmoStats,
                       economy: baseEconomy ?? ammo.economy,
+                      properties: baseProps,
                     })
                   } else {
                     onChange({ baseTpl: value, compareToAmmoId: '' })
@@ -2058,6 +2096,11 @@ function StatsTab({ ammo, onChange }: { ammo: AmmoDefinition; onChange: (u: Part
         )}
       </CollapsibleSection>
       )}
+
+      <RawPropertiesPanel
+        properties={ammo.properties}
+        onChange={props => onChange({ properties: props })}
+      />
     </Section>
   )
 }
@@ -3507,11 +3550,14 @@ function FlareIdentityTab({ pack, setPack, flare, onChange }: {
                   const base = getStats(value)
                   if (base) {
                     const { name, shortName, ...baseStats } = base
+                    const propsId = flare.kind === 'handheld' ? base.ammoBaseTpl : value
+                    const baseProps = propsId ? getAmmoProperties(propsId) ?? {} : {}
                     onChange({
                       baseTpl: value,
                       compareToFlareId: '',
                       ammoBaseTpl: flare.kind === 'handheld' ? base.ammoBaseTpl : '',
                       stats: { ...baseStats, backgroundColor: 'default', backgroundAlpha: 1 } as FlareStats,
+                      properties: baseProps,
                     })
                   } else {
                     onChange({ baseTpl: value, compareToFlareId: '', ammoBaseTpl: '' })
@@ -3857,6 +3903,11 @@ function FlareStatsTab({ flare, onChange }: { flare: FlareDefinition; onChange: 
           </div>
         </CollapsibleSection>
       )}
+
+      <RawPropertiesPanel
+        properties={flare.properties}
+        onChange={props => onChange({ properties: props })}
+      />
     </Section>
   )
 }
@@ -3939,10 +3990,12 @@ function GrenadeIdentityTab({ pack, setPack, grenade, onChange }: {
                   const base = getGrenadeStats(value)
                   if (base) {
                     const { name, shortName, ...baseStats } = base
+                    const baseProps = getGrenadeProperties(value) ?? {}
                     onChange({
                       baseTpl: value,
                       compareToGrenadeId: '',
                       stats: { ...baseStats, backgroundColor: 'default', backgroundAlpha: 1 } as GrenadeStats,
+                      properties: baseProps,
                     })
                   } else {
                     onChange({ baseTpl: value, compareToGrenadeId: '' })
@@ -4486,6 +4539,11 @@ function GrenadeStatsTab({ grenade, onChange }: { grenade: GrenadeDefinition; on
         )}
       </CollapsibleSection>
       )}
+
+      <RawPropertiesPanel
+        properties={grenade.properties}
+        onChange={props => onChange({ properties: props })}
+      />
     </Section>
   )
 }

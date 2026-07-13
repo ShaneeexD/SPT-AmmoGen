@@ -30,6 +30,7 @@ export interface FlareDefinition {
   traders: TraderEntry[]
   crafting: CraftingEntry
   loot: LootEntry
+  properties: Record<string, any>
 }
 
 export interface FlareStats {
@@ -73,6 +74,7 @@ export interface AmmoDefinition {
   ammoBox: AmmoBoxEntry
   ammoLoot: LootEntry
   ammoBoxLoot: LootEntry
+  properties: Record<string, any>
 }
 
 export interface GrenadeDefinition {
@@ -89,6 +91,7 @@ export interface GrenadeDefinition {
   traders: TraderEntry[]
   crafting: CraftingEntry
   loot: LootEntry
+  properties: Record<string, any>
 }
 
 export interface Vector3 {
@@ -316,10 +319,13 @@ export const VANILLA_TRADERS = [
 ]
 
 export { AMMO_TEMPLATES, type AmmoTemplate } from './generated_ammo_templates'
+export { AMMO_STATS, type AmmoTemplateStats, getAmmoStats } from './generated_ammo_stats'
+export { AMMO_PROPERTIES, getAmmoProperties } from './generated_ammo_properties'
 export { GRENADE_TEMPLATES, type GrenadeTemplate } from './generated_grenade_templates'
-export { GRENADE_STATS, type GrenadeTemplateStats } from './generated_grenade_stats'
+export { GRENADE_STATS, type GrenadeTemplateStats, getGrenadeStats } from './generated_grenade_stats'
+export { GRENADE_PROPERTIES, getGrenadeProperties } from './generated_grenade_properties'
 export { HANDHELD_FLARE_TEMPLATES, CARTRIDGE_TEMPLATES, type FlareTemplate } from './generated_flare_templates'
-export { FLARE_STATS, CARTRIDGE_STATS, type FlareTemplateStats } from './generated_flare_stats'
+export { FLARE_STATS, CARTRIDGE_STATS, type FlareTemplateStats, getFlareStats, getCartridgeStats } from './generated_flare_stats'
 
 export const RARITY_OPTIONS = ['Common', 'Rare', 'SuperRare', 'NotExists']
 
@@ -438,6 +444,7 @@ export function createDefaultAmmo(): AmmoDefinition {
     },
     ammoLoot: createDefaultLootEntry(),
     ammoBoxLoot: createDefaultLootEntry(),
+    properties: {},
   }
 }
 
@@ -499,6 +506,7 @@ export function createDefaultGrenade(): GrenadeDefinition {
       requirements: [],
     },
     loot: createDefaultLootEntry(),
+    properties: {},
   }
 }
 
@@ -550,6 +558,7 @@ export function createDefaultFlare(): FlareDefinition {
       requirements: [],
     },
     loot: createDefaultLootEntry(),
+    properties: {},
   }
 }
 
