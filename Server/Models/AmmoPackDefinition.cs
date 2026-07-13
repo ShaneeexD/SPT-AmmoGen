@@ -68,6 +68,9 @@ public class AmmoDefinition
     [JsonPropertyName("filters")]
     public FilterEntry Filters { get; set; } = new();
 
+    [JsonPropertyName("moddedFilterExclusions")]
+    public ModdedFilterExclusions ModdedFilterExclusions { get; set; } = new();
+
     [JsonPropertyName("ammoBox")]
     public AmmoBoxEntry AmmoBox { get; set; } = new();
 
@@ -200,6 +203,17 @@ public class FilterEntry
     // Optional weapon template IDs to patch so their chambers accept this ammo.
     [JsonPropertyName("patchWeapons")]
     public List<string> PatchWeapons { get; set; } = [];
+}
+
+public class ModdedFilterExclusions
+{
+    // Modded magazine IDs to skip when automatically patching modded item filters.
+    [JsonPropertyName("excludeMagazines")]
+    public List<string> ExcludeMagazines { get; set; } = [];
+
+    // Modded weapon IDs to skip when automatically patching modded item filters.
+    [JsonPropertyName("excludeWeapons")]
+    public List<string> ExcludeWeapons { get; set; } = [];
 }
 
 public class AmmoBoxEntry

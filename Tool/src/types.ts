@@ -1,16 +1,9 @@
-export interface ModPatchesEntry {
-  ammoIds: string[]
-  weaponIds: string[]
-  magazineIds: string[]
-}
-
 export interface AmmoPackDefinition {
   enabled: boolean
   name: string
   ammo: AmmoDefinition[]
   grenades: GrenadeDefinition[]
   flares: FlareDefinition[]
-  modpatches: ModPatchesEntry
 }
 
 export type FlareKind = 'handheld' | 'cartridge'
@@ -78,6 +71,7 @@ export interface AmmoDefinition {
   traders: TraderEntry[]
   crafting: CraftingEntry
   filters: FilterEntry
+  moddedFilterExclusions: ModdedFilterExclusions
   ammoBox: AmmoBoxEntry
   ammoLoot: LootEntry
   ammoBoxLoot: LootEntry
@@ -259,6 +253,11 @@ export interface FilterEntry {
   patchWeapons: string[]
 }
 
+export interface ModdedFilterExclusions {
+  excludeMagazines: string[]
+  excludeWeapons: string[]
+}
+
 export interface ModFilterPatch {
   guid: string
   name: string
@@ -432,6 +431,10 @@ export function createDefaultAmmo(): AmmoDefinition {
       patchMagazines: [],
       patchWeapons: [],
     },
+    moddedFilterExclusions: {
+      excludeMagazines: [],
+      excludeWeapons: [],
+    },
     ammoBox: {
       id: generateMongoId(),
       enabled: false,
@@ -576,11 +579,6 @@ export function createDefaultPack(): AmmoPackDefinition {
     ammo: [createDefaultAmmo()],
     grenades: [],
     flares: [],
-    modpatches: {
-      ammoIds: [],
-      weaponIds: [],
-      magazineIds: [],
-    },
   }
 }
 

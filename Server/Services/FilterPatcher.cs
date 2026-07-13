@@ -39,10 +39,6 @@ public static class FilterPatcher
         }
     }
 
-    /// <summary>
-    /// Scans all modded (non-vanilla) items and patches their cartridge/chamber filters
-    /// whenever the item already accepts an ammo base template that AmmoGen cloned.
-    /// </summary>
     public static void PatchModdedItems(
         DatabaseService databaseService,
         IReadOnlyList<AmmoDefinition> definitions,
@@ -228,34 +224,23 @@ public static class FilterPatcher
             return false;
 
         var patched = false;
+        var itemId = item.Id.ToString();
         foreach (var slot in slots)
         {
             if (slot.Properties?.Filters == null)
                 continue;
 
-            var matchingAmmo = new List<AmmoDefinition>();
             foreach (var slotFilter in slot.Properties.Filters)
             {
-                if (slotFilter.Filter == null)
+                var matchingAmmo = GetMatchingAmmo(slotFilter, baseTplMap);
+                if (matchingAmmo.Count == 0)
                     continue;
 
-                foreach (var kvp in baseTplMap)
-                {
-                    if (slotFilter.Filter.Any(id => id.ToString().Equals(kvp.Key, StringComparison.OrdinalIgnoreCase)))
-                    {
-                        matchingAmmo.AddRange(kvp.Value);
-                    }
-                }
-            }
-
-            if (matchingAmmo.Count == 0)
-                continue;
-
-            foreach (var slotFilter in slot.Properties.Filters)
-            {
                 slotFilter.Filter ??= new HashSet<MongoId>();
                 foreach (var ammo in matchingAmmo)
                 {
+                    if (IsExcluded(ammo, itemId, slotType))
+                        continue;
                     if (slotFilter.Filter.Add(new MongoId(ammo.Id)))
                         patched = true;
                 }
@@ -274,6 +259,7 @@ public static class FilterPatcher
             return false;
 
         var patched = false;
+        var itemId = item.Id.ToString();
         foreach (var slot in camoraSlots)
         {
             var slotProps = GetPropertyOrField(slot, "Properties");
@@ -290,20 +276,14 @@ public static class FilterPatcher
                 if (filterList == null)
                     continue;
 
-                var matchingAmmo = new List<AmmoDefinition>();
-                foreach (var kvp in baseTplMap)
-                {
-                    if (FilterListContains(filterList, kvp.Key))
-                    {
-                        matchingAmmo.AddRange(kvp.Value);
-                    }
-                }
-
+                var matchingAmmo = GetMatchingAmmo(filterList, baseTplMap, true);
                 if (matchingAmmo.Count == 0)
                     continue;
 
                 foreach (var ammo in matchingAmmo)
                 {
+                    if (IsExcluded(ammo, itemId, "Chambers"))
+                        continue;
                     if (AddToFilterList(filterList, ammo.Id))
                         patched = true;
                 }
@@ -311,6 +291,46 @@ public static class FilterPatcher
         }
 
         return patched;
+    }
+
+    private static List<AmmoDefinition> GetMatchingAmmo(SlotFilter slotFilter, Dictionary<string, List<AmmoDefinition>> baseTplMap)
+    {
+        if (slotFilter.Filter == null)
+            return [];
+
+        var matching = new List<AmmoDefinition>();
+        foreach (var kvp in baseTplMap)
+        {
+            if (slotFilter.Filter.Any(id => id.ToString().Equals(kvp.Key, StringComparison.OrdinalIgnoreCase)))
+            {
+                matching.AddRange(kvp.Value);
+            }
+        }
+
+        return matching;
+    }
+
+    private static List<AmmoDefinition> GetMatchingAmmo(object filterList, Dictionary<string, List<AmmoDefinition>> baseTplMap, bool _)
+    {
+        var matching = new List<AmmoDefinition>();
+        foreach (var kvp in baseTplMap)
+        {
+            if (FilterListContains(filterList, kvp.Key))
+            {
+                matching.AddRange(kvp.Value);
+            }
+        }
+
+        return matching;
+    }
+
+    private static bool IsExcluded(AmmoDefinition ammo, string itemId, string slotType)
+    {
+        var exclusions = slotType == "Cartridges"
+            ? ammo.ModdedFilterExclusions.ExcludeMagazines
+            : ammo.ModdedFilterExclusions.ExcludeWeapons;
+
+        return exclusions.Any(e => e.Equals(itemId, StringComparison.OrdinalIgnoreCase));
     }
 
     private static bool FilterListContains(object filterList, string id)
