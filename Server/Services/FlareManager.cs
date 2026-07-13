@@ -32,11 +32,33 @@ public static class FlareManager
         ISptLogger<AmmoGenPlugin> logger)
     {
         var flareColors = new Dictionary<string, string>();
+        var registeredCartridges = 0;
+        var registeredHandheld = 0;
+        var failed = 0;
+        var patchedChambers = 0;
+        var patchedSignalPistols = 0;
+
         foreach (var def in definitions)
         {
             try
             {
-                RegisterFlare(def, customItemService, databaseService, logger);
+                if (!RegisterFlare(def, customItemService, databaseService, logger, out var patched))
+                {
+                    failed++;
+                    continue;
+                }
+
+                if (def.Kind == "cartridge")
+                {
+                    registeredCartridges++;
+                    patchedSignalPistols += patched;
+                }
+                else
+                {
+                    registeredHandheld++;
+                    patchedChambers += patched;
+                }
+
                 if (!string.IsNullOrWhiteSpace(def.Stats.FlareColor))
                 {
                     var colorId = def.Kind == "cartridge" ? def.Id : def.AmmoId;
@@ -46,9 +68,20 @@ public static class FlareManager
             }
             catch (Exception ex)
             {
+                failed++;
                 logger.LogWithColor($"[AmmoGen] Failed to register flare '{def.Name}': {ex.Message}", LogTextColor.Red);
             }
         }
+
+        logger.LogWithColor(
+            $"[AmmoGen] Registered {registeredCartridges} flare cartridge(s) and {registeredHandheld} handheld flare(s).",
+            LogTextColor.Green);
+        if (patchedChambers + patchedSignalPistols > 0)
+            logger.LogWithColor(
+                $"[AmmoGen] Patched {patchedChambers} handheld flare chamber(s) and {patchedSignalPistols} signal pistol chamber(s).",
+                LogTextColor.Green);
+        if (failed > 0)
+            logger.LogWithColor($"[AmmoGen] {failed} flare registration(s) failed.", LogTextColor.Red);
 
         PatchSpecialSlotFilters(databaseService, definitions, logger);
         WriteColorConfig(flareColors, "flare_colors.json", logger);
@@ -109,32 +142,34 @@ public static class FlareManager
             logger.LogWithColor($"[AmmoGen] Patched {patchedCount} special slot filter(s) for {handheldIds.Count} handheld flare(s).", LogTextColor.Green);
     }
 
-    private static void RegisterFlare(
+    private static bool RegisterFlare(
         FlareDefinition def,
         CustomItemService customItemService,
         DatabaseService databaseService,
-        ISptLogger<AmmoGenPlugin> logger)
+        ISptLogger<AmmoGenPlugin> logger,
+        out int patchedCount)
     {
         if (def.Kind == "cartridge")
         {
-            RegisterCartridge(def, customItemService, databaseService, logger);
-            return;
+            return RegisterCartridge(def, customItemService, databaseService, logger, out patchedCount);
         }
 
-        RegisterHandheldFlare(def, customItemService, databaseService, logger);
+        return RegisterHandheldFlare(def, customItemService, databaseService, logger, out patchedCount);
     }
 
-    private static void RegisterCartridge(
+    private static bool RegisterCartridge(
         FlareDefinition def,
         CustomItemService customItemService,
         DatabaseService databaseService,
-        ISptLogger<AmmoGenPlugin> logger)
+        ISptLogger<AmmoGenPlugin> logger,
+        out int patchedSignalPistols)
     {
+        patchedSignalPistols = 0;
         var items = databaseService.GetItems();
         if (!items.TryGetValue(def.BaseTpl, out var baseCartridge) || baseCartridge.Properties == null)
         {
             logger.LogWithColor($"[AmmoGen] Base flare cartridge '{def.BaseTpl}' not found for '{def.Name}'. Skipping.", LogTextColor.Yellow);
-            return;
+            return false;
         }
 
         var ammoHandbookParentId = !string.IsNullOrWhiteSpace(def.HandbookParentId)
@@ -168,26 +203,28 @@ public static class FlareManager
             logger.LogWithColor(
                 $"[AmmoGen] CreateItemFromClone reported failure for flare cartridge '{def.Name}': {string.Join(", ", ammoResult.Errors ?? [])}",
                 LogTextColor.Yellow);
-            return;
+            return false;
         }
 
         ApplyCartridgeOverrides(items, def.Id, def, logger);
-        PatchSignalPistols(databaseService, def.Id, def.Name, logger);
+        patchedSignalPistols = PatchSignalPistols(databaseService, def.Id, def.Name, logger);
 
-        logger.LogWithColor($"[AmmoGen] Registered flare cartridge: {def.Name} ({def.Id})", LogTextColor.Green);
+        return true;
     }
 
-    private static void RegisterHandheldFlare(
+    private static bool RegisterHandheldFlare(
         FlareDefinition def,
         CustomItemService customItemService,
         DatabaseService databaseService,
-        ISptLogger<AmmoGenPlugin> logger)
+        ISptLogger<AmmoGenPlugin> logger,
+        out int patchedChambers)
     {
+        patchedChambers = 0;
         var items = databaseService.GetItems();
         if (!items.TryGetValue(def.BaseTpl, out var baseWeapon) || baseWeapon.Properties == null)
         {
             logger.LogWithColor($"[AmmoGen] Base flare weapon '{def.BaseTpl}' not found for '{def.Name}'. Skipping.", LogTextColor.Yellow);
-            return;
+            return false;
         }
 
         var baseAmmoTpl = !string.IsNullOrWhiteSpace(def.AmmoBaseTpl)
@@ -197,7 +234,7 @@ public static class FlareManager
         if (string.IsNullOrWhiteSpace(baseAmmoTpl) || !items.TryGetValue(baseAmmoTpl, out var baseAmmo))
         {
             logger.LogWithColor($"[AmmoGen] Base flare cartridge '{baseAmmoTpl}' not found for '{def.Name}'. Skipping.", LogTextColor.Yellow);
-            return;
+            return false;
         }
 
         var ammoHandbookParentId = !string.IsNullOrWhiteSpace(def.HandbookParentId)
@@ -235,7 +272,7 @@ public static class FlareManager
             logger.LogWithColor(
                 $"[AmmoGen] CreateItemFromClone reported failure for flare cartridge '{def.Name}': {string.Join(", ", ammoResult.Errors ?? [])}",
                 LogTextColor.Yellow);
-            return;
+            return false;
         }
 
         ApplyCartridgeOverrides(items, def.AmmoId, def, logger);
@@ -277,10 +314,8 @@ public static class FlareManager
             logger.LogWithColor(
                 $"[AmmoGen] CreateItemFromClone reported failure for flare '{def.Name}': {string.Join(", ", weaponResult.Errors ?? [])}",
                 LogTextColor.Yellow);
-            return;
+            return false;
         }
-
-        logger.LogWithColor($"[AmmoGen] Registered handheld flare: {def.Name} ({def.Id}) with cartridge ({def.AmmoId})", LogTextColor.Green);
 
         if (items.TryGetValue(def.Id, out var weaponTpl) && weaponTpl.Properties != null)
         {
@@ -298,12 +333,11 @@ public static class FlareManager
             SetPropertyOrField(weaponTpl.Properties, "IsSpecialSlotOnly", def.Stats.IsSpecialSlotOnly);
             SetPropertyOrField(weaponTpl.Properties, "isSpecialSlotOnly", def.Stats.IsSpecialSlotOnly);
 
-            var readWeapClass = GetPropertyOrField(weaponTpl.Properties, "weapClass") ?? GetPropertyOrField(weaponTpl.Properties, "WeapClass") ?? "<not found>";
-            var readSpecial = GetPropertyOrField(weaponTpl.Properties, "IsSpecialSlotOnly") ?? GetPropertyOrField(weaponTpl.Properties, "isSpecialSlotOnly") ?? "<not found>";
-            logger.LogWithColor($"[AmmoGen] Set {def.Id} parent={weaponParentId}, propsType={weaponTpl.Properties.GetType().Name}, weapClass={weapClass} (read-back: {readWeapClass}), IsSpecialSlotOnly={def.Stats.IsSpecialSlotOnly} (read-back: {readSpecial})", LogTextColor.Green);
-
-            PatchChambers(weaponTpl, def.AmmoId, def.Name, logger);
+            if (PatchChambers(weaponTpl, def.AmmoId, def.Name, logger))
+                patchedChambers++;
         }
+
+        return true;
     }
 
     private static TemplateItemProperties BuildAmmoOverrides(FlareDefinition def)
@@ -360,10 +394,11 @@ public static class FlareManager
         "620109578d82e67e7911abf2", // ZiD SP-81 26x75 signal pistol
     ];
 
-    private static void PatchSignalPistols(DatabaseService databaseService, string ammoId, string ammoName, ISptLogger<AmmoGenPlugin> logger)
+    private static int PatchSignalPistols(DatabaseService databaseService, string ammoId, string ammoName, ISptLogger<AmmoGenPlugin> logger)
     {
         var items = databaseService.GetItems();
         var ammoMongoId = new MongoId(ammoId);
+        var patchedCount = 0;
 
         foreach (var pistolId in SignalPistolIds)
         {
@@ -395,15 +430,17 @@ public static class FlareManager
             }
 
             if (added)
-                logger.LogWithColor($"[AmmoGen] Patched signal pistol '{pistolId}' chamber to accept cartridge '{ammoName}'.", LogTextColor.Green);
+                patchedCount++;
         }
+
+        return patchedCount;
     }
 
-    private static void PatchChambers(TemplateItem weapon, string ammoId, string ammoName, ISptLogger<AmmoGenPlugin> logger)
+    private static bool PatchChambers(TemplateItem weapon, string ammoId, string ammoName, ISptLogger<AmmoGenPlugin> logger)
     {
         var chambers = weapon.Properties?.Chambers;
         if (chambers == null || !chambers.Any())
-            return;
+            return false;
 
         var added = false;
         var ammoMongoId = new MongoId(ammoId);
@@ -420,8 +457,7 @@ public static class FlareManager
             }
         }
 
-        if (added)
-            logger.LogWithColor($"[AmmoGen] Patched chambers of flare weapon '{weapon.Id}' to accept cartridge '{ammoName}'.", LogTextColor.Green);
+        return added;
     }
 
     private static void WriteColorConfig(Dictionary<string, string> colors, string fileName, ISptLogger<AmmoGenPlugin> logger)

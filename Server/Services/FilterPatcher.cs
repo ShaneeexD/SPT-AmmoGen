@@ -13,12 +13,23 @@ namespace AmmoGen.Services;
 // Patches magazine and weapon chamber filters so they accept custom ammo.
 public static class FilterPatcher
 {
+    private enum PatchResult
+    {
+        Patched,
+        NotFound,
+        NoChange,
+    }
+
     public static void PatchAll(
         DatabaseService databaseService,
         IReadOnlyList<AmmoDefinition> definitions,
         ISptLogger<AmmoGenPlugin> logger)
     {
         var items = databaseService.GetItems();
+        var patchedMagazines = 0;
+        var patchedWeapons = 0;
+        var missing = 0;
+        var failed = 0;
 
         foreach (var def in definitions)
         {
@@ -27,16 +38,37 @@ public static class FilterPatcher
                 var enabledIds = new List<MongoId> { new MongoId(def.Id) };
 
                 foreach (var magId in def.Filters.PatchMagazines)
-                    PatchItem(magId, items, enabledIds, "Cartridges", def.Name, logger);
+                {
+                    var result = PatchItem(magId, items, enabledIds, "Cartridges", def.Name, logger);
+                    if (result == PatchResult.Patched)
+                        patchedMagazines++;
+                    else if (result == PatchResult.NotFound)
+                        missing++;
+                }
 
                 foreach (var weaponId in def.Filters.PatchWeapons)
-                    PatchItem(weaponId, items, enabledIds, "Chambers", def.Name, logger);
+                {
+                    var result = PatchItem(weaponId, items, enabledIds, "Chambers", def.Name, logger);
+                    if (result == PatchResult.Patched)
+                        patchedWeapons++;
+                    else if (result == PatchResult.NotFound)
+                        missing++;
+                }
             }
             catch (Exception ex)
             {
+                failed++;
                 logger.LogWithColor($"[AmmoGen] Failed to patch filters for '{def.Name}': {ex.Message}", LogTextColor.Red);
             }
         }
+
+        logger.LogWithColor(
+            $"[AmmoGen] Patched {patchedMagazines} magazine(s) and {patchedWeapons} weapon(s) to accept custom ammo.",
+            LogTextColor.Green);
+        if (missing > 0)
+            logger.LogWithColor($"[AmmoGen] {missing} filter target(s) were not found in the database.", LogTextColor.Yellow);
+        if (failed > 0)
+            logger.LogWithColor($"[AmmoGen] {failed} filter patch attempt(s) failed.", LogTextColor.Red);
     }
 
     public static void PatchModdedItems(
@@ -91,7 +123,7 @@ public static class FilterPatcher
         }
     }
 
-    private static void PatchItem(
+    private static PatchResult PatchItem(
         string itemTpl,
         Dictionary<MongoId, TemplateItem> items,
         List<MongoId> ammoIds,
@@ -102,8 +134,7 @@ public static class FilterPatcher
         MongoId id = new MongoId(itemTpl);
         if (!items.TryGetValue(id, out var item))
         {
-            logger.LogWithColor($"[AmmoGen] Could not patch filters on '{itemTpl}' (not found) for '{ammoName}'.", LogTextColor.Yellow);
-            return;
+            return PatchResult.NotFound;
         }
 
         bool patched = false;
@@ -156,8 +187,7 @@ public static class FilterPatcher
             patched = true;
         }
 
-        if (patched)
-            logger.LogWithColor($"[AmmoGen] Patched {slotType} on '{itemTpl}' to accept '{ammoName}'.", LogTextColor.Green);
+        return patched ? PatchResult.Patched : PatchResult.NoChange;
     }
 
     private static IEnumerable? GetCamoraSlots(TemplateItemProperties? props)

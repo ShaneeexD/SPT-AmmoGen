@@ -20,6 +20,10 @@ public static class TraderManager
         ISptLogger<AmmoGenPlugin> logger)
     {
         var traders = databaseService.GetTraders();
+        var addedEntries = 0;
+        var addedBoxes = 0;
+        var failedEntries = 0;
+        var failedBoxes = 0;
 
         foreach (var def in definitions)
         {
@@ -30,10 +34,12 @@ public static class TraderManager
 
                 try
                 {
-                    AddToTrader(def.Id, def.Name, traderEntry, traders, logger);
+                    AddToTrader(def.Id, def.Name, traderEntry, traders);
+                    addedEntries++;
                 }
                 catch (Exception ex)
                 {
+                    failedEntries++;
                     logger.LogWithColor($"[AmmoGen] Failed to add trader entry for '{def.Name}' / '{traderEntry.TraderId}': {ex.Message}", LogTextColor.Red);
                 }
             }
@@ -64,10 +70,12 @@ public static class TraderManager
                         UnlimitedStock = boxUnlimitedStock,
                         UnlimitedBuyRestriction = boxUnlimitedBuyRestriction,
                     };
-                    AddBoxToTrader(def, boxTraderEntry, traders, logger);
+                    AddBoxToTrader(def, boxTraderEntry, traders);
+                    addedBoxes++;
                 }
                 catch (Exception ex)
                 {
+                    failedBoxes++;
                     logger.LogWithColor($"[AmmoGen] Failed to add ammo box trader entry for '{def.AmmoBox.Name}' / '{traderEntry.TraderId}': {ex.Message}", LogTextColor.Red);
                 }
             }
@@ -82,10 +90,12 @@ public static class TraderManager
 
                 try
                 {
-                    AddToTrader(def.Id, def.Name, traderEntry, traders, logger);
+                    AddToTrader(def.Id, def.Name, traderEntry, traders);
+                    addedEntries++;
                 }
                 catch (Exception ex)
                 {
+                    failedEntries++;
                     logger.LogWithColor($"[AmmoGen] Failed to add trader entry for grenade '{def.Name}' / '{traderEntry.TraderId}': {ex.Message}", LogTextColor.Red);
                 }
             }
@@ -102,31 +112,37 @@ public static class TraderManager
                 {
                     // For flares the weapon template *is* the handheld flare (RSP-30 style).
                     // The cartridge is internal; the player buys and uses the handheld item.
-                    AddToTrader(def.Id, def.Name, traderEntry, traders, logger);
+                    AddToTrader(def.Id, def.Name, traderEntry, traders);
+                    addedEntries++;
                 }
                 catch (Exception ex)
                 {
+                    failedEntries++;
                     logger.LogWithColor($"[AmmoGen] Failed to add trader entry for flare '{def.Name}' / '{traderEntry.TraderId}': {ex.Message}", LogTextColor.Red);
                 }
             }
         }
+
+        logger.LogWithColor(
+            $"[AmmoGen] Added {addedEntries} trader assortment entry(ies) and {addedBoxes} ammo box trader entry(ies).",
+            LogTextColor.Green);
+        if (failedEntries + failedBoxes > 0)
+            logger.LogWithColor($"[AmmoGen] {failedEntries + failedBoxes} trader addition(s) failed.", LogTextColor.Red);
     }
 
-    private static void AddToTrader(string itemId, string itemName, TraderEntry traderEntry, Dictionary<MongoId, Trader> traders, ISptLogger<AmmoGenPlugin> logger)
+    private static void AddToTrader(string itemId, string itemName, TraderEntry traderEntry, Dictionary<MongoId, Trader> traders)
     {
         MongoId traderId = new MongoId(traderEntry.TraderId);
 
         if (!traders.TryGetValue(traderId, out var trader))
         {
-            logger.LogWithColor($"[AmmoGen] Trader '{traderEntry.TraderId}' not found for '{itemName}'. Skipping.", LogTextColor.Red);
-            return;
+            throw new InvalidOperationException($"Trader '{traderEntry.TraderId}' not found for '{itemName}'.");
         }
 
         var assort = trader.Assort;
         if (assort == null)
         {
-            logger.LogWithColor($"[AmmoGen] Trader '{traderEntry.TraderId}' has no assort. Skipping '{itemName}'.", LogTextColor.Red);
-            return;
+            throw new InvalidOperationException($"Trader '{traderEntry.TraderId}' has no assort.");
         }
 
         MongoId assortItemId = new MongoId(itemId);
@@ -163,26 +179,22 @@ public static class TraderManager
         };
         assort.BarterScheme[assortItemId] = barterEntry;
         assort.LoyalLevelItems[assortItemId] = traderEntry.LoyaltyLevel;
-
-        logger.LogWithColor($"[AmmoGen] Added {itemName} to trader '{traderEntry.TraderId}' (LL{traderEntry.LoyaltyLevel}, {traderEntry.PriceRoubles}₽)", LogTextColor.Green);
     }
 
-    private static void AddBoxToTrader(AmmoDefinition def, TraderEntry traderEntry, Dictionary<MongoId, Trader> traders, ISptLogger<AmmoGenPlugin> logger)
+    private static void AddBoxToTrader(AmmoDefinition def, TraderEntry traderEntry, Dictionary<MongoId, Trader> traders)
     {
         var box = def.AmmoBox;
         MongoId traderId = new MongoId(traderEntry.TraderId);
 
         if (!traders.TryGetValue(traderId, out var trader))
         {
-            logger.LogWithColor($"[AmmoGen] Trader '{traderEntry.TraderId}' not found for ammo box '{box.Name}'. Skipping.", LogTextColor.Red);
-            return;
+            throw new InvalidOperationException($"Trader '{traderEntry.TraderId}' not found for ammo box '{box.Name}'.");
         }
 
         var assort = trader.Assort;
         if (assort == null)
         {
-            logger.LogWithColor($"[AmmoGen] Trader '{traderEntry.TraderId}' has no assort. Skipping ammo box '{box.Name}'.", LogTextColor.Red);
-            return;
+            throw new InvalidOperationException($"Trader '{traderEntry.TraderId}' has no assort.");
         }
 
         MongoId boxTemplateId = new MongoId(box.Id);
@@ -234,7 +246,5 @@ public static class TraderManager
         };
         assort.BarterScheme[boxAssortId] = barterEntry;
         assort.LoyalLevelItems[boxAssortId] = traderEntry.LoyaltyLevel;
-
-        logger.LogWithColor($"[AmmoGen] Added ammo box {box.Name} to trader '{traderEntry.TraderId}' (LL{traderEntry.LoyaltyLevel}, {traderEntry.PriceRoubles}₽) with {box.Count} rounds", LogTextColor.Green);
     }
 }

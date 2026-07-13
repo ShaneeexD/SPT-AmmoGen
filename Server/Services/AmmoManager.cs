@@ -28,14 +28,23 @@ public static class AmmoManager
         IReadOnlyList<AmmoDefinition> definitions,
         ISptLogger<AmmoGenPlugin> logger)
     {
+        var registeredAmmo = 0;
+        var registeredAmmoBoxes = 0;
+        var failedAmmo = 0;
+        var failedAmmoBoxes = 0;
+
         foreach (var def in definitions)
         {
             try
             {
-                RegisterAmmo(def, customItemService, databaseService, logger);
+                if (RegisterAmmo(def, customItemService, databaseService, logger))
+                    registeredAmmo++;
+                else
+                    failedAmmo++;
             }
             catch (Exception ex)
             {
+                failedAmmo++;
                 logger.LogWithColor($"[AmmoGen] Failed to register ammo '{def.Name}': {ex.Message}", LogTextColor.Red);
             }
         }
@@ -45,16 +54,26 @@ public static class AmmoManager
             if (!def.AmmoBox.Enabled) continue;
             try
             {
-                RegisterAmmoBox(def, customItemService, databaseService, logger);
+                if (RegisterAmmoBox(def, customItemService, databaseService, logger))
+                    registeredAmmoBoxes++;
+                else
+                    failedAmmoBoxes++;
             }
             catch (Exception ex)
             {
+                failedAmmoBoxes++;
                 logger.LogWithColor($"[AmmoGen] Failed to register ammo box for '{def.Name}': {ex.Message}", LogTextColor.Red);
             }
         }
+
+        logger.LogWithColor(
+            $"[AmmoGen] Registered {registeredAmmo} ammo type(s) and {registeredAmmoBoxes} ammo box(es).",
+            LogTextColor.Green);
+        if (failedAmmo + failedAmmoBoxes > 0)
+            logger.LogWithColor($"[AmmoGen] {failedAmmo + failedAmmoBoxes} registration(s) failed.", LogTextColor.Red);
     }
 
-    private static void RegisterAmmo(
+    private static bool RegisterAmmo(
         AmmoDefinition def,
         CustomItemService customItemService,
         DatabaseService databaseService,
@@ -153,41 +172,40 @@ public static class AmmoManager
 
         var result = customItemService.CreateItemFromClone(details);
 
-        if (result.Success == true)
-        {
-            logger.LogWithColor($"[AmmoGen] Registered: {def.Name} ({def.Id})", LogTextColor.Green);
-
-            // Apply rarity override if it differs from the cloned template
-            var items = databaseService.GetItems();
-            if (items.TryGetValue(def.Id, out var tpl) && tpl.Properties != null)
-            {
-                tpl.Properties.RarityPvE = def.Economy.RarityPvE;
-                SetPropertyOrField(tpl.Properties, "CanSellOnRagfair", !def.Economy.FleaBanned);
-
-                if (!string.IsNullOrWhiteSpace(def.Stats.BackgroundColor) && def.Stats.BackgroundColor != "default")
-                    SetPropertyOrField(tpl.Properties, "BackgroundColor", FormatBackgroundColor(def.Stats.BackgroundColor, def.Stats.BackgroundAlpha));
-
-                // SPT's TemplateItemProperties does not expose these fields directly, so set them via reflection
-                // if the underlying cloned template has them.
-                if (def.Stats.BuckshotBullets > 0)
-                    SetPropertyOrField(tpl.Properties, "BuckshotBullets", def.Stats.BuckshotBullets);
-                if (def.Stats.PenetrationPowerDiviation != 0)
-                    SetPropertyOrField(tpl.Properties, "PenetrationPowerDiviation", def.Stats.PenetrationPowerDiviation);
-                if (def.Stats.HasGrenaderComponent)
-                    SetPropertyOrField(tpl.Properties, "HasGrenaderComponent", def.Stats.HasGrenaderComponent);
-
-                ApplyCustomPrefabPaths(tpl.Properties, def.CustomModel, def.CustomUsePrefab);
-            }
-        }
-        else
+        if (result.Success != true)
         {
             logger.LogWithColor(
                 $"[AmmoGen] CreateItemFromClone reported failure for '{def.Name}': {string.Join(", ", result.Errors ?? [])}",
                 LogTextColor.Yellow);
+            return false;
         }
+
+        // Apply rarity override if it differs from the cloned template
+        var items = databaseService.GetItems();
+        if (items.TryGetValue(def.Id, out var tpl) && tpl.Properties != null)
+        {
+            tpl.Properties.RarityPvE = def.Economy.RarityPvE;
+            SetPropertyOrField(tpl.Properties, "CanSellOnRagfair", !def.Economy.FleaBanned);
+
+            if (!string.IsNullOrWhiteSpace(def.Stats.BackgroundColor) && def.Stats.BackgroundColor != "default")
+                SetPropertyOrField(tpl.Properties, "BackgroundColor", FormatBackgroundColor(def.Stats.BackgroundColor, def.Stats.BackgroundAlpha));
+
+            // SPT's TemplateItemProperties does not expose these fields directly, so set them via reflection
+            // if the underlying cloned template has them.
+            if (def.Stats.BuckshotBullets > 0)
+                SetPropertyOrField(tpl.Properties, "BuckshotBullets", def.Stats.BuckshotBullets);
+            if (def.Stats.PenetrationPowerDiviation != 0)
+                SetPropertyOrField(tpl.Properties, "PenetrationPowerDiviation", def.Stats.PenetrationPowerDiviation);
+            if (def.Stats.HasGrenaderComponent)
+                SetPropertyOrField(tpl.Properties, "HasGrenaderComponent", def.Stats.HasGrenaderComponent);
+
+            ApplyCustomPrefabPaths(tpl.Properties, def.CustomModel, def.CustomUsePrefab);
+        }
+
+        return true;
     }
 
-    private static void RegisterAmmoBox(
+    private static bool RegisterAmmoBox(
         AmmoDefinition def,
         CustomItemService customItemService,
         DatabaseService databaseService,
@@ -229,10 +247,8 @@ public static class AmmoManager
             logger.LogWithColor(
                 $"[AmmoGen] CreateItemFromClone reported failure for ammo box '{box.Name}': {string.Join(", ", result.Errors ?? [])}",
                 LogTextColor.Yellow);
-            return;
+            return false;
         }
-
-        logger.LogWithColor($"[AmmoGen] Registered ammo box: {box.Name} ({box.Id})", LogTextColor.Green);
 
         try
         {
@@ -276,6 +292,8 @@ public static class AmmoManager
         {
             logger.LogWithColor($"[AmmoGen] Created ammo box '{box.Name}' but failed to patch StackSlots: {ex.Message}", LogTextColor.Yellow);
         }
+
+        return true;
     }
 
     private static void ApplyCustomPrefabPaths(TemplateItemProperties properties, string customModel, string customUsePrefab)

@@ -26,6 +26,8 @@ public static class CraftingManager
         }
 
         var productions = hideout.Production.Recipes;
+        var added = 0;
+        var failed = 0;
 
         foreach (var def in definitions)
         {
@@ -34,10 +36,12 @@ public static class CraftingManager
 
             try
             {
-                AddRecipe(def.Id, def.Name, def.Crafting, productions, logger);
+                if (AddRecipe(def.Id, def.Name, def.Crafting, productions))
+                    added++;
             }
             catch (Exception ex)
             {
+                failed++;
                 logger.LogWithColor($"[AmmoGen] Failed to add crafting recipe for '{def.Name}': {ex.Message}", LogTextColor.Red);
             }
         }
@@ -49,10 +53,12 @@ public static class CraftingManager
 
             try
             {
-                AddRecipe(def.Id, def.Name, def.Crafting, productions, logger);
+                if (AddRecipe(def.Id, def.Name, def.Crafting, productions))
+                    added++;
             }
             catch (Exception ex)
             {
+                failed++;
                 logger.LogWithColor($"[AmmoGen] Failed to add crafting recipe for grenade '{def.Name}': {ex.Message}", LogTextColor.Red);
             }
         }
@@ -64,21 +70,26 @@ public static class CraftingManager
 
             try
             {
-                AddRecipe(def.Id, def.Name, def.Crafting, productions, logger);
+                if (AddRecipe(def.Id, def.Name, def.Crafting, productions))
+                    added++;
             }
             catch (Exception ex)
             {
+                failed++;
                 logger.LogWithColor($"[AmmoGen] Failed to add crafting recipe for flare '{def.Name}': {ex.Message}", LogTextColor.Red);
             }
         }
+
+        logger.LogWithColor($"[AmmoGen] Added {added} crafting recipe(s).", LogTextColor.Green);
+        if (failed > 0)
+            logger.LogWithColor($"[AmmoGen] {failed} crafting recipe(s) failed.", LogTextColor.Red);
     }
 
-    private static void AddRecipe(
+    private static bool AddRecipe(
         string itemId,
         string itemName,
         CraftingEntry crafting,
-        List<HideoutProduction> productions,
-        ISptLogger<AmmoGenPlugin> logger)
+        List<HideoutProduction> productions)
     {
         var requirements = new List<Requirement>
         {
@@ -103,8 +114,7 @@ public static class CraftingManager
 
         if (productions.Any(p => p.Id == itemId))
         {
-            logger.LogWithColor($"[AmmoGen] Skipping crafting recipe for {itemName}: a recipe with ID '{itemId}' already exists.", LogTextColor.Yellow);
-            return;
+            return false;
         }
 
         var recipe = new HideoutProduction
@@ -123,6 +133,6 @@ public static class CraftingManager
         };
 
         productions.Add(recipe);
-        logger.LogWithColor($"[AmmoGen] Added crafting recipe for {itemName} (Workbench L{crafting.WorkbenchLevel}, {crafting.OutputCount} items)", LogTextColor.Green);
+        return true;
     }
 }

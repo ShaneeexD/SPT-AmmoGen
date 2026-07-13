@@ -28,11 +28,18 @@ public static class GrenadeManager
         var smokeColors = new Dictionary<string, string>();
         var bodyColors = new Dictionary<string, string>();
         var smokeSettings = new Dictionary<string, SmokeSettingsConfig>();
+        var registered = 0;
+        var failed = 0;
+
         foreach (var def in definitions)
         {
             try
             {
-                RegisterGrenade(def, customItemService, databaseService, logger);
+                if (RegisterGrenade(def, customItemService, databaseService, logger))
+                    registered++;
+                else
+                    failed++;
+
                 if (!string.IsNullOrWhiteSpace(def.Stats.SmokeColor))
                     smokeColors[def.Id] = def.Stats.SmokeColor;
                 if (!string.IsNullOrWhiteSpace(def.Stats.BodyColor))
@@ -56,16 +63,21 @@ public static class GrenadeManager
             }
             catch (Exception ex)
             {
+                failed++;
                 logger.LogWithColor($"[AmmoGen] Failed to register grenade '{def.Name}': {ex.Message}", LogTextColor.Red);
             }
         }
+
+        logger.LogWithColor($"[AmmoGen] Registered {registered} grenade type(s).", LogTextColor.Green);
+        if (failed > 0)
+            logger.LogWithColor($"[AmmoGen] {failed} grenade registration(s) failed.", LogTextColor.Red);
 
         WriteColorConfig(smokeColors, "smoke_colors.json", logger);
         WriteColorConfig(bodyColors, "body_colors.json", logger);
         WriteSmokeSettingsConfig(smokeSettings, logger);
     }
 
-    private static void RegisterGrenade(
+    private static bool RegisterGrenade(
         GrenadeDefinition def,
         CustomItemService customItemService,
         DatabaseService databaseService,
@@ -138,33 +150,32 @@ public static class GrenadeManager
 
         var result = customItemService.CreateItemFromClone(details);
 
-        if (result.Success == true)
-        {
-            logger.LogWithColor($"[AmmoGen] Registered grenade: {def.Name} ({def.Id})", LogTextColor.Green);
-
-            var items = databaseService.GetItems();
-            if (items.TryGetValue(def.Id, out var tpl) && tpl.Properties != null)
-            {
-                tpl.Properties.RarityPvE = def.Economy.RarityPvE;
-                SetPropertyOrField(tpl.Properties, "CanSellOnRagfair", !def.Economy.FleaBanned);
-
-                if (!string.IsNullOrWhiteSpace(def.Stats.BackgroundColor) && def.Stats.BackgroundColor != "default")
-                    SetPropertyOrField(tpl.Properties, "BackgroundColor", FormatBackgroundColor(def.Stats.BackgroundColor, def.Stats.BackgroundAlpha));
-
-                // SPT's TemplateItemProperties does not expose these fields directly, so set them via reflection
-                // if the underlying cloned template has them.
-                if (def.Stats.MinFragmentDamage > 0)
-                    SetPropertyOrField(tpl.Properties, "MinFragmentDamage", (float)def.Stats.MinFragmentDamage);
-                if (def.Stats.CanPlantOnGround)
-                    SetPropertyOrField(tpl.Properties, "CanPlantOnGround", true);
-            }
-        }
-        else
+        if (result.Success != true)
         {
             logger.LogWithColor(
                 $"[AmmoGen] CreateItemFromClone reported failure for grenade '{def.Name}': {string.Join(", ", result.Errors ?? [])}",
                 LogTextColor.Yellow);
+            return false;
         }
+
+        var items = databaseService.GetItems();
+        if (items.TryGetValue(def.Id, out var tpl) && tpl.Properties != null)
+        {
+            tpl.Properties.RarityPvE = def.Economy.RarityPvE;
+            SetPropertyOrField(tpl.Properties, "CanSellOnRagfair", !def.Economy.FleaBanned);
+
+            if (!string.IsNullOrWhiteSpace(def.Stats.BackgroundColor) && def.Stats.BackgroundColor != "default")
+                SetPropertyOrField(tpl.Properties, "BackgroundColor", FormatBackgroundColor(def.Stats.BackgroundColor, def.Stats.BackgroundAlpha));
+
+            // SPT's TemplateItemProperties does not expose these fields directly, so set them via reflection
+            // if the underlying cloned template has them.
+            if (def.Stats.MinFragmentDamage > 0)
+                SetPropertyOrField(tpl.Properties, "MinFragmentDamage", (float)def.Stats.MinFragmentDamage);
+            if (def.Stats.CanPlantOnGround)
+                SetPropertyOrField(tpl.Properties, "CanPlantOnGround", true);
+        }
+
+        return true;
     }
 
     private static void SetPropertyOrField(object target, string name, object value)
