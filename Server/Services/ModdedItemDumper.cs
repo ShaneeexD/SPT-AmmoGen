@@ -109,7 +109,7 @@ public class ModdedItemDumper(
         return Task.CompletedTask;
     }
 
-    private static HashSet<string> LoadVanillaItemIds(string path)
+    public static HashSet<string> LoadVanillaItemIds(string path)
     {
         var ids = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         using var document = JsonDocument.Parse(File.ReadAllBytes(path));

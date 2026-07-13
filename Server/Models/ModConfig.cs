@@ -14,6 +14,9 @@ public class ModConfig
     [JsonPropertyName("dumpModdedItems")]
     public bool DumpModdedItems { get; set; } = false;
 
+    [JsonPropertyName("patchModdedItemFilters")]
+    public bool PatchModdedItemFilters { get; set; } = true;
+
     public static ModConfig Load(string path)
     {
         if (!File.Exists(path))

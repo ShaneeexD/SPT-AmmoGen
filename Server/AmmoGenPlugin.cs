@@ -81,6 +81,12 @@ public class AmmoGenPlugin(
             // Patch magazine and weapon filters so the new ammo can be loaded
             FilterPatcher.PatchAll(databaseService, enabledAmmo, logger);
 
+            // Scan modded weapons/magazines and patch their filters if they accept our ammo base templates
+            if (config.PatchModdedItemFilters)
+            {
+                FilterPatcher.PatchModdedItems(databaseService, enabledAmmo, logger);
+            }
+
             // Add enabled items to vanilla traders
             TraderManager.RegisterAll(databaseService, enabledAmmo, enabledGrenades, enabledFlares, logger);
 
