@@ -21,7 +21,23 @@ public class ModConfig
     {
         if (!File.Exists(path))
         {
-            return new ModConfig();
+            try
+            {
+                var directory = Path.GetDirectoryName(path);
+                if (!string.IsNullOrEmpty(directory))
+                {
+                    Directory.CreateDirectory(directory);
+                }
+
+                var defaultConfig = new ModConfig();
+                var json = JsonSerializer.Serialize(defaultConfig, new JsonSerializerOptions { WriteIndented = true });
+                File.WriteAllText(path, json);
+                return defaultConfig;
+            }
+            catch
+            {
+                return new ModConfig();
+            }
         }
 
         try
