@@ -21,6 +21,7 @@ import {
   ExternalLink,
   HelpCircle,
   Box,
+  Map,
   MapPin,
   ChevronDown,
   Bomb,
@@ -242,8 +243,11 @@ function Sidebar({ open, onClose }: { open: boolean; onClose: () => void }) {
   }, [open, onClose])
 
   const links = [
-    { name: 'AmmoGen Tool', url: 'https://ammogen-tool.netlify.app', icon: <Target size={18} />, active: true },
+    { name: 'AmmoGen Tool', url: '#', icon: <Target size={18} />, active: true },
     { name: 'TraderGen Tool', url: 'https://tradergen-tool.netlify.app', icon: <Store size={18} />, active: false },
+    { name: 'ItemGen Tool', url: 'https://itemgen-tool.netlify.app', icon: <Package size={18} />, active: false },
+    { name: 'Map Editor Lite', url: 'https://mapeditorlite-tool.netlify.app', icon: <Map size={18} />, active: false },
+    { name: 'Serenity Workshop', url: 'https://serenity-workshop.netlify.app', icon: <Wrench size={18} />, active: false },
   ]
 
   return (
@@ -279,8 +283,9 @@ function Sidebar({ open, onClose }: { open: boolean; onClose: () => void }) {
             <a
               key={link.name}
               href={link.url}
-              target="_blank"
-              rel="noopener noreferrer"
+              target={link.url.startsWith('http') ? '_blank' : undefined}
+              rel={link.url.startsWith('http') ? 'noopener noreferrer' : undefined}
+              onClick={link.url === '#' ? onClose : undefined}
               className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors ${
                 link.active
                   ? 'bg-tarkov-accent/20 text-tarkov-accent border border-tarkov-accent/50'
