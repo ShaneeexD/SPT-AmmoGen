@@ -4,9 +4,8 @@
     <TargetFramework>net471</TargetFramework>
     <AssemblyName>AmmoGenClient</AssemblyName>
     <Description>Client-side bundle injector and debug helper for AmmoGen</Description>
-    <Version>2.3.0</Version>
+    <Version>2.4.0</Version>
     <LangVersion>latest</LangVersion>
-    <Nullable>enable</Nullable>
     <OutputPath>bin\</OutputPath>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
     <AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath>
@@ -47,6 +46,14 @@
     </Reference>
     <Reference Include="UnityEngine.PhysicsModule">
       <HintPath>$(SPTPath)\EscapeFromTarkov_Data\Managed\UnityEngine.PhysicsModule.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="ItemTemplate.Types">
+      <HintPath>$(SPTPath)\EscapeFromTarkov_Data\Managed\ItemTemplate.Types.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="ItemComponent.Types">
+      <HintPath>$(SPTPath)\EscapeFromTarkov_Data\Managed\ItemComponent.Types.dll</HintPath>
       <Private>false</Private>
     </Reference>
     <Reference Include="Newtonsoft.Json">

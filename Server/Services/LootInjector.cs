@@ -1,9 +1,9 @@
 using System.Linq;
 using SPTarkov.Server.Core.Models.Common;
 using SPTarkov.Server.Core.Models.Eft.Common;
-using SPTarkov.Server.Core.Models.Logging;
-using SPTarkov.Server.Core.Models.Utils;
-using SPTarkov.Server.Core.Services;
+using SPTarkov.Server.Core.Models.Spt.Tables;
+using Color = Spectre.Console.Color;
+using SPTarkov.Common.Models.Logging;
 using SPTarkov.Server.Core.Utils.Json;
 using AmmoGen.Models;
 
@@ -27,25 +27,18 @@ public static class LootInjector
         int Probability);
 
     public static void InjectAll(
-        DatabaseService databaseService,
+        LocationTable locationTable,
         IReadOnlyList<AmmoDefinition> definitions,
         IReadOnlyList<GrenadeDefinition> grenades,
         IReadOnlyList<FlareDefinition> flares,
         ISptLogger<AmmoGenPlugin> logger,
         bool debug = false)
     {
-        var locations = databaseService.GetLocations();
-        if (locations == null)
-        {
-            logger.LogWithColor("[AmmoGen] No locations found in database, skipping loot injection.", LogTextColor.Yellow);
-            return;
-        }
-
-        var locationDictionary = locations.GetDictionary();
+        var locationDictionary = locationTable.GetDictionary();
         var processedDefinitions = BuildInjectionDefinitions(definitions, grenades, flares, logger);
         if (processedDefinitions.Count == 0)
         {
-            logger.LogWithColor("[AmmoGen] No ammo, grenade, or flare definitions have loot injection enabled, skipping.", LogTextColor.Gray);
+            logger.LogWithColor("[AmmoGen] No ammo, grenade, or flare definitions have loot injection enabled, skipping.", Color.Grey);
             return;
         }
 
@@ -60,13 +53,13 @@ public static class LootInjector
 
         logger.LogWithColor(
             $"[AmmoGen] Registered loot injection transformer for {locationCount} location(s) covering {processedDefinitions.Count} item definition(s).",
-            LogTextColor.Green);
+            Color.Green);
 
         foreach (var def in processedDefinitions)
         {
             logger.LogWithColor(
                 $"[AmmoGen] {def.Name}: items [{string.Join(", ", def.ItemsToInject)}] -> containers [{string.Join(", ", def.ContainerIds)}] at probability {def.Probability}.",
-                LogTextColor.Gray);
+                Color.Grey);
         }
     }
 
@@ -95,7 +88,7 @@ public static class LootInjector
                 {
                     logger.LogWithColor(
                         $"[AmmoGen] Ammo box loot enabled for '{def.Name}' but ammo box generation is disabled; skipping ammo box loot injection.",
-                        LogTextColor.Yellow);
+                        Color.Yellow);
                     continue;
                 }
 
@@ -108,33 +101,30 @@ public static class LootInjector
             }
         }
 
-        foreach (var def in grenades)
-        {
-            if (def.Loot.Enabled && def.Loot.ContainerIds.Count > 0)
-            {
-                var probability = RarityProbabilities.GetValueOrDefault(def.Loot.Rarity, 5000);
-                if (probability > 0)
-                {
-                    result.Add(new LootInjectionDefinition(
-                        $"{def.Name} (grenade)", def.Loot.ContainerIds, [def.Id], probability));
-                }
-            }
-        }
-
-        foreach (var def in flares)
-        {
-            if (def.Loot.Enabled && def.Loot.ContainerIds.Count > 0)
-            {
-                var probability = RarityProbabilities.GetValueOrDefault(def.Loot.Rarity, 5000);
-                if (probability > 0)
-                {
-                    result.Add(new LootInjectionDefinition(
-                        $"{def.Name} (flare)", def.Loot.ContainerIds, [def.Id], probability));
-                }
-            }
-        }
+        ProcessLootable(grenades, "grenade", result, logger);
+        ProcessLootable(flares, "flare", result, logger);
 
         return result;
+    }
+
+    private static void ProcessLootable<T>(
+        IReadOnlyList<T> items,
+        string label,
+        List<LootInjectionDefinition> result,
+        ISptLogger<AmmoGenPlugin> logger) where T : ILootable
+    {
+        foreach (var def in items)
+        {
+            if (def.Loot.Enabled && def.Loot.ContainerIds.Count > 0)
+            {
+                var probability = RarityProbabilities.GetValueOrDefault(def.Loot.Rarity, 5000);
+                if (probability > 0)
+                {
+                    result.Add(new LootInjectionDefinition(
+                        $"{def.Name} ({label})", def.Loot.ContainerIds, [def.Id], probability));
+                }
+            }
+        }
     }
 
     private static Dictionary<MongoId, StaticLootDetails>? TransformStaticLoot(
@@ -181,7 +171,7 @@ public static class LootInjector
                         if (debug)
                             logger.LogWithColor(
                                 $"[AmmoGen][Debug] Updated '{itemId}' probability in '{containerId}' to {def.Probability}.",
-                                LogTextColor.Gray);
+                                Color.Grey);
                     }
                     else
                     {
@@ -189,7 +179,7 @@ public static class LootInjector
                         if (debug)
                             logger.LogWithColor(
                                 $"[AmmoGen][Debug] Added '{itemId}' to '{containerId}' with probability {def.Probability}.",
-                                LogTextColor.Gray);
+                                Color.Grey);
                     }
                     injected++;
                 }
@@ -207,7 +197,7 @@ public static class LootInjector
         {
             logger.LogWithColor(
                 $"[AmmoGen] Warning: {containersNotFound.Count} container ID(s) were not found in static loot: {string.Join(", ", containersNotFound)}.",
-                LogTextColor.Yellow);
+                Color.Yellow);
         }
 
         return staticLoot;

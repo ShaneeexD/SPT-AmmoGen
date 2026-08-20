@@ -1,8 +1,8 @@
 using SPTarkov.Server.Core.Models.Common;
 using SPTarkov.Server.Core.Models.Eft.Common.Tables;
-using SPTarkov.Server.Core.Models.Logging;
-using SPTarkov.Server.Core.Models.Utils;
-using SPTarkov.Server.Core.Services;
+using SPTarkov.Server.Core.Models.Spt.Tables;
+using Color = Spectre.Console.Color;
+using SPTarkov.Common.Models.Logging;
 using AmmoGen.Models;
 
 namespace AmmoGen.Services;
@@ -13,37 +13,24 @@ public static class TraderManager
     private const string RoublesTpl = "5449016a4bdc2d6f028b456f";
 
     public static void RegisterAll(
-        DatabaseService databaseService,
+        TradersTable tradersTable,
         IReadOnlyList<AmmoDefinition> definitions,
         IReadOnlyList<GrenadeDefinition> grenades,
         IReadOnlyList<FlareDefinition> flares,
         ISptLogger<AmmoGenPlugin> logger)
     {
-        var traders = databaseService.GetTraders();
+        var traders = tradersTable;
         var addedEntries = 0;
         var addedBoxes = 0;
         var failedEntries = 0;
         var failedBoxes = 0;
 
+        ProcessTraders(definitions, "ammo", traders, logger, ref addedEntries, ref failedEntries);
+        ProcessTraders(grenades, "grenade", traders, logger, ref addedEntries, ref failedEntries);
+        ProcessTraders(flares, "flare", traders, logger, ref addedEntries, ref failedEntries);
+
         foreach (var def in definitions)
         {
-            foreach (var traderEntry in def.Traders)
-            {
-                if (!traderEntry.Enabled)
-                    continue;
-
-                try
-                {
-                    AddToTrader(def.Id, def.Name, traderEntry, traders);
-                    addedEntries++;
-                }
-                catch (Exception ex)
-                {
-                    failedEntries++;
-                    logger.LogWithColor($"[AmmoGen] Failed to add trader entry for '{def.Name}' / '{traderEntry.TraderId}': {ex.Message}", LogTextColor.Red);
-                }
-            }
-
             if (!def.AmmoBox.Enabled || !def.AmmoBox.SellToTraders)
                 continue;
 
@@ -76,58 +63,45 @@ public static class TraderManager
                 catch (Exception ex)
                 {
                     failedBoxes++;
-                    logger.LogWithColor($"[AmmoGen] Failed to add ammo box trader entry for '{def.AmmoBox.Name}' / '{traderEntry.TraderId}': {ex.Message}", LogTextColor.Red);
-                }
-            }
-        }
-
-        foreach (var def in grenades)
-        {
-            foreach (var traderEntry in def.Traders)
-            {
-                if (!traderEntry.Enabled)
-                    continue;
-
-                try
-                {
-                    AddToTrader(def.Id, def.Name, traderEntry, traders);
-                    addedEntries++;
-                }
-                catch (Exception ex)
-                {
-                    failedEntries++;
-                    logger.LogWithColor($"[AmmoGen] Failed to add trader entry for grenade '{def.Name}' / '{traderEntry.TraderId}': {ex.Message}", LogTextColor.Red);
-                }
-            }
-        }
-
-        foreach (var def in flares)
-        {
-            foreach (var traderEntry in def.Traders)
-            {
-                if (!traderEntry.Enabled)
-                    continue;
-
-                try
-                {
-                    // For flares the weapon template *is* the handheld flare (RSP-30 style).
-                    // The cartridge is internal; the player buys and uses the handheld item.
-                    AddToTrader(def.Id, def.Name, traderEntry, traders);
-                    addedEntries++;
-                }
-                catch (Exception ex)
-                {
-                    failedEntries++;
-                    logger.LogWithColor($"[AmmoGen] Failed to add trader entry for flare '{def.Name}' / '{traderEntry.TraderId}': {ex.Message}", LogTextColor.Red);
+                    logger.LogWithColor($"[AmmoGen] Failed to add ammo box trader entry for '{def.AmmoBox.Name}' / '{traderEntry.TraderId}': {ex.Message}", Color.Red);
                 }
             }
         }
 
         logger.LogWithColor(
             $"[AmmoGen] Added {addedEntries} trader assortment entry(ies) and {addedBoxes} ammo box trader entry(ies).",
-            LogTextColor.Green);
+            Color.Green);
         if (failedEntries + failedBoxes > 0)
-            logger.LogWithColor($"[AmmoGen] {failedEntries + failedBoxes} trader addition(s) failed.", LogTextColor.Red);
+            logger.LogWithColor($"[AmmoGen] {failedEntries + failedBoxes} trader addition(s) failed.", Color.Red);
+    }
+
+    private static void ProcessTraders<T>(
+        IReadOnlyList<T> items,
+        string label,
+        Dictionary<MongoId, Trader> traders,
+        ISptLogger<AmmoGenPlugin> logger,
+        ref int addedEntries,
+        ref int failedEntries) where T : ITradable
+    {
+        foreach (var def in items)
+        {
+            foreach (var traderEntry in def.Traders)
+            {
+                if (!traderEntry.Enabled)
+                    continue;
+
+                try
+                {
+                    AddToTrader(def.Id, def.Name, traderEntry, traders);
+                    addedEntries++;
+                }
+                catch (Exception ex)
+                {
+                    failedEntries++;
+                    logger.LogWithColor($"[AmmoGen] Failed to add trader entry for {label} '{def.Name}' / '{traderEntry.TraderId}': {ex.Message}", Color.Red);
+                }
+            }
+        }
     }
 
     private static void AddToTrader(string itemId, string itemName, TraderEntry traderEntry, Dictionary<MongoId, Trader> traders)

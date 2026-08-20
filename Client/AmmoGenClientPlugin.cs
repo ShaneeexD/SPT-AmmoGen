@@ -6,6 +6,8 @@ using BepInEx;
 using BepInEx.Configuration;
 using BepInEx.Logging;
 using Comfort.Common;
+using Diz.DependencyManager;
+using Diz.Resources;
 using EFT;
 using HarmonyLib;
 using Newtonsoft.Json;
@@ -13,7 +15,7 @@ using UnityEngine;
 
 namespace AmmoGenClient;
 
-[BepInPlugin("com.serenity.ammogen.client", "AmmoGen Client Debug", "2.3.0")]
+[BepInPlugin("com.serenity.ammogen", "AmmoGen Client Debug", "2.4.0")]
 public class AmmoGenClientPlugin : BaseUnityPlugin
 {
     internal static ManualLogSource Log = null!;
@@ -31,7 +33,8 @@ public class AmmoGenClientPlugin : BaseUnityPlugin
             BundleInjector.Init(Logger);
             new Harmony("com.serenity.ammogen.client").PatchAll();
             StartCoroutine(InjectWhenReady());
-            Log.LogInfo($"[AmmoGenClient] Loaded. Watching {WatchedTemplateIds.Count} template(s). Debug enabled: {DebugEnabled.Value}.");
+            if (DebugEnabled.Value)
+                Log.LogInfo($"[AmmoGenClient] Loaded. Watching {WatchedTemplateIds.Count} template(s).");
         }
         catch (System.Exception ex)
         {
@@ -43,7 +46,8 @@ public class AmmoGenClientPlugin : BaseUnityPlugin
     {
         yield return new WaitUntil(() => Singleton<IEasyAssets>.Instance != null);
         BundleInjector.InjectAll();
-        Log.LogInfo("[AmmoGenClient] All AmmoGen bundles fully loaded.");
+        if (DebugEnabled.Value)
+            Log.LogInfo("[AmmoGenClient] All AmmoGen bundles fully loaded.");
     }
 
     private void LoadWatchlist()
@@ -85,20 +89,4 @@ public class AmmoGenClientPlugin : BaseUnityPlugin
         }
     }
 
-    // If a custom prefab path is requested before the bundle is injected, inject it on demand.
-    [HarmonyPatch(typeof(DependencyGraphClass<IEasyBundle>), "GetNode")]
-    internal static class GetNodePatch
-    {
-        static void Prefix(DependencyGraphClass<IEasyBundle> __instance, string key)
-        {
-            try
-            {
-                BundleInjector.InjectSingle(__instance, key);
-            }
-            catch (System.Exception ex)
-            {
-                Debug.LogError($"[AmmoGenClient] On-demand bundle injection failed: {ex}");
-            }
-        }
-    }
 }

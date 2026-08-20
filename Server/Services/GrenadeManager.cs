@@ -1,14 +1,12 @@
-using System.IO;
-using System.Text.Json;
 using SPTarkov.Server.Core.Models.Common;
 using SPTarkov.Server.Core.Models.Eft.Common;
 using SPTarkov.Server.Core.Models.Eft.Common.Tables;
 using SPTarkov.Server.Core.Models.Enums;
-using SPTarkov.Server.Core.Models.Logging;
 using SPTarkov.Server.Core.Models.Spt.Mod;
-using SPTarkov.Server.Core.Models.Utils;
-using SPTarkov.Server.Core.Services;
-using SPTarkov.Server.Core.Services.Mod;
+using SPTarkov.Server.Core.Models.Spt.Tables;
+using Color = Spectre.Console.Color;
+using SPTarkov.Common.Models.Logging;
+using SPTarkov.Server.Core.Services.Modding.Custom;
 using AmmoGen.Helpers;
 using AmmoGen.Models;
 
@@ -21,7 +19,7 @@ public static class GrenadeManager
 
     public static void RegisterAll(
         CustomItemService customItemService,
-        DatabaseService databaseService,
+        TemplateTable templateTable,
         IReadOnlyList<GrenadeDefinition> definitions,
         ISptLogger<AmmoGenPlugin> logger)
     {
@@ -35,7 +33,7 @@ public static class GrenadeManager
         {
             try
             {
-                if (RegisterGrenade(def, customItemService, databaseService, logger))
+                if (RegisterGrenade(def, customItemService, templateTable, logger))
                     registered++;
                 else
                     failed++;
@@ -64,28 +62,28 @@ public static class GrenadeManager
             catch (Exception ex)
             {
                 failed++;
-                logger.LogWithColor($"[AmmoGen] Failed to register grenade '{def.Name}': {ex.Message}", LogTextColor.Red);
+                logger.LogWithColor($"[AmmoGen] Failed to register grenade '{def.Name}': {ex.Message}", Color.Red);
             }
         }
 
-        logger.LogWithColor($"[AmmoGen] Registered {registered} grenade type(s).", LogTextColor.Green);
+        logger.LogWithColor($"[AmmoGen] Registered {registered} grenade type(s).", Color.Green);
         if (failed > 0)
-            logger.LogWithColor($"[AmmoGen] {failed} grenade registration(s) failed.", LogTextColor.Red);
+            logger.LogWithColor($"[AmmoGen] {failed} grenade registration(s) failed.", Color.Red);
 
-        WriteColorConfig(smokeColors, "smoke_colors.json", logger);
-        WriteColorConfig(bodyColors, "body_colors.json", logger);
-        WriteSmokeSettingsConfig(smokeSettings, logger);
+        ConfigWriter.WriteJsonConfig(smokeColors, "smoke_colors.json", logger, "grenade(s)");
+        ConfigWriter.WriteJsonConfig(bodyColors, "body_colors.json", logger, "grenade(s)");
+        ConfigWriter.WriteJsonConfig(smokeSettings, "smoke_settings.json", logger, "grenade(s)");
     }
 
     private static bool RegisterGrenade(
         GrenadeDefinition def,
         CustomItemService customItemService,
-        DatabaseService databaseService,
+        TemplateTable templateTable,
         ISptLogger<AmmoGenPlugin> logger)
     {
         var handbookParentId = !string.IsNullOrWhiteSpace(def.HandbookParentId)
             ? def.HandbookParentId
-            : ResolveHandbookParent(databaseService, def.BaseTpl);
+            : ItemHelper.ResolveHandbookParent(templateTable, def.BaseTpl, GrenadeCategoryParentId);
 
         var overrides = PropertiesHelper.DeserializeProperties(def.Properties) ?? new TemplateItemProperties();
         overrides.Name = def.ShortName;
@@ -96,24 +94,9 @@ public static class GrenadeManager
         overrides.FragmentsCount = def.Stats.FragmentsCount > 0 ? def.Stats.FragmentsCount : null;
         overrides.FragmentType = def.Stats.FragmentType;
         overrides.ExplosionEffectType = def.Stats.ExplosionEffectType;
-        overrides.ArmorDistanceDistanceDamage = new XYZ
-        {
-            X = def.Stats.ArmorDistanceDistanceDamage.X,
-            Y = def.Stats.ArmorDistanceDistanceDamage.Y,
-            Z = def.Stats.ArmorDistanceDistanceDamage.Z,
-        };
-        overrides.Contusion = new XYZ
-        {
-            X = def.Stats.Contusion.X,
-            Y = def.Stats.Contusion.Y,
-            Z = def.Stats.Contusion.Z,
-        };
-        overrides.Blindness = new XYZ
-        {
-            X = def.Stats.Blindness.X,
-            Y = def.Stats.Blindness.Y,
-            Z = def.Stats.Blindness.Z,
-        };
+        overrides.ArmorDistanceDistanceDamage = ItemHelper.CreateXYZ(def.Stats.ArmorDistanceDistanceDamage);
+        overrides.Contusion = ItemHelper.CreateXYZ(def.Stats.Contusion);
+        overrides.Blindness = ItemHelper.CreateXYZ(def.Stats.Blindness);
         overrides.ContusionDistance = def.Stats.ContusionDistance;
         // TemplateItemProperties has both capitalized and camel-case JSON aliases for some fields.
         // Set both to ensure the value is respected regardless of which serializer path the client reads.
@@ -131,21 +114,14 @@ public static class GrenadeManager
         var details = new NewItemFromCloneDetails
         {
             NewId = def.Id,
+            NewItemName = def.Name,
             ItemTplToClone = def.BaseTpl,
             ParentId = GrenadeCategoryParentId,
             HandbookParentId = handbookParentId,
             HandbookPriceRoubles = def.Economy.HandbookPriceRoubles,
             FleaPriceRoubles = def.Economy.FleaPriceRoubles,
             OverrideProperties = overrides,
-            Locales = new Dictionary<string, LocaleDetails>
-            {
-                ["en"] = new LocaleDetails
-                {
-                    Name = def.Name,
-                    ShortName = def.ShortName,
-                    Description = def.Description,
-                }
-            },
+            Locales = ItemHelper.CreateEnLocale(def.Name, def.ShortName, def.Description),
         };
 
         var result = customItemService.CreateItemFromClone(details);
@@ -154,121 +130,26 @@ public static class GrenadeManager
         {
             logger.LogWithColor(
                 $"[AmmoGen] CreateItemFromClone reported failure for grenade '{def.Name}': {string.Join(", ", result.Errors ?? [])}",
-                LogTextColor.Yellow);
+                Color.Yellow);
             return false;
         }
 
-        var items = databaseService.GetItems();
+        var items = templateTable.Items;
         if (items.TryGetValue(def.Id, out var tpl) && tpl.Properties != null)
         {
-            tpl.Properties.RarityPvE = def.Economy.RarityPvE;
-            SetPropertyOrField(tpl.Properties, "CanSellOnRagfair", !def.Economy.FleaBanned);
-
-            if (!string.IsNullOrWhiteSpace(def.Stats.BackgroundColor) && def.Stats.BackgroundColor != "default")
-                SetPropertyOrField(tpl.Properties, "BackgroundColor", FormatBackgroundColor(def.Stats.BackgroundColor, def.Stats.BackgroundAlpha));
+            ItemHelper.ApplyCommonPostRegistration(
+                tpl.Properties, def.Economy.RarityPvE, def.Economy.FleaBanned,
+                def.Stats.BackgroundColor, def.Stats.BackgroundAlpha);
 
             // SPT's TemplateItemProperties does not expose these fields directly, so set them via reflection
             // if the underlying cloned template has them.
             if (def.Stats.MinFragmentDamage > 0)
-                SetPropertyOrField(tpl.Properties, "MinFragmentDamage", (float)def.Stats.MinFragmentDamage);
+                ReflectionHelper.SetPropertyOrField(tpl.Properties, "MinFragmentDamage", (float)def.Stats.MinFragmentDamage);
             if (def.Stats.CanPlantOnGround)
-                SetPropertyOrField(tpl.Properties, "CanPlantOnGround", true);
+                ReflectionHelper.SetPropertyOrField(tpl.Properties, "CanPlantOnGround", true);
         }
 
         return true;
     }
 
-    private static void SetPropertyOrField(object target, string name, object value)
-    {
-        var type = target.GetType();
-        var prop = type.GetProperty(name, System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
-        if (prop != null && prop.CanWrite)
-        {
-            prop.SetValue(target, value);
-            return;
-        }
-        var field = type.GetField(name, System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
-        if (field != null)
-            field.SetValue(target, value);
-    }
-
-    private static string ResolveHandbookParent(DatabaseService databaseService, string baseTpl)
-    {
-        var items = databaseService.GetItems();
-        if (items.TryGetValue(baseTpl, out var baseItem))
-        {
-            var handbook = databaseService.GetHandbook().Items.FirstOrDefault(h => h.Id == baseTpl);
-            if (handbook != null && !string.IsNullOrWhiteSpace(handbook.ParentId))
-            {
-                return handbook.ParentId;
-            }
-        }
-        return GrenadeCategoryParentId;
-    }
-
-    private static void WriteColorConfig(Dictionary<string, string> colors, string fileName, ISptLogger<AmmoGenPlugin> logger)
-    {
-        if (colors.Count == 0)
-            return;
-
-        try
-        {
-            var configDir = System.IO.Path.Combine(Directory.GetCurrentDirectory(), "user", "mods", "AmmoGen", "config");
-            Directory.CreateDirectory(configDir);
-            var configPath = System.IO.Path.Combine(configDir, fileName);
-            File.WriteAllText(configPath, JsonSerializer.Serialize(colors, new JsonSerializerOptions { WriteIndented = true }));
-            logger.LogWithColor($"[AmmoGen] Wrote {fileName} for {colors.Count} grenade(s) to {configPath}", LogTextColor.Green);
-        }
-        catch (Exception ex)
-        {
-            logger.LogWithColor($"[AmmoGen] Failed to write {fileName}: {ex.Message}", LogTextColor.Red);
-        }
-    }
-
-    private static void WriteSmokeSettingsConfig(Dictionary<string, SmokeSettingsConfig> settings, ISptLogger<AmmoGenPlugin> logger)
-    {
-        if (settings.Count == 0)
-            return;
-
-        try
-        {
-            var configDir = System.IO.Path.Combine(Directory.GetCurrentDirectory(), "user", "mods", "AmmoGen", "config");
-            Directory.CreateDirectory(configDir);
-            var configPath = System.IO.Path.Combine(configDir, "smoke_settings.json");
-            File.WriteAllText(configPath, JsonSerializer.Serialize(settings, new JsonSerializerOptions { WriteIndented = true }));
-            logger.LogWithColor($"[AmmoGen] Wrote smoke_settings.json for {settings.Count} grenade(s) to {configPath}", LogTextColor.Green);
-        }
-        catch (Exception ex)
-        {
-            logger.LogWithColor($"[AmmoGen] Failed to write smoke_settings.json: {ex.Message}", LogTextColor.Red);
-        }
-    }
-
-    private static string FormatBackgroundColor(string color, double alpha)
-    {
-        if (string.IsNullOrWhiteSpace(color) || color == "default")
-            return "default";
-        if (alpha >= 1)
-            return color;
-
-        var namedMap = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
-        {
-            ["yellow"] = "#ffff00",
-            ["blue"] = "#0000ff",
-            ["green"] = "#00ff00",
-            ["red"] = "#ff0000",
-            ["violet"] = "#ee82ee",
-            ["black"] = "#000000",
-            ["grey"] = "#808080",
-            ["white"] = "#ffffff",
-            ["orange"] = "#ffa500",
-        };
-
-        var baseHex = namedMap.TryGetValue(color, out var hex) ? hex : color;
-        if (!baseHex.StartsWith("#"))
-            baseHex = "#ffffff";
-
-        var alphaByte = (byte)Math.Round(Math.Max(0, Math.Min(1, alpha)) * 255);
-        return $"{baseHex}{alphaByte:x2}";
-    }
 }

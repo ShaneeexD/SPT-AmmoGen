@@ -1,9 +1,9 @@
 using SPTarkov.Server.Core.Models.Common;
 using SPTarkov.Server.Core.Models.Eft.Hideout;
 using SPTarkov.Server.Core.Models.Enums.Hideout;
-using SPTarkov.Server.Core.Models.Logging;
-using SPTarkov.Server.Core.Models.Utils;
-using SPTarkov.Server.Core.Services;
+using SPTarkov.Server.Core.Models.Spt.Tables;
+using Color = Spectre.Console.Color;
+using SPTarkov.Common.Models.Logging;
 using AmmoGen.Models;
 
 namespace AmmoGen.Services;
@@ -12,16 +12,16 @@ namespace AmmoGen.Services;
 public static class CraftingManager
 {
     public static void RegisterAll(
-        DatabaseService databaseService,
+        HideoutTable hideoutTable,
         IReadOnlyList<AmmoDefinition> definitions,
         IReadOnlyList<GrenadeDefinition> grenades,
         IReadOnlyList<FlareDefinition> flares,
         ISptLogger<AmmoGenPlugin> logger)
     {
-        var hideout = databaseService.GetHideout();
+        var hideout = hideoutTable;
         if (hideout?.Production?.Recipes == null)
         {
-            logger.LogWithColor("[AmmoGen] Could not access hideout production recipes. Crafting will not be added.", LogTextColor.Red);
+            logger.LogWithColor("[AmmoGen] Could not access hideout production recipes. Crafting will not be added.", Color.Red);
             return;
         }
 
@@ -29,60 +29,39 @@ public static class CraftingManager
         var added = 0;
         var failed = 0;
 
-        foreach (var def in definitions)
-        {
-            if (!def.Crafting.Enabled)
-                continue;
+        ProcessCrafting(definitions, "ammo", productions, logger, ref added, ref failed);
+        ProcessCrafting(grenades, "grenade", productions, logger, ref added, ref failed);
+        ProcessCrafting(flares, "flare", productions, logger, ref added, ref failed);
 
-            try
-            {
-                if (AddRecipe(def.Id, def.Name, def.Crafting, productions))
-                    added++;
-            }
-            catch (Exception ex)
-            {
-                failed++;
-                logger.LogWithColor($"[AmmoGen] Failed to add crafting recipe for '{def.Name}': {ex.Message}", LogTextColor.Red);
-            }
-        }
-
-        foreach (var def in grenades)
-        {
-            if (!def.Crafting.Enabled)
-                continue;
-
-            try
-            {
-                if (AddRecipe(def.Id, def.Name, def.Crafting, productions))
-                    added++;
-            }
-            catch (Exception ex)
-            {
-                failed++;
-                logger.LogWithColor($"[AmmoGen] Failed to add crafting recipe for grenade '{def.Name}': {ex.Message}", LogTextColor.Red);
-            }
-        }
-
-        foreach (var def in flares)
-        {
-            if (!def.Crafting.Enabled)
-                continue;
-
-            try
-            {
-                if (AddRecipe(def.Id, def.Name, def.Crafting, productions))
-                    added++;
-            }
-            catch (Exception ex)
-            {
-                failed++;
-                logger.LogWithColor($"[AmmoGen] Failed to add crafting recipe for flare '{def.Name}': {ex.Message}", LogTextColor.Red);
-            }
-        }
-
-        logger.LogWithColor($"[AmmoGen] Added {added} crafting recipe(s).", LogTextColor.Green);
+        logger.LogWithColor($"[AmmoGen] Added {added} crafting recipe(s).", Color.Green);
         if (failed > 0)
-            logger.LogWithColor($"[AmmoGen] {failed} crafting recipe(s) failed.", LogTextColor.Red);
+            logger.LogWithColor($"[AmmoGen] {failed} crafting recipe(s) failed.", Color.Red);
+    }
+
+    private static void ProcessCrafting<T>(
+        IReadOnlyList<T> items,
+        string label,
+        List<HideoutProduction> productions,
+        ISptLogger<AmmoGenPlugin> logger,
+        ref int added,
+        ref int failed) where T : ICraftable
+    {
+        foreach (var def in items)
+        {
+            if (!def.Crafting.Enabled)
+                continue;
+
+            try
+            {
+                if (AddRecipe(def.Id, def.Name, def.Crafting, productions))
+                    added++;
+            }
+            catch (Exception ex)
+            {
+                failed++;
+                logger.LogWithColor($"[AmmoGen] Failed to add crafting recipe for {label} '{def.Name}': {ex.Message}", Color.Red);
+            }
+        }
     }
 
     private static bool AddRecipe(

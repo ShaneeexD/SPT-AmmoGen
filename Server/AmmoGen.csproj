@@ -1,11 +1,11 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFramework>net9.0</TargetFramework>
+    <TargetFramework>net10.0</TargetFramework>
     <RootNamespace>AmmoGen</RootNamespace>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <OutputType>Library</OutputType>
-    <Version>2.3.0</Version>
+    <Version>2.4.0</Version>
     <OutputPath>bin\$(Configuration)\$(ProjectName)\$(AssemblyName)\</OutputPath>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
     <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
@@ -13,9 +13,9 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="SPTarkov.Common" Version="4.0.13" />
-    <PackageReference Include="SPTarkov.DI" Version="4.0.13" />
-    <PackageReference Include="SPTarkov.Server.Core" Version="4.0.13" />
+    <PackageReference Include="SPTarkov.Common" Version="4.1.0" />
+    <PackageReference Include="SPTarkov.DI" Version="4.1.0" />
+    <PackageReference Include="SPTarkov.Server.Core" Version="4.1.0" />
   </ItemGroup>
 
   <!-- Exclude old template files that are not part of this mod -->

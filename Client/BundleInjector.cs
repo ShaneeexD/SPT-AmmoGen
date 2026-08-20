@@ -7,6 +7,8 @@ using System.Reflection;
 using System.Runtime.Serialization;
 using BepInEx.Logging;
 using Comfort.Common;
+using Diz.DependencyManager;
+using Diz.Resources;
 using EFT;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
@@ -20,6 +22,8 @@ namespace AmmoGenClient
     internal static class BundleInjector
     {
         private static readonly Dictionary<string, string> _bundleFileByAssetPath = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        private static readonly Dictionary<string, UnityEngine.Object[]> _loadedAssetsByFile = new Dictionary<string, UnityEngine.Object[]>(StringComparer.OrdinalIgnoreCase);
+        private static readonly HashSet<string> _injectedAssetPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         private static ManualLogSource? _log;
 
         internal static void Init(ManualLogSource log)
@@ -36,13 +40,18 @@ namespace AmmoGenClient
                 return;
             }
 
+            _loadedAssetsByFile.Clear();
+            _injectedAssetPaths.Clear();
             DiscoverBundles();
             InjectIntoSystem(easyAssets.System);
         }
 
-        internal static void InjectSingle(DependencyGraphClass<IEasyBundle> system, string assetPath)
+        internal static void InjectSingle(DependencyGraph<IEasyBundle> system, string assetPath)
         {
             if (!_bundleFileByAssetPath.ContainsKey(assetPath))
+                return;
+
+            if (!_injectedAssetPaths.Add(assetPath))
                 return;
 
             InjectIntoSystem(system, assetPath);
@@ -195,7 +204,7 @@ namespace AmmoGenClient
             }
         }
 
-        private static void InjectIntoSystem(DependencyGraphClass<IEasyBundle> system, string? onlyKey = null)
+        private static void InjectIntoSystem(DependencyGraph<IEasyBundle> system, string? onlyKey = null)
         {
             if (system == null)
             {
@@ -260,15 +269,26 @@ namespace AmmoGenClient
                 if (nodes.ContainsKey(assetPath))
                     continue;
 
-                var bundle = AssetBundle.LoadFromFile(filePath);
-                if (bundle == null)
+                if (!_loadedAssetsByFile.TryGetValue(filePath, out var allAssets))
                 {
-                    _log?.LogError($"Failed to load bundle: {filePath}");
-                    continue;
-                }
+                    var bundle = AssetBundle.LoadFromFile(filePath);
+                    if (bundle == null)
+                    {
+                        _log?.LogError($"Failed to load bundle: {filePath}");
+                        continue;
+                    }
 
-                var allAssets = bundle.LoadAllAssets();
-                _log?.LogInfo($"Bundle {Path.GetFileName(filePath)} loaded {allAssets.Length} asset(s)");
+                    allAssets = bundle.LoadAllAssets();
+                    _loadedAssetsByFile[filePath] = allAssets;
+                    _log?.LogInfo($"Bundle {Path.GetFileName(filePath)} loaded {allAssets.Length} asset(s)");
+
+                    if (allAssets.Length == 0)
+                    {
+                        _log?.LogWarning($"Bundle {Path.GetFileName(filePath)} contains no assets.");
+                        bundle.Unload(false);
+                        continue;
+                    }
+                }
 
                 var newBundleData = FormatterServices.GetUninitializedObject(bundleDataType);
                 SetProp(bundleDataType, newBundleData, "Key", assetPath);
@@ -285,7 +305,7 @@ namespace AmmoGenClient
                 var newNode = nodeCtor.Invoke(new object[] { newBundleData });
                 depsField?.SetValue(newNode, Array.CreateInstance(nodeType, 0));
 
-                nodes.Add(assetPath, (GClass1662<IEasyBundle>)newNode);
+                nodes.Add(assetPath, (Node<IEasyBundle>)newNode);
                 _log?.LogInfo($"Injected IEasyBundle node for {assetPath}");
             }
         }

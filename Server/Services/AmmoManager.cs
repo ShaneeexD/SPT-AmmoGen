@@ -1,13 +1,11 @@
-using System;
-using System.Reflection;
 using SPTarkov.Server.Core.Models.Common;
 using SPTarkov.Server.Core.Models.Eft.Common;
 using SPTarkov.Server.Core.Models.Eft.Common.Tables;
-using SPTarkov.Server.Core.Models.Logging;
 using SPTarkov.Server.Core.Models.Spt.Mod;
-using SPTarkov.Server.Core.Models.Utils;
-using SPTarkov.Server.Core.Services;
-using SPTarkov.Server.Core.Services.Mod;
+using SPTarkov.Server.Core.Models.Spt.Tables;
+using Color = Spectre.Console.Color;
+using SPTarkov.Common.Models.Logging;
+using SPTarkov.Server.Core.Services.Modding.Custom;
 using AmmoGen.Helpers;
 using AmmoGen.Models;
 
@@ -24,7 +22,7 @@ public static class AmmoManager
 
     public static void RegisterAll(
         CustomItemService customItemService,
-        DatabaseService databaseService,
+        TemplateTable templateTable,
         IReadOnlyList<AmmoDefinition> definitions,
         ISptLogger<AmmoGenPlugin> logger)
     {
@@ -37,7 +35,7 @@ public static class AmmoManager
         {
             try
             {
-                if (RegisterAmmo(def, customItemService, databaseService, logger))
+                if (RegisterAmmo(def, customItemService, templateTable, logger))
                     registeredAmmo++;
                 else
                     failedAmmo++;
@@ -45,7 +43,7 @@ public static class AmmoManager
             catch (Exception ex)
             {
                 failedAmmo++;
-                logger.LogWithColor($"[AmmoGen] Failed to register ammo '{def.Name}': {ex.Message}", LogTextColor.Red);
+                logger.LogWithColor($"[AmmoGen] Failed to register ammo '{def.Name}': {ex.Message}", Color.Red);
             }
         }
 
@@ -54,7 +52,7 @@ public static class AmmoManager
             if (!def.AmmoBox.Enabled) continue;
             try
             {
-                if (RegisterAmmoBox(def, customItemService, databaseService, logger))
+                if (RegisterAmmoBox(def, customItemService, templateTable, logger))
                     registeredAmmoBoxes++;
                 else
                     failedAmmoBoxes++;
@@ -62,26 +60,26 @@ public static class AmmoManager
             catch (Exception ex)
             {
                 failedAmmoBoxes++;
-                logger.LogWithColor($"[AmmoGen] Failed to register ammo box for '{def.Name}': {ex.Message}", LogTextColor.Red);
+                logger.LogWithColor($"[AmmoGen] Failed to register ammo box for '{def.Name}': {ex.Message}", Color.Red);
             }
         }
 
         logger.LogWithColor(
             $"[AmmoGen] Registered {registeredAmmo} ammo type(s) and {registeredAmmoBoxes} ammo box(es).",
-            LogTextColor.Green);
+            Color.Green);
         if (failedAmmo + failedAmmoBoxes > 0)
-            logger.LogWithColor($"[AmmoGen] {failedAmmo + failedAmmoBoxes} registration(s) failed.", LogTextColor.Red);
+            logger.LogWithColor($"[AmmoGen] {failedAmmo + failedAmmoBoxes} registration(s) failed.", Color.Red);
     }
 
     private static bool RegisterAmmo(
         AmmoDefinition def,
         CustomItemService customItemService,
-        DatabaseService databaseService,
+        TemplateTable templateTable,
         ISptLogger<AmmoGenPlugin> logger)
     {
         var handbookParentId = !string.IsNullOrWhiteSpace(def.HandbookParentId)
             ? def.HandbookParentId
-            : ResolveHandbookParent(databaseService, def.BaseTpl);
+            : ItemHelper.ResolveHandbookParent(templateTable, def.BaseTpl, AmmoCategoryParentId);
 
         var overrides = PropertiesHelper.DeserializeProperties(def.Properties) ?? new TemplateItemProperties();
         overrides.Name = def.ShortName;
@@ -128,24 +126,9 @@ public static class AmmoManager
         overrides.LightAndSoundShotAngle = def.Stats.LightAndSoundShotAngle;
         overrides.LightAndSoundShotSelfContusionTime = def.Stats.LightAndSoundShotSelfContusionTime;
         overrides.LightAndSoundShotSelfContusionStrength = def.Stats.LightAndSoundShotSelfContusionStrength;
-        overrides.ArmorDistanceDistanceDamage = new XYZ
-        {
-            X = def.Stats.ArmorDistanceDistanceDamage.X,
-            Y = def.Stats.ArmorDistanceDistanceDamage.Y,
-            Z = def.Stats.ArmorDistanceDistanceDamage.Z,
-        };
-        overrides.Contusion = new XYZ
-        {
-            X = def.Stats.Contusion.X,
-            Y = def.Stats.Contusion.Y,
-            Z = def.Stats.Contusion.Z,
-        };
-        overrides.Blindness = new XYZ
-        {
-            X = def.Stats.Blindness.X,
-            Y = def.Stats.Blindness.Y,
-            Z = def.Stats.Blindness.Z,
-        };
+        overrides.ArmorDistanceDistanceDamage = ItemHelper.CreateXYZ(def.Stats.ArmorDistanceDistanceDamage);
+        overrides.Contusion = ItemHelper.CreateXYZ(def.Stats.Contusion);
+        overrides.Blindness = ItemHelper.CreateXYZ(def.Stats.Blindness);
 
         if (!string.IsNullOrWhiteSpace(def.Stats.TracerColor))
             overrides.TracerColor = def.Stats.TracerColor;
@@ -153,21 +136,14 @@ public static class AmmoManager
         var details = new NewItemFromCloneDetails
         {
             NewId = def.Id,
+            NewItemName = def.Name,
             ItemTplToClone = def.BaseTpl,
             ParentId = AmmoCategoryParentId,
             HandbookParentId = handbookParentId,
             HandbookPriceRoubles = def.Economy.HandbookPriceRoubles,
             FleaPriceRoubles = def.Economy.FleaPriceRoubles,
             OverrideProperties = overrides,
-            Locales = new Dictionary<string, LocaleDetails>
-            {
-                ["en"] = new LocaleDetails
-                {
-                    Name = def.Name,
-                    ShortName = def.ShortName,
-                    Description = def.Description,
-                }
-            },
+            Locales = ItemHelper.CreateEnLocale(def.Name, def.ShortName, def.Description),
         };
 
         var result = customItemService.CreateItemFromClone(details);
@@ -176,30 +152,28 @@ public static class AmmoManager
         {
             logger.LogWithColor(
                 $"[AmmoGen] CreateItemFromClone reported failure for '{def.Name}': {string.Join(", ", result.Errors ?? [])}",
-                LogTextColor.Yellow);
+                Color.Yellow);
             return false;
         }
 
         // Apply rarity override if it differs from the cloned template
-        var items = databaseService.GetItems();
+        var items = templateTable.Items;
         if (items.TryGetValue(def.Id, out var tpl) && tpl.Properties != null)
         {
-            tpl.Properties.RarityPvE = def.Economy.RarityPvE;
-            SetPropertyOrField(tpl.Properties, "CanSellOnRagfair", !def.Economy.FleaBanned);
-
-            if (!string.IsNullOrWhiteSpace(def.Stats.BackgroundColor) && def.Stats.BackgroundColor != "default")
-                SetPropertyOrField(tpl.Properties, "BackgroundColor", FormatBackgroundColor(def.Stats.BackgroundColor, def.Stats.BackgroundAlpha));
+            ItemHelper.ApplyCommonPostRegistration(
+                tpl.Properties, def.Economy.RarityPvE, def.Economy.FleaBanned,
+                def.Stats.BackgroundColor, def.Stats.BackgroundAlpha);
 
             // SPT's TemplateItemProperties does not expose these fields directly, so set them via reflection
             // if the underlying cloned template has them.
             if (def.Stats.BuckshotBullets > 0)
-                SetPropertyOrField(tpl.Properties, "BuckshotBullets", def.Stats.BuckshotBullets);
+                ReflectionHelper.SetPropertyOrField(tpl.Properties, "BuckshotBullets", def.Stats.BuckshotBullets);
             if (def.Stats.PenetrationPowerDiviation != 0)
-                SetPropertyOrField(tpl.Properties, "PenetrationPowerDiviation", def.Stats.PenetrationPowerDiviation);
+                ReflectionHelper.SetPropertyOrField(tpl.Properties, "PenetrationPowerDiviation", def.Stats.PenetrationPowerDiviation);
             if (def.Stats.HasGrenaderComponent)
-                SetPropertyOrField(tpl.Properties, "HasGrenaderComponent", def.Stats.HasGrenaderComponent);
+                ReflectionHelper.SetPropertyOrField(tpl.Properties, "HasGrenaderComponent", def.Stats.HasGrenaderComponent);
 
-            ApplyCustomPrefabPaths(tpl.Properties, def.CustomModel, def.CustomUsePrefab);
+            ItemHelper.ApplyCustomPrefabPaths(tpl.Properties, def.CustomModel, def.CustomUsePrefab);
         }
 
         return true;
@@ -208,7 +182,7 @@ public static class AmmoManager
     private static bool RegisterAmmoBox(
         AmmoDefinition def,
         CustomItemService customItemService,
-        DatabaseService databaseService,
+        TemplateTable templateTable,
         ISptLogger<AmmoGenPlugin> logger)
     {
         var box = def.AmmoBox;
@@ -221,23 +195,20 @@ public static class AmmoManager
             UsePrefab = null,
         };
 
+        var boxHandbookParentId = ItemHelper.ResolveHandbookParent(templateTable, box.BaseTpl, AmmoBoxParentId);
+
         var details = new NewItemFromCloneDetails
         {
             NewId = box.Id,
+            NewItemName = box.Name,
             ItemTplToClone = box.BaseTpl,
             ParentId = AmmoBoxParentId,
+            HandbookParentId = boxHandbookParentId,
             HandbookPriceRoubles = box.HandbookPriceRoubles,
             FleaPriceRoubles = 0,
+            AddToFleaPriceDb = false,
             OverrideProperties = overrides,
-            Locales = new Dictionary<string, LocaleDetails>
-            {
-                ["en"] = new LocaleDetails
-                {
-                    Name = box.Name,
-                    ShortName = box.ShortName,
-                    Description = box.Description,
-                }
-            },
+            Locales = ItemHelper.CreateEnLocale(box.Name, box.ShortName, box.Description),
         };
 
         var result = customItemService.CreateItemFromClone(details);
@@ -246,13 +217,13 @@ public static class AmmoManager
         {
             logger.LogWithColor(
                 $"[AmmoGen] CreateItemFromClone reported failure for ammo box '{box.Name}': {string.Join(", ", result.Errors ?? [])}",
-                LogTextColor.Yellow);
+                Color.Yellow);
             return false;
         }
 
         try
         {
-            var items = databaseService.GetItems();
+            var items = templateTable.Items;
             if (items.TryGetValue(box.Id, out var boxItem) && boxItem.Properties != null)
             {
                 if (boxItem.Properties.StackSlots is not null)
@@ -274,7 +245,7 @@ public static class AmmoManager
                                     continue;
                                 }
 
-                                filter.Filter = new HashSet<MongoId> { new MongoId(def.Id) };
+                                filter.Filter = [new MongoId(def.Id)];
                             }
                         }
                     }
@@ -283,89 +254,17 @@ public static class AmmoManager
                 boxItem.Properties.RarityPvE = box.RarityPvE;
 
                 if (!string.IsNullOrWhiteSpace(box.BackgroundColor) && box.BackgroundColor != "default")
-                    SetPropertyOrField(boxItem.Properties, "BackgroundColor", FormatBackgroundColor(box.BackgroundColor, box.BackgroundAlpha));
+                    ReflectionHelper.SetPropertyOrField(boxItem.Properties, "BackgroundColor", ItemHelper.FormatBackgroundColor(box.BackgroundColor, box.BackgroundAlpha));
 
-                ApplyCustomPrefabPaths(boxItem.Properties, box.CustomModel, box.CustomUsePrefab);
+                ItemHelper.ApplyCustomPrefabPaths(boxItem.Properties, box.CustomModel, box.CustomUsePrefab);
             }
         }
         catch (Exception ex)
         {
-            logger.LogWithColor($"[AmmoGen] Created ammo box '{box.Name}' but failed to patch StackSlots: {ex.Message}", LogTextColor.Yellow);
+            logger.LogWithColor($"[AmmoGen] Created ammo box '{box.Name}' but failed to patch StackSlots: {ex.Message}", Color.Yellow);
         }
 
         return true;
     }
 
-    private static void ApplyCustomPrefabPaths(TemplateItemProperties properties, string customModel, string customUsePrefab)
-    {
-        if (!string.IsNullOrWhiteSpace(customModel) && properties.Prefab != null)
-            properties.Prefab.Path = customModel;
-        if (!string.IsNullOrWhiteSpace(customUsePrefab) && properties.UsePrefab != null)
-            properties.UsePrefab.Path = customUsePrefab;
-    }
-
-    private static string ResolveHandbookParent(DatabaseService databaseService, string baseTpl)
-    {
-        var items = databaseService.GetItems();
-        if (items.TryGetValue(baseTpl, out var baseItem))
-        {
-            var handbook = databaseService.GetHandbook().Items.FirstOrDefault(h => h.Id == baseTpl);
-            if (handbook != null && !string.IsNullOrWhiteSpace(handbook.ParentId))
-            {
-                return handbook.ParentId;
-            }
-        }
-        return AmmoCategoryParentId;
-    }
-
-    private static void SetPropertyOrField(object target, string name, object value)
-    {
-        var type = target.GetType();
-        var prop = type.GetProperty(name, BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase);
-        if (prop != null && prop.CanWrite)
-        {
-            prop.SetValue(target, ConvertValue(value, prop.PropertyType));
-            return;
-        }
-
-        var field = type.GetField(name, BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase);
-        if (field != null)
-            field.SetValue(target, ConvertValue(value, field.FieldType));
-    }
-
-    private static object? ConvertValue(object value, Type targetType)
-    {
-        var underlyingType = Nullable.GetUnderlyingType(targetType) ?? targetType;
-        if (value.GetType() == underlyingType || value.GetType().IsAssignableTo(underlyingType))
-            return value;
-        return Convert.ChangeType(value, underlyingType);
-    }
-
-    private static string FormatBackgroundColor(string color, double alpha)
-    {
-        if (string.IsNullOrWhiteSpace(color) || color == "default")
-            return "default";
-        if (alpha >= 1)
-            return color;
-
-        var namedMap = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
-        {
-            ["yellow"] = "#ffff00",
-            ["blue"] = "#0000ff",
-            ["green"] = "#00ff00",
-            ["red"] = "#ff0000",
-            ["violet"] = "#ee82ee",
-            ["black"] = "#000000",
-            ["grey"] = "#808080",
-            ["white"] = "#ffffff",
-            ["orange"] = "#ffa500",
-        };
-
-        var baseHex = namedMap.TryGetValue(color, out var hex) ? hex : color;
-        if (!baseHex.StartsWith("#"))
-            baseHex = "#ffffff";
-
-        var alphaByte = (byte)Math.Round(Math.Max(0, Math.Min(1, alpha)) * 255);
-        return $"{baseHex}{alphaByte:x2}";
-    }
 }

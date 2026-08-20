@@ -1,23 +1,24 @@
 using System.Text.Json;
+using Color = Spectre.Console.Color;
+using SPTarkov.Common.Models.Logging;
 using SPTarkov.DI.Annotations;
 using SPTarkov.Server.Core.DI;
 using SPTarkov.Server.Core.Models.Common;
 using SPTarkov.Server.Core.Models.Eft.Common.Tables;
-using SPTarkov.Server.Core.Models.Logging;
-using SPTarkov.Server.Core.Models.Utils;
-using SPTarkov.Server.Core.Services;
+using SPTarkov.Server.Core.Models.Spt.Tables;
+using SPTarkov.Server.Core.Services.Locales;
 using AmmoGen.Models;
 
 namespace AmmoGen.Services;
 
-[Injectable(InjectionType.Singleton, TypePriority = OnLoadOrder.PostSptModLoader + 1)]
+[Injectable(InjectionType.Singleton, TypePriority = OnLoadOrder.PostLoad + 1)]
 public class ModdedItemDumper(
     ISptLogger<ModdedItemDumper> logger,
-    DatabaseService databaseService,
+    TemplateTable templateTable,
     LocaleService localeService)
     : IOnLoad
 {
-    public Task OnLoad()
+    public Task OnLoadAsync(CancellationToken cancellationToken)
     {
         var configPath = System.IO.Path.Combine(Directory.GetCurrentDirectory(), "user", "mods", "AmmoGen", "config", "config.json");
         var config = ModConfig.Load(configPath);
@@ -29,14 +30,14 @@ public class ModdedItemDumper(
         var vanillaItemsPath = System.IO.Path.Combine(Directory.GetCurrentDirectory(), "SPT_Data", "database", "templates", "items.json");
         if (!File.Exists(vanillaItemsPath))
         {
-            logger.LogWithColor($"[AmmoGen] Modded item dump enabled but vanilla items file not found: {vanillaItemsPath}", LogTextColor.Yellow);
+            logger.LogWithColor($"[AmmoGen] Modded item dump enabled but vanilla items file not found: {vanillaItemsPath}", Color.Yellow);
             return Task.CompletedTask;
         }
 
         try
         {
             var vanillaIds = LoadVanillaItemIds(vanillaItemsPath);
-            var currentItems = databaseService.GetItems();
+            var currentItems = templateTable.Items;
             var localeDb = localeService.GetLocaleDb();
             var moddedItems = currentItems
                 .Where(kvp => !vanillaIds.Contains(kvp.Key.ToString()))
@@ -99,11 +100,11 @@ public class ModdedItemDumper(
 
             File.WriteAllText(outputPath, JsonSerializer.Serialize(output, options));
 
-            logger.LogWithColor($"[AmmoGen] Modded item dump written to {outputPath} ({moddedItems.Count} items).", LogTextColor.Green);
+            logger.LogWithColor($"[AmmoGen] Modded item dump written to {outputPath} ({moddedItems.Count} items).", Color.Green);
         }
         catch (Exception ex)
         {
-            logger.LogWithColor($"[AmmoGen] Failed to dump modded items: {ex.Message}", LogTextColor.Red);
+            logger.LogWithColor($"[AmmoGen] Failed to dump modded items: {ex.Message}", Color.Red);
         }
 
         return Task.CompletedTask;

@@ -2,16 +2,16 @@ using System.Reflection;
 using System.Text.Json;
 using SPTarkov.DI.Annotations;
 using SPTarkov.Server.Core.DI;
-using SPTarkov.Server.Core.Helpers;
-using SPTarkov.Server.Core.Models.Logging;
-using SPTarkov.Server.Core.Models.Utils;
+using SPTarkov.Server.Core.Helpers.Server;
+using Color = Spectre.Console.Color;
+using SPTarkov.Common.Models.Logging;
 using AmmoGen.Models;
 using AmmoGen.Validation;
 
 namespace AmmoGen.Services;
 
 // Discovers and loads user-created ammo pack JSON files from AmmoGen/ammo/.
-[Injectable(TypePriority = OnLoadOrder.Database + 1)]
+[Injectable(TypePriority = OnLoadOrder.Preload + 1)]
 public class AmmoLoader(ISptLogger<AmmoLoader> logger, ModHelper modHelper)
 {
     private static readonly JsonSerializerOptions JsonOptions = new()
@@ -33,7 +33,7 @@ public class AmmoLoader(ISptLogger<AmmoLoader> logger, ModHelper modHelper)
         if (!Directory.Exists(ammoDir))
         {
             Directory.CreateDirectory(ammoDir);
-            logger.LogWithColor("[AmmoGen] Created ammo/ directory. Place ammo pack JSON files here.", LogTextColor.Yellow);
+            logger.LogWithColor("[AmmoGen] Created ammo/ directory. Place ammo pack JSON files here.", Color.Yellow);
             return results;
         }
 
@@ -74,36 +74,36 @@ public class AmmoLoader(ISptLogger<AmmoLoader> logger, ModHelper modHelper)
 
             if (pack == null)
             {
-                logger.LogWithColor($"[AmmoGen] Failed to parse '{fileName}': JSON deserialized to null.", LogTextColor.Red);
+                logger.LogWithColor($"[AmmoGen] Failed to parse '{fileName}': JSON deserialized to null.", Color.Red);
                 return null;
             }
 
             if (!pack.Enabled)
             {
-                logger.LogWithColor($"[AmmoGen] Skipping disabled pack '{fileName}'", LogTextColor.Yellow);
+                logger.LogWithColor($"[AmmoGen] Skipping disabled pack '{fileName}'", Color.Yellow);
                 return null;
             }
 
             var errors = AmmoValidator.ValidatePack(pack, fileName);
             if (errors.Count > 0)
             {
-                logger.LogWithColor($"[AmmoGen] Validation errors in '{fileName}':", LogTextColor.Red);
+                logger.LogWithColor($"[AmmoGen] Validation errors in '{fileName}':", Color.Red);
                 foreach (var error in errors)
-                    logger.LogWithColor($"  - {error}", LogTextColor.Red);
+                    logger.LogWithColor($"  - {error}", Color.Red);
                 return null;
             }
 
-            logger.LogWithColor($"[AmmoGen] Loaded pack '{pack.Name}' from '{fileName}' ({pack.Ammo.Count} ammo, {pack.Grenades.Count} grenades)", LogTextColor.Green);
+            logger.LogWithColor($"[AmmoGen] Loaded pack '{pack.Name}' from '{fileName}' ({pack.Ammo.Count} ammo, {pack.Grenades.Count} grenades)", Color.Green);
             return new LoadedPack(pack, jsonFilePath, packFolder);
         }
         catch (JsonException ex)
         {
-            logger.LogWithColor($"[AmmoGen] JSON parse error in '{fileName}': {ex.Message}", LogTextColor.Red);
+            logger.LogWithColor($"[AmmoGen] JSON parse error in '{fileName}': {ex.Message}", Color.Red);
             return null;
         }
         catch (Exception ex)
         {
-            logger.LogWithColor($"[AmmoGen] Error loading '{fileName}': {ex.Message}", LogTextColor.Red);
+            logger.LogWithColor($"[AmmoGen] Error loading '{fileName}': {ex.Message}", Color.Red);
             return null;
         }
     }

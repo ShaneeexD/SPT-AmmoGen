@@ -1,11 +1,11 @@
 using System.Collections;
 using System.Linq;
-using System.Reflection;
 using SPTarkov.Server.Core.Models.Common;
 using SPTarkov.Server.Core.Models.Eft.Common.Tables;
-using SPTarkov.Server.Core.Models.Logging;
-using SPTarkov.Server.Core.Models.Utils;
-using SPTarkov.Server.Core.Services;
+using SPTarkov.Server.Core.Models.Spt.Tables;
+using Color = Spectre.Console.Color;
+using SPTarkov.Common.Models.Logging;
+using AmmoGen.Helpers;
 using AmmoGen.Models;
 
 namespace AmmoGen.Services;
@@ -21,11 +21,11 @@ public static class FilterPatcher
     }
 
     public static void PatchAll(
-        DatabaseService databaseService,
+        TemplateTable templateTable,
         IReadOnlyList<AmmoDefinition> definitions,
         ISptLogger<AmmoGenPlugin> logger)
     {
-        var items = databaseService.GetItems();
+        var items = templateTable.Items;
         var patchedMagazines = 0;
         var patchedWeapons = 0;
         var missing = 0;
@@ -58,33 +58,33 @@ public static class FilterPatcher
             catch (Exception ex)
             {
                 failed++;
-                logger.LogWithColor($"[AmmoGen] Failed to patch filters for '{def.Name}': {ex.Message}", LogTextColor.Red);
+                logger.LogWithColor($"[AmmoGen] Failed to patch filters for '{def.Name}': {ex.Message}", Color.Red);
             }
         }
 
         logger.LogWithColor(
             $"[AmmoGen] Patched {patchedMagazines} magazine(s) and {patchedWeapons} weapon(s) to accept custom ammo.",
-            LogTextColor.Green);
+            Color.Green);
         if (missing > 0)
-            logger.LogWithColor($"[AmmoGen] {missing} filter target(s) were not found in the database.", LogTextColor.Yellow);
+            logger.LogWithColor($"[AmmoGen] {missing} filter target(s) were not found in the database.", Color.Yellow);
         if (failed > 0)
-            logger.LogWithColor($"[AmmoGen] {failed} filter patch attempt(s) failed.", LogTextColor.Red);
+            logger.LogWithColor($"[AmmoGen] {failed} filter patch attempt(s) failed.", Color.Red);
     }
 
     public static void PatchModdedItems(
-        DatabaseService databaseService,
+        TemplateTable templateTable,
         IReadOnlyList<AmmoDefinition> definitions,
         ISptLogger<AmmoGenPlugin> logger)
     {
         var vanillaItemsPath = System.IO.Path.Combine(Directory.GetCurrentDirectory(), "SPT_Data", "database", "templates", "items.json");
         if (!File.Exists(vanillaItemsPath))
         {
-            logger.LogWithColor("[AmmoGen] Modded filter patch skipped: vanilla items file not found.", LogTextColor.Yellow);
+            logger.LogWithColor("[AmmoGen] Modded filter patch skipped: vanilla items file not found.", Color.Yellow);
             return;
         }
 
         var vanillaIds = ModdedItemDumper.LoadVanillaItemIds(vanillaItemsPath);
-        var items = databaseService.GetItems();
+        var items = templateTable.Items;
         var moddedItems = items
             .Where(kvp => !vanillaIds.Contains(kvp.Key.ToString()))
             .Select(kvp => kvp.Value)
@@ -113,13 +113,13 @@ public static class FilterPatcher
             }
             catch (Exception ex)
             {
-                logger.LogWithColor($"[AmmoGen] Failed to patch modded item '{item.Id}': {ex.Message}", LogTextColor.Red);
+                logger.LogWithColor($"[AmmoGen] Failed to patch modded item '{item.Id}': {ex.Message}", Color.Red);
             }
         }
 
         if (patchedItems.Count > 0)
         {
-            logger.LogWithColor($"[AmmoGen] Patched {patchedItems.Count} modded item(s) to accept custom ammo.", LogTextColor.Green);
+            logger.LogWithColor($"[AmmoGen] Patched {patchedItems.Count} modded item(s) to accept custom ammo.", Color.Grey);
         }
     }
 
@@ -166,22 +166,22 @@ public static class FilterPatcher
         {
             foreach (var slot in camoraSlots)
             {
-                var slotProps = GetPropertyOrField(slot, "Properties");
+                var slotProps = ReflectionHelper.GetPropertyOrField(slot, "Properties");
                 if (slotProps == null)
                     continue;
 
-                var filters = GetPropertyOrField(slotProps, "Filters") as IEnumerable;
+                var filters = ReflectionHelper.GetPropertyOrField(slotProps, "Filters") as IEnumerable;
                 if (filters == null)
                     continue;
 
                 foreach (var slotFilter in filters)
                 {
-                    var filterList = GetPropertyOrField(slotFilter, "Filter");
+                    var filterList = ReflectionHelper.GetPropertyOrField(slotFilter, "Filter");
                     if (filterList == null)
                         continue;
 
                     foreach (var ammoId in ammoIds)
-                        AddToFilterList(filterList, ammoId.ToString());
+                        ReflectionHelper.AddToFilterList(filterList, ammoId.ToString());
                 }
             }
             patched = true;
@@ -195,50 +195,21 @@ public static class FilterPatcher
         if (props == null)
             return null;
 
-        var camoras = GetPropertyOrField(props, "Camoras") as IEnumerable;
+        var camoras = ReflectionHelper.GetPropertyOrField(props, "Camoras") as IEnumerable;
         if (camoras != null && camoras.Cast<object>().Any())
             return camoras;
 
-        var slots = GetPropertyOrField(props, "Slots") as IEnumerable;
+        var slots = ReflectionHelper.GetPropertyOrField(props, "Slots") as IEnumerable;
         if (slots == null)
             return null;
 
         var camoraSlots = slots.Cast<object>().Where(s =>
         {
-            var name = GetPropertyOrField(s, "Name") as string;
+            var name = ReflectionHelper.GetPropertyOrField(s, "Name") as string;
             return !string.IsNullOrEmpty(name) && name.StartsWith("camora", StringComparison.OrdinalIgnoreCase);
         }).ToList();
 
         return camoraSlots.Count > 0 ? camoraSlots : null;
-    }
-
-    private static bool AddToFilterList(object filterList, string id)
-    {
-        if (filterList == null)
-            return false;
-
-        var enumerable = filterList as IEnumerable ?? (filterList as IEnumerable<object>);
-        if (enumerable == null)
-            return false;
-
-        var existing = new HashSet<string>(enumerable.Cast<object>().Select(o => o?.ToString() ?? string.Empty));
-        if (existing.Contains(id))
-            return false;
-
-        var type = filterList.GetType();
-        var elementType = type.IsGenericType
-            ? type.GetGenericArguments()[0]
-            : typeof(object);
-        var value = elementType == typeof(MongoId) || elementType.IsAssignableFrom(typeof(MongoId))
-            ? (object)new MongoId(id)
-            : id;
-
-        var addMethod = type.GetMethod("Add", BindingFlags.Public | BindingFlags.Instance, null, new[] { elementType }, null);
-        if (addMethod == null)
-            return false;
-
-        addMethod.Invoke(filterList, new[] { value });
-        return true;
     }
 
     private static bool PatchModdedItem(
@@ -292,17 +263,17 @@ public static class FilterPatcher
         var itemId = item.Id.ToString();
         foreach (var slot in camoraSlots)
         {
-            var slotProps = GetPropertyOrField(slot, "Properties");
+            var slotProps = ReflectionHelper.GetPropertyOrField(slot, "Properties");
             if (slotProps == null)
                 continue;
 
-            var filters = GetPropertyOrField(slotProps, "Filters") as IEnumerable;
+            var filters = ReflectionHelper.GetPropertyOrField(slotProps, "Filters") as IEnumerable;
             if (filters == null)
                 continue;
 
             foreach (var slotFilter in filters)
             {
-                var filterList = GetPropertyOrField(slotFilter, "Filter");
+                var filterList = ReflectionHelper.GetPropertyOrField(slotFilter, "Filter");
                 if (filterList == null)
                     continue;
 
@@ -314,7 +285,7 @@ public static class FilterPatcher
                 {
                     if (IsExcluded(ammo, itemId, "Chambers"))
                         continue;
-                    if (AddToFilterList(filterList, ammo.Id))
+                    if (ReflectionHelper.AddToFilterList(filterList, ammo.Id))
                         patched = true;
                 }
             }
@@ -345,7 +316,7 @@ public static class FilterPatcher
         var matching = new List<AmmoDefinition>();
         foreach (var kvp in baseTplMap)
         {
-            if (FilterListContains(filterList, kvp.Key))
+            if (ReflectionHelper.FilterListContains(filterList, kvp.Key))
             {
                 matching.AddRange(kvp.Value);
             }
@@ -363,26 +334,4 @@ public static class FilterPatcher
         return exclusions.Any(e => e.Equals(itemId, StringComparison.OrdinalIgnoreCase));
     }
 
-    private static bool FilterListContains(object filterList, string id)
-    {
-        if (filterList == null)
-            return false;
-
-        var enumerable = filterList as IEnumerable ?? (filterList as IEnumerable<object>);
-        if (enumerable == null)
-            return false;
-
-        return enumerable.Cast<object>().Any(o => (o?.ToString() ?? string.Empty).Equals(id, StringComparison.OrdinalIgnoreCase));
-    }
-
-    private static object? GetPropertyOrField(object target, string name)
-    {
-        var type = target.GetType();
-        var prop = type.GetProperty(name, BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase);
-        if (prop != null)
-            return prop.GetValue(target);
-
-        var field = type.GetField(name, BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase);
-        return field?.GetValue(target);
-    }
 }

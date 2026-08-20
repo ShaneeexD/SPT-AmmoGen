@@ -23,7 +23,7 @@ public class AmmoPackDefinition
     public List<FlareDefinition> Flares { get; set; } = [];
 }
 
-public class AmmoDefinition
+public class AmmoDefinition : ICraftable, ITradable
 {
     // Unique 24-character hex ID for the new ammo item.
     [JsonPropertyName("id")]
@@ -248,7 +248,7 @@ public class LootEntry
     [JsonPropertyName("rarity")] public string Rarity { get; set; } = "Rare";
 }
 
-public class GrenadeDefinition
+public class GrenadeDefinition : ICraftable, ITradable, ILootable
 {
     [JsonPropertyName("id")] public string Id { get; set; } = string.Empty;
     [JsonPropertyName("enabled")] public bool Enabled { get; set; } = true;
@@ -324,7 +324,7 @@ public class SmokeSettingsConfig
     [JsonPropertyName("smokeStartSpeed")] public List<SmokeSpeedRange> SmokeStartSpeed { get; set; } = [];
 }
 
-public class FlareDefinition
+public class FlareDefinition : ICraftable, ITradable, ILootable
 {
     [JsonPropertyName("id")] public string Id { get; set; } = string.Empty;
     [JsonPropertyName("ammoId")] public string AmmoId { get; set; } = string.Empty;

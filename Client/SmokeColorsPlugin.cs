@@ -6,6 +6,7 @@ using System.Linq;
 using System.Runtime.CompilerServices;
 using BepInEx.Logging;
 using EFT;
+using EFT.Ballistics;
 using EFT.InventoryLogic;
 using EFT.PrefabSettings;
 using HarmonyLib;
@@ -110,7 +111,7 @@ public static class SmokeColorManager
         {
             LogInfo($"[AmmoGen Client] Loading flare colors from packs in {packFolder}");
 
-            foreach (var file in Directory.GetFiles(packFolder, "*.json", SearchOption.TopDirectoryOnly))
+            foreach (var file in Directory.GetFiles(packFolder, "*.json", SearchOption.AllDirectories))
             {
                 try
                 {
@@ -205,7 +206,7 @@ public static class SmokeColorManager
         if (parent != null)
             AddCandidate(parent.FullName);
 
-        foreach (var child in new[] { "SPT", "Server", "spt" })
+        foreach (var child in new[] { "SPT", "Server", "spt", "SPT_Runtime" })
             AddCandidate(Path.Combine(root, child));
 
         LogInfo($"[AmmoGen Client] Searching for {relativePath} in:");
@@ -258,7 +259,7 @@ public static class SmokeColorManager
         {
             LogInfo($"[AmmoGen Client] Loading colors from packs in {packFolder}");
 
-            foreach (var file in Directory.GetFiles(packFolder, "*.json", SearchOption.TopDirectoryOnly))
+            foreach (var file in Directory.GetFiles(packFolder, "*.json", SearchOption.AllDirectories))
             {
                 try
                 {
@@ -333,7 +334,7 @@ public static class SmokeColorManager
     [HarmonyPatch(typeof(GrenadeEmission), nameof(GrenadeEmission.AttachTo))]
     public static class GrenadeEmissionAttachPatch
     {
-        public static void Postfix(GrenadeEmission __instance, Transform t)
+        public static void Postfix(GrenadeEmission __instance, Transform t, Vector3 offset)
         {
             if (t == null)
                 return;
@@ -349,17 +350,21 @@ public static class SmokeColorManager
                 ApplySmokeSettings(grenade, __instance, settings);
 
             if (templateId == null || !SmokeColors.TryGetValue(templateId, out var color))
+            {
+                LogInfo($"[AmmoGen Client] No smoke color found for template {templateId}. SmokeColors count: {SmokeColors.Count}.");
                 return;
+            }
 
             EmissionColors[__instance] = color;
             ApplySmokeColor(__instance.gameObject, color);
+            LogInfo($"[AmmoGen Client] Stored smoke color {ColorUtility.ToHtmlStringRGB(color)} for emission. EmissionColors count: {EmissionColors.Count}.");
         }
     }
 
     [HarmonyPatch(typeof(GrenadeEmission), nameof(GrenadeEmission.StartEmission))]
     public static class GrenadeEmissionStartPatch
     {
-        public static void Postfix(GrenadeEmission __instance)
+        public static void Postfix(GrenadeEmission __instance, float prewarm)
         {
             if (!EmissionColors.TryGetValue(__instance, out var color))
                 return;
@@ -369,10 +374,51 @@ public static class SmokeColorManager
         }
     }
 
+    [HarmonyPatch(typeof(GrenadeEmission), nameof(GrenadeEmission.LateUpdate))]
+    public static class GrenadeEmissionLateUpdatePatch
+    {
+        private static float _lastLogTime;
+        public static void Postfix(GrenadeEmission __instance)
+        {
+            if (!EmissionColors.TryGetValue(__instance, out var color))
+                return;
+
+            ApplySmokeColor(__instance.gameObject, color);
+
+            if (Time.time - _lastLogTime > 2f)
+            {
+                _lastLogTime = Time.time;
+                LogInfo($"[AmmoGen Client] LateUpdate reapplying smoke color {ColorUtility.ToHtmlStringRGB(color)} to {__instance.name}. EmissionColors count: {EmissionColors.Count}.");
+            }
+        }
+    }
+
+    [HarmonyPatch(typeof(GrenadeEmission), nameof(GrenadeEmission.UpdateSmokeCoef))]
+    public static class GrenadeEmissionUpdateSmokeCoefPatch
+    {
+        public static void Postfix(GrenadeEmission __instance)
+        {
+            if (!EmissionColors.TryGetValue(__instance, out var color))
+                return;
+
+            ApplySmokeColor(__instance.gameObject, color);
+        }
+    }
+
+    [HarmonyPatch(typeof(GrenadeEmission), nameof(GrenadeEmission.Clear))]
+    public static class GrenadeEmissionClearPatch
+    {
+        public static void Postfix(GrenadeEmission __instance)
+        {
+            EmissionColors.Remove(__instance);
+            LogInfo($"[AmmoGen Client] GrenadeEmission cleared. EmissionColors count: {EmissionColors.Count}.");
+        }
+    }
+
     [HarmonyPatch(typeof(SmokeGrenade), nameof(SmokeGrenade.Init))]
     public static class SmokeGrenadeInitPatch
     {
-        public static void Postfix(SmokeGrenade __instance, ThrowWeapItemClass throwWeap)
+        public static void Postfix(SmokeGrenade __instance, GrenadeSettings settings, string profileId, ThrowWeap throwWeap, float timeSpent, IBallisticsCalculator calculator, bool isBeingPlanted)
         {
             if (throwWeap == null)
             {
@@ -479,7 +525,7 @@ public static class SmokeColorManager
     {
         try
         {
-            var sgs = grenade.SmokeGrenadeSettings_0;
+            var sgs = grenade._smokeGrenadeSettings;
             if (sgs != null)
             {
                 if (settings.SmokeRadius != 0)
@@ -551,86 +597,6 @@ public static class SmokeColorManager
         [JsonProperty("y")] public float Y;
     }
 
-    // Maps live FlareCartridge instances to their source ammo item so the visual effect can be customized by template ID.
-    public static class FlareItemTracker
-    {
-        internal static readonly ConditionalWeakTable<FlareCartridge, AmmoItemClass> FlareItems = new();
-    }
-
-    [HarmonyPatch(typeof(FlareCartridge), "Init")]
-    public static class FlareCartridgeInitPatch
-    {
-        public static void Postfix(FlareCartridge __instance, AmmoItemClass flareCartridge)
-        {
-            if (__instance == null || flareCartridge == null)
-                return;
-
-            try
-            {
-                FlareItemTracker.FlareItems.Add(__instance, flareCartridge);
-                LogInfo($"[AmmoGen Client] Tracked flare cartridge {flareCartridge.TemplateId}.");
-            }
-            catch (Exception ex)
-            {
-                Log.LogError($"[AmmoGen Client] Failed to track flare cartridge: {ex.Message}");
-            }
-        }
-    }
-
-    [HarmonyPatch(typeof(FlareShotEffectSelector), nameof(FlareShotEffectSelector.SetFlareEffect))]
-    public static class FlareShotEffectColorPatch
-    {
-        public static void Postfix(FlareShotEffectSelector __instance, FlareColorType flareColorType, float lifetime)
-        {
-            if (__instance == null)
-                return;
-
-            try
-            {
-                // Find the owning FlareCartridge to get the template ID.
-                var flareCartridge = __instance.GetComponentInParent<FlareCartridge>();
-                if (flareCartridge == null)
-                {
-                    Log.LogWarning("[AmmoGen Client] FlareShotEffectSelector has no parent FlareCartridge.");
-                    return;
-                }
-
-                if (!FlareItemTracker.FlareItems.TryGetValue(flareCartridge, out var ammoItem) || ammoItem == null)
-                {
-                    Log.LogWarning("[AmmoGen Client] No tracked ammo item for FlareCartridge.");
-                    return;
-                }
-
-                var templateId = ammoItem.TemplateId.ToString().ToLowerInvariant();
-                if (!FlareColors.TryGetValue(templateId, out var color))
-                    return;
-
-                var flareLight = Traverse.Create(__instance).Field("_flareLight").GetValue<Light>();
-                var flareParticles = Traverse.Create(__instance).Field("_flareParticleSystem").GetValue<ParticleSystem>();
-                var smokeParticles = Traverse.Create(__instance).Field("_smokeParticleSystem").GetValue<ParticleSystem>();
-
-                if (flareLight != null)
-                {
-                    flareLight.color = color;
-                    LogInfo($"[AmmoGen Client] Applied flare light color {ColorUtility.ToHtmlStringRGB(color)} to {templateId}.");
-                }
-
-                if (flareParticles != null)
-                {
-                    var main = flareParticles.main;
-                    main.startColor = new ParticleSystem.MinMaxGradient(color);
-                }
-
-                if (smokeParticles != null)
-                {
-                    var main = smokeParticles.main;
-                    main.startColor = new ParticleSystem.MinMaxGradient(color);
-                }
-            }
-            catch (Exception ex)
-            {
-                Log.LogError($"[AmmoGen Client] Failed to apply flare color: {ex.Message}");
-            }
-        }
-    }
+    // FlareCartridge and FlareShotEffectSelector types no longer exist in SPT 4.1.0.
+    // Flare color patches have been removed.
 }
