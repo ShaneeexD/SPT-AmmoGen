@@ -331,6 +331,25 @@ public static class SmokeColorManager
         return false;
     }
 
+    internal static bool ResolveSmokeColor(GrenadeEmission emission, out Color color)
+    {
+        color = default;
+
+        var grenade = emission.GetComponentInParent<SmokeGrenade>() ?? emission.GetComponent<SmokeGrenade>();
+        if (grenade == null)
+            return false;
+
+        var templateId = grenade.WeaponSource?.TemplateId.ToString().ToLowerInvariant();
+        if (string.IsNullOrWhiteSpace(templateId))
+            return false;
+
+        if (SmokeColors.TryGetValue(templateId, out color))
+            return true;
+
+        LogInfo($"[AmmoGen Client] No smoke color found for template {templateId}.");
+        return false;
+    }
+
     [HarmonyPatch(typeof(GrenadeEmission), nameof(GrenadeEmission.AttachTo))]
     public static class GrenadeEmissionAttachPatch
     {
@@ -339,7 +358,7 @@ public static class SmokeColorManager
             if (t == null)
                 return;
 
-            var grenade = t.GetComponent<SmokeGrenade>();
+            var grenade = t.GetComponent<SmokeGrenade>() ?? t.GetComponentInParent<SmokeGrenade>() ?? t.GetComponentInChildren<SmokeGrenade>();
             if (grenade == null)
                 return;
 
@@ -361,15 +380,41 @@ public static class SmokeColorManager
         }
     }
 
+    [HarmonyPatch(typeof(GrenadeEmission), nameof(GrenadeEmission.AddMaterials))]
+    public static class GrenadeEmissionAddMaterialsPatch
+    {
+        public static void Postfix(GrenadeEmission __instance)
+        {
+            if (!EmissionColors.TryGetValue(__instance, out var color))
+            {
+                if (!SmokeColorManager.ResolveSmokeColor(__instance, out color))
+                    return;
+
+                EmissionColors[__instance] = color;
+                LogInfo($"[AmmoGen Client] Resolved smoke color for {__instance.name} in AddMaterials.");
+            }
+
+            ApplySmokeColor(__instance.gameObject, color);
+            ApplyColorToGameMaterials(__instance, color);
+        }
+    }
+
     [HarmonyPatch(typeof(GrenadeEmission), nameof(GrenadeEmission.StartEmission))]
     public static class GrenadeEmissionStartPatch
     {
         public static void Postfix(GrenadeEmission __instance, float prewarm)
         {
             if (!EmissionColors.TryGetValue(__instance, out var color))
-                return;
+            {
+                if (!SmokeColorManager.ResolveSmokeColor(__instance, out color))
+                    return;
+
+                EmissionColors[__instance] = color;
+                LogInfo($"[AmmoGen Client] Resolved smoke color for {__instance.name} from parent SmokeGrenade.");
+            }
 
             ApplySmokeColor(__instance.gameObject, color);
+            ApplyColorToGameMaterials(__instance, color);
             LogInfo($"[AmmoGen Client] Applied smoke color {ColorUtility.ToHtmlStringRGB(color)} to GrenadeEmission {__instance.name}.");
         }
     }
@@ -381,7 +426,13 @@ public static class SmokeColorManager
         public static void Postfix(GrenadeEmission __instance)
         {
             if (!EmissionColors.TryGetValue(__instance, out var color))
-                return;
+            {
+                if (!SmokeColorManager.ResolveSmokeColor(__instance, out color))
+                    return;
+
+                EmissionColors[__instance] = color;
+                LogInfo($"[AmmoGen Client] Resolved smoke color for {__instance.name} in LateUpdate.");
+            }
 
             ApplySmokeColor(__instance.gameObject, color);
 
@@ -481,19 +532,48 @@ public static class SmokeColorManager
                 var main = ps.main;
                 main.startColor = color;
 
-                var psRenderer = ps.GetComponent<Renderer>();
+                var psRenderer = ps.GetComponent<ParticleSystemRenderer>();
                 if (psRenderer != null)
-                    ApplyColorToMaterial(psRenderer.material, color);
-            }
-
-            foreach (var renderer in go.GetComponentsInChildren<Renderer>(true))
-            {
-                ApplyColorToMaterial(renderer.material, color);
+                {
+                    if (psRenderer.material != null)
+                        ApplyColorToMaterial(psRenderer.material, color);
+                    if (psRenderer.trailMaterial != null)
+                        ApplyColorToMaterial(psRenderer.trailMaterial, color);
+                }
             }
         }
         catch (Exception ex)
         {
             Log.LogError($"[AmmoGen Client] Failed to apply smoke color: {ex.Message}");
+        }
+    }
+
+    private static void ApplyColorToGameMaterials(GrenadeEmission emission, Color color)
+    {
+        try
+        {
+            var materialsField = typeof(GrenadeEmission).GetField("_particleSystemsMaterials", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+            if (materialsField == null)
+                return;
+
+            var materialsList = materialsField.GetValue(emission) as System.Collections.IList;
+            if (materialsList == null)
+                return;
+
+            var materialField = materialsList.GetType().GetGenericArguments()[0].GetField("Material", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public);
+            if (materialField == null)
+                return;
+
+            foreach (var psMaterial in materialsList)
+            {
+                var material = materialField.GetValue(psMaterial) as Material;
+                if (material != null)
+                    ApplyColorToMaterial(material, color);
+            }
+        }
+        catch (Exception ex)
+        {
+            LogInfo($"[AmmoGen Client] ApplyColorToGameMaterials skipped: {ex.Message}");
         }
     }
 
@@ -513,7 +593,7 @@ public static class SmokeColorManager
         if (material == null)
             return;
 
-        var properties = new[] { "_Color", "_TintColor", "_MainColor", "_EmissionColor", "_BaseColor", "_SmokeColor" };
+        var properties = new[] { "_Color", "_TintColor", "_MainColor", "_EmissionColor", "_BaseColor", "_SmokeColor", "_IndoorTintColor", "_OutdoorTintColor", "_CloudColor", "_CloudColor2", "_Color0", "_Color1", "_Color2", "_ParticleColor", "_Tint" };
         foreach (var prop in properties)
         {
             if (material.HasProperty(prop))
